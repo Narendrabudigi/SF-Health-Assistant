@@ -71,6 +71,14 @@ export const SF_MODULES = [
         standard: '≤ 5.0%',
         status: 'Critical',
         variance: '+13.5% (+270%)'
+      },
+      {
+        metric: 'Employee Profile & Address Completeness',
+        category: 'Core Data Quality',
+        company: '98.6%',
+        standard: '≥ 95.0%',
+        status: 'Healthy',
+        variance: '+3.6% (On Target)'
       }
     ]
   },
@@ -141,6 +149,14 @@ export const SF_MODULES = [
         standard: '≥ 90.0%',
         status: 'At Risk',
         variance: '-15.5% (-17.2%)'
+      },
+      {
+        metric: 'Career Portal Availability & Uptime',
+        category: 'Portal Infrastructure',
+        company: '99.8%',
+        standard: '≥ 99.5%',
+        status: 'Healthy',
+        variance: '+0.3% (On Target)'
       }
     ]
   },
@@ -211,6 +227,14 @@ export const SF_MODULES = [
         standard: '≥ 90.0%',
         status: 'At Risk',
         variance: '-1.5% (-1.7%)'
+      },
+      {
+        metric: 'Digital Document E-Signature Turnaround',
+        category: 'DocuSign / e-Sign SLA',
+        company: '1.2 Days',
+        standard: '≤ 2.0 Days',
+        status: 'Healthy',
+        variance: '-0.8 Days (Optimal)'
       }
     ]
   },
@@ -281,6 +305,14 @@ export const SF_MODULES = [
         standard: '≥ 75.0%',
         status: 'At Risk',
         variance: '-7.0% (-9.3%)'
+      },
+      {
+        metric: 'Separation Document Archival Compliance',
+        category: 'Audit & Records Retention',
+        company: '99.4%',
+        standard: '≥ 98.0%',
+        status: 'Healthy',
+        variance: '+1.4% (On Target)'
       }
     ]
   }

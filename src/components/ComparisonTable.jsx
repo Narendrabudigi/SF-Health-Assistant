@@ -2,15 +2,23 @@ import React, { useState } from 'react';
 
 export default function ComparisonTable({ module, standardMode = 'standard' }) {
   const { benchmarks } = module;
-  const [filterMode, setFilterMode] = useState('all'); // 'all' | 'critical' | 'at-risk'
+  const [filterMode, setFilterMode] = useState('all'); // 'all' | 'critical' | 'at-risk' | 'healthy'
 
   const isCustom = standardMode === 'custom';
 
   const filteredBenchmarks = benchmarks.filter(row => {
     if (filterMode === 'critical') return row.status === 'Critical';
     if (filterMode === 'at-risk') return row.status === 'At Risk';
+    if (filterMode === 'healthy') return row.status === 'Healthy';
     return true;
   });
+
+  const getBadgeClass = (status) => {
+    if (status === 'Critical') return 'badge-critical';
+    if (status === 'At Risk') return 'badge-at-risk';
+    if (status === 'Healthy') return 'badge-healthy';
+    return 'badge-at-risk';
+  };
 
   return (
     <div className="white-panel comparison-panel">
@@ -21,26 +29,33 @@ export default function ComparisonTable({ module, standardMode = 'standard' }) {
         </h2>
 
         <div className="pill-filter-group">
-          <button 
-            type="button" 
+          <button
+            type="button"
             className={`pill-filter-btn ${filterMode === 'all' ? 'active' : ''}`}
             onClick={() => setFilterMode('all')}
           >
             All
           </button>
-          <button 
-            type="button" 
+          <button
+            type="button"
             className={`pill-filter-btn ${filterMode === 'critical' ? 'active' : ''}`}
             onClick={() => setFilterMode('critical')}
           >
             Critical
           </button>
-          <button 
-            type="button" 
+          <button
+            type="button"
             className={`pill-filter-btn ${filterMode === 'at-risk' ? 'active' : ''}`}
             onClick={() => setFilterMode('at-risk')}
           >
             At Risk
+          </button>
+          <button
+            type="button"
+            className={`pill-filter-btn ${filterMode === 'healthy' ? 'active' : ''}`}
+            onClick={() => setFilterMode('healthy')}
+          >
+            Healthy
           </button>
         </div>
       </div>
@@ -68,7 +83,6 @@ export default function ComparisonTable({ module, standardMode = 'standard' }) {
               </tr>
             ) : (
               filteredBenchmarks.map((row, idx) => {
-                const isCritical = row.status === 'Critical';
                 return (
                   <tr key={idx}>
                     {/* METRIC */}
@@ -89,7 +103,7 @@ export default function ComparisonTable({ module, standardMode = 'standard' }) {
 
                     {/* HEALTHY STATE */}
                     <td className="td-status text-center">
-                      <span className={`pill-badge ${isCritical ? 'badge-critical' : 'badge-at-risk'}`}>
+                      <span className={`pill-badge ${getBadgeClass(row.status)}`}>
                         {row.status}
                       </span>
                     </td>
