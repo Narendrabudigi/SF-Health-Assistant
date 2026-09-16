@@ -1,6 +1,6 @@
 /**
  * Pixel-Perfect Mock Data Matching the User's Screenshot Design:
- * Order: Employee Central, Recruitment, Onboarding, Offboarding, Employee Central Payroll
+ * Order: Employee Central, Recruitment, Onboarding, Offboarding
  */
 
 export const SF_MODULES = [
@@ -281,76 +281,6 @@ export const SF_MODULES = [
         standard: '≥ 75.0%',
         status: 'At Risk',
         variance: '-7.0% (-9.3%)'
-      }
-    ]
-  },
-  {
-    id: 'ecp',
-    name: 'Employee Central Payroll',
-    status: 'Critical',
-    iconType: 'credit-card',
-    iconColor: '#16a34a', // Forest Green
-    iconBg: '#16a34a',
-    description: 'Off-cycle correction runs and data replication errors from core HR are causing avoidable payroll rework.',
-    aiReport: {
-      summary: 'Employee Central Payroll shows 6 off-cycle correction runs per month (vs ≤ 2.0 benchmark). High volume of retroactive compensation edits and unvalidated Infotype replications during payroll freeze windows drive substantial operational rework.',
-      issues: [
-        {
-          title: 'Off-Cycle Payroll Runs',
-          tag: 'Gross-to-Net Variance & Adjustments',
-          status: 'Critical',
-          description: '6 monthly off-cycle runs triggered by retroactive salary and bank account updates.'
-        },
-        {
-          title: 'PTP Replication Integrity',
-          tag: 'Point-to-Point Middleware (EC to ECP)',
-          status: 'Critical',
-          description: 'Validation failures on Infotype 0008 and 0014 hold up batch calculation threads.'
-        }
-      ],
-      whyItHappens: [
-        'Absence of automated payroll freeze locks on Employee Central master data 72h before cut-off.',
-        'Time & Attendance unapproved timesheets pushing retroactive corrections into active pay runs.',
-        'Manual intervention required for country-specific statutory tax recalculations.'
-      ],
-      howToImprove: [
-        'Implement Payroll Control Center (PCC) automated pre-run validation 5 days prior to settlement.',
-        'Enforce automated system cut-off freezes in EC via Business Rules for compensation fields.',
-        'Deploy AI anomaly detection on gross-to-net variations exceeding a 5% threshold.'
-      ]
-    },
-    benchmarks: [
-      {
-        metric: 'Off-cycle Correction Runs',
-        category: 'Payroll Cycle Governance',
-        company: '6 Runs/mo',
-        standard: '≤ 2.0 Runs/mo',
-        status: 'Critical',
-        variance: '+4.0 Runs (+200%)'
-      },
-      {
-        metric: 'Point-to-Point Replication Errors',
-        category: 'Data Replication Health',
-        company: '8.4%',
-        standard: '≤ 1.5%',
-        status: 'Critical',
-        variance: '+6.9% (+460%)'
-      },
-      {
-        metric: 'Retroactive Payroll Recalculations',
-        category: 'Variance Overhead',
-        company: '5.2%',
-        standard: '≤ 2.0%',
-        status: 'Critical',
-        variance: '+3.2% (+160%)'
-      },
-      {
-        metric: 'First-Pass Payroll Settlement Rate',
-        category: 'Operational Accuracy',
-        company: '92.1%',
-        standard: '≥ 98.5%',
-        status: 'At Risk',
-        variance: '-6.4% (-6.5%)'
       }
     ]
   }

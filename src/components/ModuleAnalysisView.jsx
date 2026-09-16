@@ -2,7 +2,7 @@ import React from 'react';
 import GenAIReport from './GenAIReport';
 import ComparisonTable from './ComparisonTable';
 
-export default function ModuleAnalysisView({ module }) {
+export default function ModuleAnalysisView({ module, standardMode = 'standard' }) {
   if (!module) return null;
 
   return (
@@ -12,9 +12,9 @@ export default function ModuleAnalysisView({ module }) {
         <GenAIReport module={module} />
       </section>
 
-      {/* Right Half: Company vs. Industry Standards */}
-      <section className="analysis-grid-col" aria-label="Company vs. Industry Standards">
-        <ComparisonTable module={module} />
+      {/* Right Half: Company vs. Industry/Custom Standards */}
+      <section className="analysis-grid-col" aria-label="Company vs. Standards">
+        <ComparisonTable module={module} standardMode={standardMode} />
       </section>
     </div>
   );

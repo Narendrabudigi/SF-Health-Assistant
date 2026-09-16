@@ -1,14 +1,38 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 export default function ModuleRibbon({ 
   modules, 
   activeModuleId, 
   onSelectModule, 
   onGoHome,
-  onOpenConnectSystem,
-  isConnected
+  standardMode = 'standard',
+  onSelectStandardMode
 }) {
+  const [isShaking, setIsShaking] = useState(false);
   const activeModule = modules.find(m => m.id === activeModuleId);
+
+  const triggerShake = () => {
+    setIsShaking(true);
+    setTimeout(() => setIsShaking(false), 450);
+  };
+
+  const handleToggleClick = () => {
+    if (standardMode === 'standard') {
+      triggerShake();
+      onSelectStandardMode('custom');
+    } else {
+      onSelectStandardMode('standard');
+    }
+  };
+
+  const handleCustomClick = () => {
+    triggerShake();
+    onSelectStandardMode('custom');
+  };
+
+  const handleIndustrialClick = () => {
+    onSelectStandardMode('standard');
+  };
 
   return (
     <nav className="dark-sub-ribbon" aria-label="Module Navigation Ribbon">
@@ -45,7 +69,7 @@ export default function ModuleRibbon({
           })}
         </div>
 
-        {/* Right Area: Status Badge + Connect System Option */}
+        {/* Right Area: Status Badge + Industrial vs. Custom Standards Switch */}
         <div className="ribbon-right-controls">
           {activeModule && (
             <div className="ribbon-status-area">
@@ -56,15 +80,42 @@ export default function ModuleRibbon({
             </div>
           )}
 
-          {/* Connect System on the Right Top Ribbon */}
-          <button 
-            className={`ribbon-connect-btn ${isConnected ? 'is-connected' : ''}`}
-            onClick={onOpenConnectSystem}
-            title={isConnected ? "System Connected to SAP SuccessFactors" : "Connect SAP SuccessFactors System"}
-          >
-            <span className={`status-pulse-dot ${isConnected ? 'dot-online' : ''}`}></span>
-            <span>{isConnected ? 'System Connected' : '+ Connect System'}</span>
-          </button>
+          {/* External Labels: Industrial Standards & Custom Standards with Toggle Switch */}
+          <div className="standards-toggle-wrapper" aria-label="Standards Selector">
+            <span 
+              className={`standards-toggle-label ${standardMode === 'standard' ? 'active' : ''}`}
+              onClick={handleIndustrialClick}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === 'Enter' && handleIndustrialClick()}
+              title="Industrial Standards"
+            >
+              Industrial Standards
+            </span>
+
+            <button 
+              type="button"
+              className={`standards-switch-btn ${standardMode === 'custom' ? 'checked' : ''} ${isShaking ? 'shake-anim' : ''}`}
+              onClick={handleToggleClick}
+              role="switch"
+              aria-checked={standardMode === 'custom'}
+              title="Toggle standards mode"
+              aria-label="Toggle between Industrial Standards and Custom Standards"
+            >
+              <span className="standards-switch-thumb"></span>
+            </button>
+
+            <span 
+              className={`standards-toggle-label ${standardMode === 'custom' ? 'active' : ''}`}
+              onClick={handleCustomClick}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === 'Enter' && handleCustomClick()}
+              title="Custom Standards (Upload required)"
+            >
+              Custom Standards
+            </span>
+          </div>
         </div>
       </div>
     </nav>

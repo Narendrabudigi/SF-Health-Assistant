@@ -10,7 +10,7 @@ export default function Navbar({ onGoHome, onOpenConnectSystem, isConnected }) {
             <img src="/yash-logo.svg" alt="YASH Technologies" className="yash-logo-img" />
           </div>
           <div className="brand-divider"></div>
-          <h1 className="brand-app-title">SuccessFactors</h1>
+          <h1 className="brand-app-title">SAP SuccessFactors</h1>
         </div>
 
         {/* Right: Connect System Option */}

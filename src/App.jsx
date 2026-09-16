@@ -4,6 +4,7 @@ import ModuleRibbon from './components/ModuleRibbon';
 import HomeDashboard from './components/HomeDashboard';
 import ModuleAnalysisView from './components/ModuleAnalysisView';
 import ConnectSystemModal from './components/ConnectSystemModal';
+import ToastNotification from './components/ToastNotification';
 import { SF_MODULES } from './data/modulesData';
 import './index.css';
 
@@ -11,6 +12,10 @@ export default function App() {
   // activeModuleId: null indicates Overview/Home, string ID indicates module analysis view
   const [activeModuleId, setActiveModuleId] = useState(null);
   
+  // Benchmark Standards Toggle: 'standard' | 'custom'
+  const [standardMode, setStandardMode] = useState('standard');
+  const [toast, setToast] = useState(null);
+
   // System Connection State
   const [isSystemConnected, setIsSystemConnected] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -26,6 +31,19 @@ export default function App() {
   const handleGoHome = () => {
     setActiveModuleId(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleSelectStandardMode = (mode) => {
+    if (mode === 'custom') {
+      // Since no file has been uploaded, do not toggle to custom
+      setToast({
+        id: Date.now(),
+        type: 'warning',
+        message: 'Please upload your standards for reporting'
+      });
+      return;
+    }
+    setStandardMode('standard');
   };
 
   const handleConnectSuccess = (details) => {
@@ -47,22 +65,22 @@ export default function App() {
         isConnected={isSystemConnected}
       />
 
-      {/* 2. Sub-Ribbon: Shown when inside a module, with Connect Option on the right */}
+      {/* 2. Sub-Ribbon: Shown when inside a module, with Standard/Custom toggle */}
       {activeModule && (
         <ModuleRibbon 
           modules={SF_MODULES} 
           activeModuleId={activeModuleId} 
           onSelectModule={handleSelectModule} 
           onGoHome={handleGoHome}
-          onOpenConnectSystem={() => setIsModalOpen(true)}
-          isConnected={isSystemConnected}
+          standardMode={standardMode}
+          onSelectStandardMode={handleSelectStandardMode}
         />
       )}
 
       {/* 3. Main View Area */}
       <main className="content-viewport">
         {activeModule ? (
-          <ModuleAnalysisView module={activeModule} />
+          <ModuleAnalysisView module={activeModule} standardMode={standardMode} />
         ) : (
           <HomeDashboard 
             modules={SF_MODULES} 
@@ -78,6 +96,12 @@ export default function App() {
         isConnected={isSystemConnected}
         onConnect={handleConnectSuccess}
         onDisconnect={handleDisconnect}
+      />
+
+      {/* 5. Warning Toast Notification (bottom-right) */}
+      <ToastNotification 
+        toast={toast} 
+        onClose={() => setToast(null)} 
       />
     </div>
   );

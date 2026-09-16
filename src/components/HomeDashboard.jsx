@@ -36,13 +36,6 @@ function ModuleIcon({ type }) {
           <line x1="23" y1="11" x2="17" y2="11"></line>
         </svg>
       );
-    case 'credit-card': // Employee Central Payroll (green)
-      return (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
-          <line x1="1" y1="10" x2="23" y2="10"></line>
-        </svg>
-      );
     default:
       return null;
   }
@@ -59,7 +52,7 @@ export default function HomeDashboard({ modules, onSelectModule }) {
         </p>
       </div>
 
-      {/* 5 Neat Cards in a row */}
+      {/* 4 Clean Module Cards */}
       <div className="module-cards-row">
         {modules.map((mod) => {
           const isCritical = mod.status === 'Critical';

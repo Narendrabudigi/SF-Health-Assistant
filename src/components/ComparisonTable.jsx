@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 
-export default function ComparisonTable({ module }) {
+export default function ComparisonTable({ module, standardMode = 'standard' }) {
   const { benchmarks } = module;
   const [filterMode, setFilterMode] = useState('all'); // 'all' | 'critical' | 'at-risk'
+
+  const isCustom = standardMode === 'custom';
 
   const filteredBenchmarks = benchmarks.filter(row => {
     if (filterMode === 'critical') return row.status === 'Critical';
@@ -14,7 +16,9 @@ export default function ComparisonTable({ module }) {
     <div className="white-panel comparison-panel">
       {/* Header with Title and Filter Buttons */}
       <div className="comparison-header">
-        <h2 className="panel-main-title">Company vs. Industry Standards</h2>
+        <h2 className="panel-main-title">
+          {isCustom ? 'Company vs. Custom Standards' : 'Company vs. Industry Standards'}
+        </h2>
 
         <div className="pill-filter-group">
           <button 
@@ -48,7 +52,9 @@ export default function ComparisonTable({ module }) {
             <tr>
               <th scope="col" className="th-metric">METRIC</th>
               <th scope="col" className="th-company text-left">OUR COMPANY</th>
-              <th scope="col" className="th-standard text-left">INDUSTRY STANDARD</th>
+              <th scope="col" className="th-standard text-left">
+                {isCustom ? 'CUSTOM STANDARD' : 'INDUSTRY STANDARD'}
+              </th>
               <th scope="col" className="th-status text-center">HEALTHY STATE</th>
               <th scope="col" className="th-variance text-center">VARIANCE</th>
             </tr>
