@@ -6,7 +6,9 @@ export default function ModuleRibbon({
   onSelectModule, 
   onGoHome,
   standardMode = 'standard',
-  onSelectStandardMode
+  onSelectStandardMode,
+  onOpenUploadModal,
+  hasCustomStandards = false
 }) {
   const [isShaking, setIsShaking] = useState(false);
   const activeModule = modules.find(m => m.id === activeModuleId);
@@ -18,16 +20,32 @@ export default function ModuleRibbon({
 
   const handleToggleClick = () => {
     if (standardMode === 'standard') {
-      triggerShake();
-      onSelectStandardMode('custom');
+      if (!hasCustomStandards) {
+        triggerShake();
+        if (onOpenUploadModal) {
+          onOpenUploadModal();
+        } else {
+          onSelectStandardMode('custom');
+        }
+      } else {
+        onSelectStandardMode('custom');
+      }
     } else {
       onSelectStandardMode('standard');
     }
   };
 
   const handleCustomClick = () => {
-    triggerShake();
-    onSelectStandardMode('custom');
+    if (!hasCustomStandards) {
+      triggerShake();
+      if (onOpenUploadModal) {
+        onOpenUploadModal();
+      } else {
+        onSelectStandardMode('custom');
+      }
+    } else {
+      onSelectStandardMode('custom');
+    }
   };
 
   const handleIndustrialClick = () => {
@@ -69,16 +87,32 @@ export default function ModuleRibbon({
           })}
         </div>
 
-        {/* Right Area: Status Badge + Industrial vs. Custom Standards Switch */}
+        {/* Right Area: Status Badge + Industrial vs. Custom Standards Switch + Upload Button */}
         <div className="ribbon-right-controls">
           {activeModule && (
             <div className="ribbon-status-area">
               <span className="ribbon-status-label">Status:</span>
-              <span className={`pill-badge ${activeModule.status === 'Critical' ? 'badge-critical' : 'badge-at-risk'}`}>
+              <span className={`pill-badge ${activeModule.status === 'Critical' ? 'badge-critical' : activeModule.status === 'Healthy' ? 'badge-healthy' : 'badge-at-risk'}`}>
                 {activeModule.status}
               </span>
             </div>
           )}
+
+          {/* Upload Custom Standards Trigger */}
+          <button 
+            type="button"
+            className="btn-ribbon-upload"
+            onClick={onOpenUploadModal}
+            title="Upload Custom Standards CSV"
+            aria-label="Upload Custom Standards CSV"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="17 8 12 3 7 8"></polyline>
+              <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+            <span>{hasCustomStandards ? 'Update Standards' : 'Upload Standards'}</span>
+          </button>
 
           {/* External Labels: Industrial Standards & Custom Standards with Toggle Switch */}
           <div className="standards-toggle-wrapper" aria-label="Standards Selector">
@@ -111,7 +145,7 @@ export default function ModuleRibbon({
               role="button"
               tabIndex={0}
               onKeyDown={(e) => e.key === 'Enter' && handleCustomClick()}
-              title="Custom Standards (Upload required)"
+              title={hasCustomStandards ? 'Custom Standards Active' : 'Custom Standards (Upload required)'}
             >
               Custom Standards
             </span>
@@ -121,3 +155,4 @@ export default function ModuleRibbon({
     </nav>
   );
 }
+

@@ -4,6 +4,7 @@ import ModuleRibbon from './components/ModuleRibbon';
 import HomeDashboard from './components/HomeDashboard';
 import ModuleAnalysisView from './components/ModuleAnalysisView';
 import ConnectSystemModal from './components/ConnectSystemModal';
+import UploadCustomStandardsModal from './components/UploadCustomStandardsModal';
 import ToastNotification from './components/ToastNotification';
 import { SF_MODULES } from './data/modulesData';
 import './index.css';
@@ -14,6 +15,8 @@ export default function App() {
   
   // Benchmark Standards Toggle: 'standard' | 'custom'
   const [standardMode, setStandardMode] = useState('standard');
+  const [customStandardsMap, setCustomStandardsMap] = useState({});
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [toast, setToast] = useState(null);
 
   // System Connection State
@@ -22,6 +25,7 @@ export default function App() {
   const [connectedSystemDetails, setConnectedSystemDetails] = useState(null);
 
   const activeModule = SF_MODULES.find((m) => m.id === activeModuleId) || null;
+  const hasCustomStandards = Object.keys(customStandardsMap).length > 0;
 
   const handleSelectModule = (moduleId) => {
     setActiveModuleId(moduleId);
@@ -35,15 +39,24 @@ export default function App() {
 
   const handleSelectStandardMode = (mode) => {
     if (mode === 'custom') {
-      // Since no file has been uploaded, do not toggle to custom
-      setToast({
-        id: Date.now(),
-        type: 'warning',
-        message: 'Please upload your standards for reporting'
-      });
+      if (!hasCustomStandards) {
+        setIsUploadModalOpen(true);
+        return;
+      }
+      setStandardMode('custom');
       return;
     }
     setStandardMode('standard');
+  };
+
+  const handleImportCustomStandards = (newStandardsMap) => {
+    setCustomStandardsMap((prev) => ({ ...prev, ...newStandardsMap }));
+    setStandardMode('custom');
+    setToast({
+      id: Date.now(),
+      type: 'success',
+      message: `Custom standards successfully imported (${Object.keys(newStandardsMap).length} metrics updated).`
+    });
   };
 
   const handleConnectSuccess = (details) => {
@@ -65,7 +78,7 @@ export default function App() {
         isConnected={isSystemConnected}
       />
 
-      {/* 2. Sub-Ribbon: Shown when inside a module, with Standard/Custom toggle */}
+      {/* 2. Sub-Ribbon: Shown when inside a module, with Standard/Custom toggle & Upload trigger */}
       {activeModule && (
         <ModuleRibbon 
           modules={SF_MODULES} 
@@ -74,13 +87,19 @@ export default function App() {
           onGoHome={handleGoHome}
           standardMode={standardMode}
           onSelectStandardMode={handleSelectStandardMode}
+          onOpenUploadModal={() => setIsUploadModalOpen(true)}
+          hasCustomStandards={hasCustomStandards}
         />
       )}
 
       {/* 3. Main View Area */}
       <main className="content-viewport">
         {activeModule ? (
-          <ModuleAnalysisView module={activeModule} standardMode={standardMode} />
+          <ModuleAnalysisView 
+            module={activeModule} 
+            standardMode={standardMode} 
+            customStandardsMap={customStandardsMap}
+          />
         ) : (
           <HomeDashboard 
             modules={SF_MODULES} 
@@ -98,7 +117,15 @@ export default function App() {
         onDisconnect={handleDisconnect}
       />
 
-      {/* 5. Warning Toast Notification (bottom-right) */}
+      {/* 5. Upload Custom Standards CSV Modal */}
+      <UploadCustomStandardsModal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        onImport={handleImportCustomStandards}
+        module={activeModule}
+      />
+
+      {/* 6. Toast Notification (bottom-right) */}
       <ToastNotification 
         toast={toast} 
         onClose={() => setToast(null)} 
@@ -106,3 +133,4 @@ export default function App() {
     </div>
   );
 }
+

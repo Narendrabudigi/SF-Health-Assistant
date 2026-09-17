@@ -1,6 +1,11 @@
 import React, { useState } from 'react';
 
-export default function ComparisonTable({ module, standardMode = 'standard' }) {
+export default function ComparisonTable({ 
+  module, 
+  standardMode = 'standard', 
+  onSelectMetric, 
+  customStandardsMap = {} 
+}) {
   const { benchmarks } = module;
   const [filterMode, setFilterMode] = useState('all'); // 'all' | 'critical' | 'at-risk' | 'healthy'
 
@@ -24,35 +29,38 @@ export default function ComparisonTable({ module, standardMode = 'standard' }) {
     <div className="white-panel comparison-panel">
       {/* Header with Title and Filter Buttons */}
       <div className="comparison-header">
-        <h2 className="panel-main-title">
-          {isCustom ? 'Company vs. Custom Standards' : 'Company vs. Industry Standards'}
-        </h2>
+        <div className="comparison-title-wrap">
+          <span className="swiss-panel-eyebrow">Benchmark Standards • SLA Tracking</span>
+          <h2 className="panel-main-title">
+            {isCustom ? 'Company vs. Custom Standards' : 'Company vs. Industry Standards'}
+          </h2>
+        </div>
 
-        <div className="pill-filter-group">
-          <button
-            type="button"
+        <div className="pill-filter-group" role="tablist" aria-label="Filter Metrics">
+          <button 
+            type="button" 
             className={`pill-filter-btn ${filterMode === 'all' ? 'active' : ''}`}
             onClick={() => setFilterMode('all')}
           >
-            All
+            All ({benchmarks.length})
           </button>
-          <button
-            type="button"
-            className={`pill-filter-btn ${filterMode === 'critical' ? 'active' : ''}`}
+          <button 
+            type="button" 
+            className={`pill-filter-btn filter-btn-critical ${filterMode === 'critical' ? 'active' : ''}`}
             onClick={() => setFilterMode('critical')}
           >
             Critical
           </button>
-          <button
-            type="button"
-            className={`pill-filter-btn ${filterMode === 'at-risk' ? 'active' : ''}`}
+          <button 
+            type="button" 
+            className={`pill-filter-btn filter-btn-at-risk ${filterMode === 'at-risk' ? 'active' : ''}`}
             onClick={() => setFilterMode('at-risk')}
           >
             At Risk
           </button>
-          <button
-            type="button"
-            className={`pill-filter-btn ${filterMode === 'healthy' ? 'active' : ''}`}
+          <button 
+            type="button" 
+            className={`pill-filter-btn filter-btn-healthy ${filterMode === 'healthy' ? 'active' : ''}`}
             onClick={() => setFilterMode('healthy')}
           >
             Healthy
@@ -65,26 +73,48 @@ export default function ComparisonTable({ module, standardMode = 'standard' }) {
         <table className="clean-benchmark-table">
           <thead>
             <tr>
-              <th scope="col" className="th-metric">METRIC</th>
-              <th scope="col" className="th-company text-left">OUR COMPANY</th>
+              <th scope="col" className="th-metric">Metric Name</th>
+              <th scope="col" className="th-company text-left">Our Company</th>
               <th scope="col" className="th-standard text-left">
-                {isCustom ? 'CUSTOM STANDARD' : 'INDUSTRY STANDARD'}
+                {isCustom ? 'Custom Standard' : 'Industry Standard'}
               </th>
-              <th scope="col" className="th-status text-center">HEALTH STATE</th>
-              <th scope="col" className="th-variance text-center">VARIANCE</th>
+              <th scope="col" className="th-status text-center">Health Status</th>
+              <th scope="col" className="th-variance text-right">Variance</th>
+              <th scope="col" className="th-action text-right">Analysis</th>
             </tr>
           </thead>
           <tbody>
             {filteredBenchmarks.length === 0 ? (
               <tr>
-                <td colSpan={5} className="no-data-msg">
+                <td colSpan={6} className="no-data-msg">
                   No metrics match the selected filter.
                 </td>
               </tr>
             ) : (
               filteredBenchmarks.map((row, idx) => {
+                const hasDetailedAnalysis = (row.status === 'Critical' || row.status === 'At Risk') && row.detailedAnalysis;
+                const customStdVal = customStandardsMap[row.metric.toLowerCase().trim()];
+                const displayStandard = (isCustom && customStdVal) ? customStdVal : row.standard;
+
                 return (
-                  <tr key={idx}>
+                  <tr 
+                    key={idx}
+                    className={hasDetailedAnalysis ? 'clickable-metric-row' : 'static-metric-row'}
+                    onClick={() => {
+                      if (hasDetailedAnalysis && onSelectMetric) {
+                        onSelectMetric(row);
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (hasDetailedAnalysis && onSelectMetric && (e.key === 'Enter' || e.key === ' ')) {
+                        e.preventDefault();
+                        onSelectMetric(row);
+                      }
+                    }}
+                    tabIndex={hasDetailedAnalysis ? 0 : undefined}
+                    role={hasDetailedAnalysis ? 'button' : undefined}
+                    aria-label={hasDetailedAnalysis ? `View detailed analysis for ${row.metric}` : undefined}
+                  >
                     {/* METRIC */}
                     <td className="td-metric">
                       <div className="metric-primary-name">{row.metric}</div>
@@ -96,10 +126,16 @@ export default function ComparisonTable({ module, standardMode = 'standard' }) {
                       <span className="bold-company-val">{row.company}</span>
                     </td>
 
-                    {/* INDUSTRY STANDARD */}
+                    {/* INDUSTRY / CUSTOM STANDARD */}
                     <td className="td-standard">
-                      <span className="standard-val">{row.standard}</span>
+                      <div className="standard-cell-wrap">
+                        <span className="standard-val">{displayStandard}</span>
+                        {isCustom && customStdVal && (
+                          <span className="custom-indicator-chip" title="Imported Custom Standard">Custom</span>
+                        )}
+                      </div>
                     </td>
+
 
                     {/* HEALTHY STATE */}
                     <td className="td-status text-center">
@@ -109,8 +145,21 @@ export default function ComparisonTable({ module, standardMode = 'standard' }) {
                     </td>
 
                     {/* VARIANCE */}
-                    <td className="td-variance text-center">
-                      <span className="variance-text">{row.variance}</span>
+                    <td className="td-variance text-right">
+                      <span className={`variance-tag variance-${row.status.toLowerCase().replace(/\s+/g, '-')}`}>
+                        {row.variance}
+                      </span>
+                    </td>
+
+                    {/* ACTION / DEEP DIVE */}
+                    <td className="td-action text-right">
+                      {hasDetailedAnalysis ? (
+                        <span className="metric-deepdive-tag">
+                          Deep Dive <span className="deepdive-arrow">→</span>
+                        </span>
+                      ) : (
+                        <span className="metric-on-target-tag">On Target</span>
+                      )}
                     </td>
                   </tr>
                 );
@@ -122,3 +171,4 @@ export default function ComparisonTable({ module, standardMode = 'standard' }) {
     </div>
   );
 }
+

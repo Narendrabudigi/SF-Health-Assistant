@@ -10,18 +10,25 @@ export default function Navbar({ onGoHome, onOpenConnectSystem, isConnected }) {
             <img src="/yash-logo.svg" alt="YASH Technologies" className="yash-logo-img" />
           </div>
           <div className="brand-divider"></div>
-          <h1 className="brand-app-title">SAP SuccessFactors</h1>
+          <div className="brand-title-group">
+            <span className="brand-app-title">SAP SuccessFactors</span>
+            <span className="brand-system-tag">HEALTH MONITORING // ENTERPRISE AUDIT</span>
+          </div>
         </div>
 
         {/* Right: Connect System Option */}
         <div className="navbar-right">
+          <div className="navbar-telemetry-pill">
+            <span className={`status-pulse-dot ${isConnected ? 'dot-online' : 'dot-standby'}`}></span>
+            <span className="telemetry-label">{isConnected ? 'LIVE' : 'LOCAL CACHE MODE'}</span>
+          </div>
+
           <button
             className={`btn-connect-system ${isConnected ? 'is-connected' : ''}`}
             onClick={onOpenConnectSystem}
             title={isConnected ? "System Connected (Click to manage)" : "Connect your SAP SuccessFactors system"}
           >
-            <span className={`status-pulse-dot ${isConnected ? 'dot-online' : ''}`}></span>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               {isConnected ? (
                 <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
               ) : (

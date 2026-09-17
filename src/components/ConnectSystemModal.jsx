@@ -51,13 +51,16 @@ export default function ConnectSystemModal({
         <div className="modal-header">
           <div className="modal-title-wrap">
             <div className="modal-icon-badge">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+                <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+                <line x1="6" y1="6" x2="6.01" y2="6"></line>
+                <line x1="6" y1="18" x2="6.01" y2="18"></line>
               </svg>
             </div>
             <div>
-              <h3 className="modal-title">Connect SAP SuccessFactors System</h3>
-              <p className="modal-subtitle">Integrate your SuccessFactors tenant for live health monitoring & telemetry</p>
+              <h3 className="modal-title">SAP SuccessFactors System Integration</h3>
+              <p className="modal-subtitle">Connect your enterprise tenant for real-time telemetry, benchmark sync & diagnostics</p>
             </div>
           </div>
           <button className="btn-modal-close" onClick={onClose} aria-label="Close modal">
@@ -70,54 +73,61 @@ export default function ConnectSystemModal({
           {/* Status Alert Banner */}
           <div className={`connection-status-banner ${isConnected ? 'status-active' : 'status-inactive'}`}>
             <span className={`status-indicator-dot ${isConnected ? 'dot-live' : ''}`}></span>
-            <div>
-              <strong>{isConnected ? 'System Connected' : 'System Not Connected'}</strong>
+            <div style={{ flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2px' }}>
+                <strong style={{ fontSize: '0.92rem' }}>
+                  {isConnected ? 'System Live & Connected' : 'System Not Connected (Baseline Mode)'}
+                </strong>
+                <span className={`pill-badge ${isConnected ? 'badge-healthy' : 'badge-at-risk'}`}>
+                  {isConnected ? 'Active Sync' : 'Offline'}
+                </span>
+              </div>
               <div className="connection-status-sub">
                 {isConnected 
-                  ? `Active OData link with ${companyId} • Live API Telemetry Connected` 
-                  : 'Configure your SuccessFactors API credentials below to connect your instance.'}
+                  ? `Authenticated with tenant "${companyId}". Live OData telemetry is actively synchronizing with the health dashboard.` 
+                  : 'Enter your SuccessFactors OData API credentials below to authenticate and link live telemetry.'}
               </div>
             </div>
           </div>
 
           {/* Form Fields */}
           <div className="form-group">
-            <label className="form-label">SAP SuccessFactors API Data Center</label>
+            <label className="form-label">API Data Center & Region</label>
             <select 
               className="form-control" 
               value={datacenter} 
               onChange={(e) => setDatacenter(e.target.value)}
               disabled={isConnected}
             >
-              <option value="https://api12preview.sapsf.eu (Europe DC12)">Europe DC12 (api12preview.sapsf.eu)</option>
-              <option value="https://api4.successfactors.com (US DC04)">US Central DC04 (api4.successfactors.com)</option>
-              <option value="https://api8.successfactors.com (US DC08)">US East DC08 (api8.successfactors.com)</option>
-              <option value="https://api2.successfactors.eu (Europe DC02)">Europe DC02 (api2.successfactors.eu)</option>
-              <option value="https://api10.successfactors.com (Australia DC10)">Australia DC10 (api10.successfactors.com)</option>
+              <option value="https://api12preview.sapsf.eu (Europe DC12)">Europe DC12 — api12preview.sapsf.eu (Production)</option>
+              <option value="https://api4.successfactors.com (US DC04)">US Central DC04 — api4.successfactors.com</option>
+              <option value="https://api8.successfactors.com (US DC08)">US East DC08 — api8.successfactors.com</option>
+              <option value="https://api2.successfactors.eu (Europe DC02)">Europe DC02 — api2.successfactors.eu</option>
+              <option value="https://api10.successfactors.com (Australia DC10)">Australia DC10 — api10.successfactors.com</option>
             </select>
           </div>
 
           <div className="form-row">
             <div className="form-group flex-1">
-              <label className="form-label">Company ID (Tenant ID)</label>
+              <label className="form-label">Company ID (Tenant)</label>
               <input 
                 type="text" 
                 className="form-control" 
                 value={companyId} 
                 onChange={(e) => setCompanyId(e.target.value)}
-                placeholder="e.g. YASH_GLOBAL_PRD"
+                placeholder="e.g. YASH_ENTERPRISE_PRD"
                 required
                 disabled={isConnected}
               />
             </div>
             <div className="form-group flex-1">
-              <label className="form-label">API Username / Client ID</label>
+              <label className="form-label">API Service Username</label>
               <input 
                 type="text" 
                 className="form-control" 
                 value={username} 
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="e.g. sf_service_account"
+                placeholder="e.g. sf_telemetry_svc"
                 required
                 disabled={isConnected}
               />
@@ -125,13 +135,13 @@ export default function ConnectSystemModal({
           </div>
 
           <div className="form-group">
-            <label className="form-label">API Secret / OAuth Token</label>
+            <label className="form-label">OAuth 2.0 Secret / Client Certificate</label>
             <input 
               type="password" 
               className="form-control" 
               value={clientSecret} 
               onChange={(e) => setClientSecret(e.target.value)}
-              placeholder="Enter OAuth certificate or secret token"
+              placeholder="Enter OAuth certificate or private token"
               required
               disabled={isConnected}
             />
@@ -159,7 +169,7 @@ export default function ConnectSystemModal({
                   className="btn-primary"
                   onClick={onClose}
                 >
-                  Done
+                  Save & Close
                 </button>
               </>
             ) : (
@@ -176,7 +186,7 @@ export default function ConnectSystemModal({
                   className="btn-primary"
                   disabled={isConnecting}
                 >
-                  {isConnecting ? 'Connecting...' : 'Connect & Sync System'}
+                  {isConnecting ? 'Testing Connection...' : 'Connect & Sync System'}
                 </button>
               </>
             )}
