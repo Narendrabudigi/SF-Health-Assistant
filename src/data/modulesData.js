@@ -25,6 +25,7 @@ export const SF_MODULES = [
         status: 'Critical',
         variance: '-6.6% (-6.7%)',
         detailedAnalysis: {
+          whereItHappens: 'Custom MDF objects, biographical data portlets, and national ID fields during mass CSV data imports.',
           whyItHappens: 'High reliance on unstructured free-text fields in custom MDF objects, absence of real-time validation on dependent records (Emergency Contacts, National ID), and incomplete automated checks during mass CSV uploads.',
           trendAnalysis: {
             summary: 'Degrading trajectory over the last 4 quarters due to organizational restructuring and decentralized data entry.',
@@ -51,6 +52,7 @@ export const SF_MODULES = [
         status: 'Critical',
         variance: '+6.2% (+77.5%)',
         detailedAnalysis: {
+          whereItHappens: 'Technical and remote operational business units during the first 90 days following onboarding handover.',
           whyItHappens: 'Role ambiguity created by misaligned Job Requisition competencies vs. actual Position descriptions, coupled with fragmented manager check-ins during the critical first 90 days.',
           trendAnalysis: {
             summary: 'Sharp increase from Q2 to Q4, particularly within technical and remote operational teams.',
@@ -77,6 +79,7 @@ export const SF_MODULES = [
         status: 'Critical',
         variance: '+4.3 Days (+172%)',
         detailedAnalysis: {
+          whereItHappens: 'Level-3 executive approval hierarchies and non-delegated manager leave queues in Employee Central workflows.',
           whyItHappens: 'Multi-tier hierarchical approval chains requiring Level 3 executive sign-off for minor job updates, combined with lack of dynamic auto-delegation when managers are on approved leave.',
           trendAnalysis: {
             summary: 'Persistently above standard across all quarters with significant spikes during year-end compensation cycles.',
@@ -103,6 +106,7 @@ export const SF_MODULES = [
         status: 'At Risk',
         variance: '-6.2% (-6.5%)',
         detailedAnalysis: {
+          whereItHappens: 'Inactive position hierarchies and orphan position objects during MDF position-to-job sync batch runs.',
           whyItHappens: 'Orphaned and inactive positions remain unarchived following reorganization, and position-to-job information sync jobs fail due to concurrent manual updates.',
           trendAnalysis: {
             summary: 'Stabilized in Q3 but continues to remain below the 95% enterprise governance standard.',
@@ -129,6 +133,7 @@ export const SF_MODULES = [
         status: 'At Risk',
         variance: '+2.5 Days (+125%)',
         detailedAnalysis: {
+          whereItHappens: 'Employee Self-Service (ESS) bank detail and tax withholding modification request queues.',
           whyItHappens: 'Manual back-and-forth communication between employees and HR coordinators to clarify incomplete bank detail and tax withholding documentation.',
           trendAnalysis: {
             summary: 'Minor improvement over the past two quarters, but manual review steps keep cycle times elevated.',
@@ -155,6 +160,7 @@ export const SF_MODULES = [
         status: 'At Risk',
         variance: '+2.8% (+280%)',
         detailedAnalysis: {
+          whereItHappens: 'Compound Employee API integration pipelines connecting Employee Central to downstream Active Directory and ERP.',
           whyItHappens: 'Schema mismatches between EC Compound Employee API and legacy downstream ERP/Active Directory middleware during high-volume batch runs.',
           trendAnalysis: {
             summary: 'Periodic spikes coinciding with bi-weekly integration middleware releases and custom picklist additions.',
@@ -181,6 +187,7 @@ export const SF_MODULES = [
         status: 'Critical',
         variance: '+13.5% (+270%)',
         detailedAnalysis: {
+          whereItHappens: 'Line manager compensation adjustments, job reclassifications, and reporting line updates.',
           whyItHappens: 'Managers submitting promotions, department transfers, and supervisor updates with backdated effective dates rather than prospective scheduling.',
           trendAnalysis: {
             summary: 'Consistently high across all four quarters, indicating entrenched late-submission habits across line management.',
@@ -229,6 +236,7 @@ export const SF_MODULES = [
         status: 'Critical',
         variance: '+18 Days (+60%)',
         detailedAnalysis: {
+          whereItHappens: 'Recruiter screening stages, hiring manager interview scorecard submission queues, and panel coordination workflows.',
           whyItHappens: 'Lengthy recruiter initial screening, delays of 5+ days in hiring managers returning interview scorecards, and multi-round scheduling friction across external panels.',
           trendAnalysis: {
             summary: 'Cycle turnaround lengthened steadily across the last 3 quarters due to increased interview rounds.',
@@ -255,6 +263,7 @@ export const SF_MODULES = [
         status: 'At Risk',
         variance: '-7.0% (-8.0%)',
         detailedAnalysis: {
+          whereItHappens: 'Final compensation benchmarking and formal offer letter presentation stage for specialized engineering and mid-senior roles.',
           whyItHappens: 'Extended turnaround between final interview and offer generation (avg 6 days), coupled with non-competitive base salary benchmarking for niche specialized skills.',
           trendAnalysis: {
             summary: 'Dipped below the 88% industry benchmark in Q2 and has remained suppressed.',
@@ -281,6 +290,7 @@ export const SF_MODULES = [
         status: 'Critical',
         variance: '-7.6% (-38.0%)',
         detailedAnalysis: {
+          whereItHappens: 'Top-of-funnel job board applicant inflow, initial resume triage, and automated candidate knock-out screening.',
           whyItHappens: 'Generic job descriptions attracting high volumes of unqualified applicants, lack of automated knock-out pre-screening questions, and slow resume triage.',
           trendAnalysis: {
             summary: 'Conversion rate dropped steadily as job board distribution increased without qualification filtering.',
@@ -307,6 +317,7 @@ export const SF_MODULES = [
         status: 'At Risk',
         variance: '+19 Days (+42.2%)',
         detailedAnalysis: {
+          whereItHappens: 'Specialized technical, niche engineering, and remote operational job requisitions open in talent acquisition pipelines.',
           whyItHappens: 'Niche specialized job requisitions remaining open without active talent pipeline sourcing, and hiring managers repeatedly requesting candidate profile scope changes.',
           trendAnalysis: {
             summary: 'Average aging increased past 60 days in Q3 and remains in the at-risk zone.',
@@ -355,6 +366,7 @@ export const SF_MODULES = [
         status: 'Critical',
         variance: '+7.5 Days (+107%)',
         detailedAnalysis: {
+          whereItHappens: 'Cross-departmental handoffs between HR Operations, IT hardware provisioning, and Facilities readiness prior to Day 1.',
           whyItHappens: 'Manual coordination between HR, IT, and Facilities for new hire readiness, and document collection workflows remaining pending until hire start date.',
           trendAnalysis: {
             summary: 'Cycle time extended significantly over the past 3 quarters due to decentralized team onboarding.',
@@ -381,6 +393,7 @@ export const SF_MODULES = [
         status: 'Critical',
         variance: '-22.0% (-24.4%)',
         detailedAnalysis: {
+          whereItHappens: 'Pre-hire onboarding portal document collection, compliance form sign-offs, and initial corporate credential verification.',
           whyItHappens: 'New hires experience mobile login friction with initial credential setup, and pre-day-1 tasks lack clear deadline urgency notifications.',
           trendAnalysis: {
             summary: 'Persistently low compliance across all 4 quarters, with remote hires showing the lowest completion rate.',
@@ -407,6 +420,7 @@ export const SF_MODULES = [
         status: 'At Risk',
         variance: '-11.6% (-13.2%)',
         detailedAnalysis: {
+          whereItHappens: 'Post-hire manager check-in workflows, assimilation touchpoints, and 60/90-day structured review milestones.',
           whyItHappens: 'Managers deprioritize formal check-ins after the initial week, and milestone activities are not tied to performance management goals.',
           trendAnalysis: {
             summary: 'Declining completion rate specifically at the Day-60 and Day-90 touchpoint intervals.',
@@ -455,6 +469,7 @@ export const SF_MODULES = [
         status: 'At Risk',
         variance: '+4.4 Days (+88.0%)',
         detailedAnalysis: {
+          whereItHappens: 'Supervisor separation notice routing and cross-departmental clearance workflows across HR Operations, Facilities, and Payroll.',
           whyItHappens: 'Delayed supervisor submission of separation notices and fragmented communication across HR, Facilities, and Payroll for clearance sign-off.',
           trendAnalysis: {
             summary: 'Cycle turnaround lengthened steadily across the year, predominantly for voluntary resignations.',
@@ -481,6 +496,7 @@ export const SF_MODULES = [
         status: 'Critical',
         variance: '+3.2 Hours (+320%)',
         detailedAnalysis: {
+          whereItHappens: 'SuccessFactors termination event bridge to Active Directory, Okta IAM, and enterprise cloud SSO systems.',
           whyItHappens: 'Disconnection between SuccessFactors termination status events and Active Directory / IAM de-provisioning connectors, relying on manual IT ticket handling.',
           trendAnalysis: {
             summary: 'Average revocation time has consistently breached the 1-hour critical audit standard across all 4 quarters.',
@@ -507,6 +523,7 @@ export const SF_MODULES = [
         status: 'At Risk',
         variance: '-8.0% (-8.9%)',
         detailedAnalysis: {
+          whereItHappens: 'Departmental handover repositories, codebase knowledge transfers, and manager sign-off workflows during employee notice periods.',
           whyItHappens: 'Departing employees lack structured handover documentation templates, and manager sign-offs occur without verifying project repository transfers.',
           trendAnalysis: {
             summary: 'Slight improvement from Q1 but remains below the 90% threshold for critical engineering and product roles.',

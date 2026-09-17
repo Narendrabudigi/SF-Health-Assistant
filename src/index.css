@@ -2077,7 +2077,598 @@ select.form-control {
 }
 
 /* ==========================================================================
-   13. Responsive Breakpoints
+   13. Diagnostic Accordion Cards (Left Panel)
+   ========================================================================== */
+.ai-accordion-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.diagnostic-accordion-card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-left: 3.5px solid var(--active-blue);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.diagnostic-accordion-card.accordion-critical {
+  border-left-color: var(--critical-accent);
+}
+
+.diagnostic-accordion-card.accordion-at-risk {
+  border-left-color: var(--at-risk-accent);
+}
+
+.diagnostic-accordion-card.is-open {
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+  border-color: #cbd5e1;
+}
+
+.diagnostic-accordion-card.accordion-critical.is-open {
+  border-left-color: var(--critical-accent);
+}
+
+.diagnostic-accordion-card.accordion-at-risk.is-open {
+  border-left-color: var(--at-risk-accent);
+}
+
+.accordion-main-card {
+  padding: 12px 14px 10px 14px;
+  background-color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.accordion-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.accordion-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.accordion-metric-title {
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--text-dark);
+  margin: 0;
+  line-height: 1.25;
+}
+
+/* Where the Issue is Happening box inside card */
+.accordion-where-box {
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 9px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.where-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.where-pin-icon {
+  font-size: 0.76rem;
+  line-height: 1;
+}
+
+.where-label-text {
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #0369a1;
+}
+
+.where-locus-desc {
+  font-size: 0.80rem;
+  color: #1e293b;
+  line-height: 1.44;
+  margin: 0;
+  font-weight: 500;
+}
+
+/* Dropdown trigger button */
+.accordion-dropdown-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 7px 12px;
+  font-family: var(--font-family);
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  user-select: none;
+}
+
+.accordion-dropdown-trigger:hover {
+  background-color: #e0f2fe;
+  color: #0284c7;
+  border-color: #bae6fd;
+}
+
+.accordion-dropdown-trigger.is-expanded {
+  background-color: #e0f2fe;
+  color: #0369a1;
+  border-color: #bae6fd;
+}
+
+.dropdown-trigger-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  letter-spacing: 0.01em;
+}
+
+.accordion-chevron-box {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.15s ease, color 0.15s ease;
+  flex-shrink: 0;
+}
+
+.accordion-dropdown-trigger:hover .accordion-chevron-box,
+.accordion-dropdown-trigger.is-expanded .accordion-chevron-box {
+  background-color: #0284c7;
+  border-color: #0284c7;
+  color: #ffffff;
+}
+
+.accordion-chevron-box.rotated {
+  transform: rotate(180deg);
+}
+
+.accordion-body {
+  padding: 12px 16px 14px 16px;
+  background-color: #f8fafc;
+  border-top: 1px solid #f1f5f9;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: fadeIn 0.18s ease-in-out;
+}
+
+.accordion-sub-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sub-section-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sub-section-icon {
+  font-size: 0.72rem;
+}
+
+.sub-section-title {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.sub-section-text {
+  font-size: 0.80rem;
+  color: #334155;
+  line-height: 1.48;
+  margin: 0;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+
+.accordion-suggestions-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.accordion-suggestion-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 7px 10px;
+}
+
+.accordion-step-counter {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #e0f2fe;
+  color: #0284c7;
+  font-size: 0.65rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.accordion-step-text {
+  font-size: 0.79rem;
+  color: #334155;
+  line-height: 1.44;
+}
+
+/* ==========================================================================
+   14. Ribbon Upload Standards Button & Custom Standards Chip
+   ========================================================================== */
+.btn-ribbon-upload {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #e2e8f0;
+  border-radius: var(--radius-pill);
+  padding: 4px 12px;
+  font-family: var(--font-family);
+  font-size: 0.72rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.btn-ribbon-upload:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.custom-indicator-chip {
+  display: inline-block;
+  font-size: 0.62rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  background-color: #e0f2fe;
+  color: #0284c7;
+  border: 1px solid #bae6fd;
+  padding: 1px 5px;
+  border-radius: 3px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.standard-cell-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ==========================================================================
+   15. Upload Custom Standards Modal & CSV Validation
+   ========================================================================== */
+.upload-standards-modal {
+  max-width: 620px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.upload-modal-body {
+  padding: 22px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+  background: #f8fafc;
+}
+
+.upload-instruction-card {
+  background: #ffffff;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.02);
+}
+
+.instruction-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.instruction-text {
+  font-size: 0.82rem;
+  color: var(--text-body);
+  margin: 0;
+  line-height: 1.45;
+}
+
+.instruction-text code {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #0284c7;
+  margin: 0 2px;
+}
+
+.btn-download-sample {
+  align-self: flex-start;
+  margin-top: 4px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-family: var(--font-family);
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: #0284c7;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.btn-download-sample:hover {
+  background: #f0f9ff;
+  border-color: #0284c7;
+}
+
+/* CSV Dropzone */
+.csv-dropzone {
+  border: 2px dashed #cbd5e1;
+  border-radius: 10px;
+  padding: 24px 20px;
+  text-align: center;
+  cursor: pointer;
+  background: #ffffff;
+  transition: all 0.18s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.csv-dropzone:hover,
+.csv-dropzone.drag-over {
+  border-color: #0284c7;
+  background-color: #f0f9ff;
+}
+
+.csv-dropzone.has-file {
+  border-color: #10b981;
+  background-color: #f0fdf4;
+}
+
+.dropzone-icon {
+  color: #94a3b8;
+  transition: color 0.15s ease;
+}
+
+.csv-dropzone:hover .dropzone-icon {
+  color: #0284c7;
+}
+
+.csv-dropzone.has-file .dropzone-icon {
+  color: #10b981;
+}
+
+.prompt-primary {
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--text-dark);
+}
+
+.prompt-sub {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+
+.dropzone-file-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dropzone-file-info .file-name {
+  font-size: 0.90rem;
+  font-weight: 700;
+  color: #047857;
+}
+
+.dropzone-file-info .file-size {
+  font-size: 0.74rem;
+  color: #64748b;
+}
+
+/* CSV Validation Error Alert */
+.csv-error-alert {
+  background-color: #fff1f2;
+  border: 1px solid #fecdd3;
+  border-radius: 8px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: #9f1239;
+}
+
+.csv-error-alert .error-icon {
+  font-size: 1rem;
+}
+
+.csv-error-alert .error-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.csv-error-alert .error-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.csv-error-alert .error-msg {
+  font-size: 0.78rem;
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* CSV Verification & Preview Table */
+.csv-verified-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.verified-header-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.verified-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background-color: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #065f46;
+  font-size: 0.76rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+}
+
+.verified-subtext {
+  font-size: 0.72rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.csv-preview-table-wrapper {
+  max-height: 180px;
+  overflow-y: auto;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.csv-preview-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.csv-preview-table th {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  background: #f8fafc;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-light);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.csv-preview-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 0.78rem;
+  vertical-align: middle;
+}
+
+.csv-preview-table tr:last-child td {
+  border-bottom: none;
+}
+
+.td-idx {
+  width: 35px;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.td-metric-name {
+  font-weight: 600;
+  color: var(--text-dark);
+}
+
+.custom-std-pill {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #0284c7;
+  background: #e0f2fe;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.match-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.badge-matched {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.badge-unmatched {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+/* ==========================================================================
+   16. Responsive Breakpoints
    ========================================================================== */
 @media (max-width: 1200px) {
   .analysis-view-grid {

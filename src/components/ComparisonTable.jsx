@@ -1,6 +1,11 @@
 import React, { useState } from 'react';
 
-export default function ComparisonTable({ module, standardMode = 'standard', onSelectMetric }) {
+export default function ComparisonTable({ 
+  module, 
+  standardMode = 'standard', 
+  onSelectMetric, 
+  customStandardsMap = {} 
+}) {
   const { benchmarks } = module;
   const [filterMode, setFilterMode] = useState('all'); // 'all' | 'critical' | 'at-risk' | 'healthy'
 
@@ -88,6 +93,9 @@ export default function ComparisonTable({ module, standardMode = 'standard', onS
             ) : (
               filteredBenchmarks.map((row, idx) => {
                 const hasDetailedAnalysis = (row.status === 'Critical' || row.status === 'At Risk') && row.detailedAnalysis;
+                const customStdVal = customStandardsMap[row.metric.toLowerCase().trim()];
+                const displayStandard = (isCustom && customStdVal) ? customStdVal : row.standard;
+
                 return (
                   <tr 
                     key={idx}
@@ -118,10 +126,16 @@ export default function ComparisonTable({ module, standardMode = 'standard', onS
                       <span className="bold-company-val">{row.company}</span>
                     </td>
 
-                    {/* INDUSTRY STANDARD */}
+                    {/* INDUSTRY / CUSTOM STANDARD */}
                     <td className="td-standard">
-                      <span className="standard-val">{row.standard}</span>
+                      <div className="standard-cell-wrap">
+                        <span className="standard-val">{displayStandard}</span>
+                        {isCustom && customStdVal && (
+                          <span className="custom-indicator-chip" title="Imported Custom Standard">Custom</span>
+                        )}
+                      </div>
                     </td>
+
 
                     {/* HEALTHY STATE */}
                     <td className="td-status text-center">
