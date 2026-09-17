@@ -20,7 +20,7 @@ export default function Navbar({ onGoHome, onOpenConnectSystem, isConnected }) {
         <div className="navbar-right">
           <div className="navbar-telemetry-pill">
             <span className={`status-pulse-dot ${isConnected ? 'dot-online' : 'dot-standby'}`}></span>
-            <span className="telemetry-label">{isConnected ? 'LIVE REPLICATION ACTIVE' : 'LOCAL CACHE MODE'}</span>
+            <span className="telemetry-label">{isConnected ? 'LIVE' : 'LOCAL CACHE MODE'}</span>
           </div>
 
           <button

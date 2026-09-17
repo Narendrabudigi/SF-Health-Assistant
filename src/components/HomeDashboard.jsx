@@ -101,8 +101,7 @@ export default function HomeDashboard({ modules, onSelectModule }) {
               <div className="card-top-meta">
                 <h3 className="card-module-title">{mod.name}</h3>
                 <div 
-                  className="card-icon-box" 
-                  style={{ backgroundColor: mod.iconBg }}
+                  className={`card-icon-box card-icon-${mod.id}`} 
                 >
                   <ModuleIcon type={mod.iconType} />
                 </div>
@@ -122,7 +121,21 @@ export default function HomeDashboard({ modules, onSelectModule }) {
                   {mod.status}
                 </span>
 
-                <span className="view-analysis-link">
+                <span 
+                  className="view-analysis-link"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelectModule(mod.id);
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.stopPropagation();
+                      onSelectModule(mod.id);
+                    }
+                  }}
+                >
                   <span>View Analysis</span>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -133,6 +146,7 @@ export default function HomeDashboard({ modules, onSelectModule }) {
             </div>
           );
         })}
+
       </div>
     </div>
   );

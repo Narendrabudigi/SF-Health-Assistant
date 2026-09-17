@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-export default function ComparisonTable({ module, standardMode = 'standard' }) {
+export default function ComparisonTable({ module, standardMode = 'standard', onSelectMetric }) {
   const { benchmarks } = module;
   const [filterMode, setFilterMode] = useState('all'); // 'all' | 'critical' | 'at-risk' | 'healthy'
 
@@ -75,19 +75,38 @@ export default function ComparisonTable({ module, standardMode = 'standard' }) {
               </th>
               <th scope="col" className="th-status text-center">Health Status</th>
               <th scope="col" className="th-variance text-right">Variance</th>
+              <th scope="col" className="th-action text-right">Analysis</th>
             </tr>
           </thead>
           <tbody>
             {filteredBenchmarks.length === 0 ? (
               <tr>
-                <td colSpan={5} className="no-data-msg">
+                <td colSpan={6} className="no-data-msg">
                   No metrics match the selected filter.
                 </td>
               </tr>
             ) : (
               filteredBenchmarks.map((row, idx) => {
+                const hasDetailedAnalysis = (row.status === 'Critical' || row.status === 'At Risk') && row.detailedAnalysis;
                 return (
-                  <tr key={idx}>
+                  <tr 
+                    key={idx}
+                    className={hasDetailedAnalysis ? 'clickable-metric-row' : 'static-metric-row'}
+                    onClick={() => {
+                      if (hasDetailedAnalysis && onSelectMetric) {
+                        onSelectMetric(row);
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (hasDetailedAnalysis && onSelectMetric && (e.key === 'Enter' || e.key === ' ')) {
+                        e.preventDefault();
+                        onSelectMetric(row);
+                      }
+                    }}
+                    tabIndex={hasDetailedAnalysis ? 0 : undefined}
+                    role={hasDetailedAnalysis ? 'button' : undefined}
+                    aria-label={hasDetailedAnalysis ? `View detailed analysis for ${row.metric}` : undefined}
+                  >
                     {/* METRIC */}
                     <td className="td-metric">
                       <div className="metric-primary-name">{row.metric}</div>
@@ -117,6 +136,17 @@ export default function ComparisonTable({ module, standardMode = 'standard' }) {
                         {row.variance}
                       </span>
                     </td>
+
+                    {/* ACTION / DEEP DIVE */}
+                    <td className="td-action text-right">
+                      {hasDetailedAnalysis ? (
+                        <span className="metric-deepdive-tag">
+                          Deep Dive <span className="deepdive-arrow">→</span>
+                        </span>
+                      ) : (
+                        <span className="metric-on-target-tag">On Target</span>
+                      )}
+                    </td>
                   </tr>
                 );
               })
@@ -127,3 +157,4 @@ export default function ComparisonTable({ module, standardMode = 'standard' }) {
     </div>
   );
 }
+

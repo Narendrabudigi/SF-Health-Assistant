@@ -4,6 +4,17 @@
    ========================================================================== */
 
 :root {
+  /* Spacing Scale - Disciplined Enterprise System */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
   /* Color Palette - Executive Modern Enterprise */
   --bg-canvas: #f8fafc;           /* Light soft slate canvas */
   --bg-surface: #ffffff;          /* Pure white card surface */
@@ -21,40 +32,40 @@
   --text-muted: #64748b;          /* Professional secondary captions */
   --text-light: #94a3b8;          /* Faint labels and metadata */
 
-  /* Semantic Health Status Colors */
+  /* Semantic Health Status Colors (Restrained Enterprise Tones) */
   --critical-bg: #fef2f2;
   --critical-border: #fecaca;
-  --critical-text: #b91c1c;
-  --critical-accent: #ef4444;
+  --critical-text: #991b1b;
+  --critical-accent: #dc2626;
 
   --at-risk-bg: #fffbeb;
   --at-risk-border: #fde68a;
-  --at-risk-text: #b45309;
-  --at-risk-accent: #f59e0b;
+  --at-risk-text: #92400e;
+  --at-risk-accent: #d97706;
 
-  --healthy-bg: #ecfdf5;
-  --healthy-border: #a7f3d0;
-  --healthy-text: #047857;
-  --healthy-accent: #10b981;
+  --healthy-bg: #f0fdf4;
+  --healthy-border: #bbf7d0;
+  --healthy-text: #166534;
+  --healthy-accent: #16a34a;
 
   --active-blue: #0284c7;
   --active-blue-hover: #0369a1;
   --active-blue-subtle: #f0f9ff;
   --active-blue-border: #bae6fd;
 
-  /* Smooth Geometry System */
+  /* Restrained Geometry System (Production-Grade) */
   --font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --radius-card: 16px;
-  --radius-panel: 16px;
-  --radius-input: 10px;
-  --radius-btn: 10px;
+  --radius-card: 12px;
+  --radius-panel: 12px;
+  --radius-input: 8px;
+  --radius-btn: 8px;
   --radius-pill: 9999px;
 
-  /* Soft Ambient Elevations */
-  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.04);
-  --shadow-card: 0 4px 18px -2px rgba(15, 23, 42, 0.05), 0 2px 6px -1px rgba(15, 23, 42, 0.02);
-  --shadow-hover: 0 14px 30px -4px rgba(15, 23, 42, 0.09), 0 4px 10px -2px rgba(15, 23, 42, 0.03);
-  --shadow-modal: 0 25px 50px -12px rgba(15, 23, 42, 0.35);
+  /* Standardized Subtle Shadows */
+  --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+  --shadow-card: 0 1px 3px rgba(15, 23, 42, 0.05), 0 1px 2px rgba(15, 23, 42, 0.03);
+  --shadow-hover: 0 4px 12px -2px rgba(15, 23, 42, 0.08), 0 2px 4px -1px rgba(15, 23, 42, 0.03);
+  --shadow-modal: 0 20px 45px -10px rgba(15, 23, 42, 0.35);
 }
 
 /* ==========================================================================
@@ -77,7 +88,7 @@ body {
   font-family: var(--font-family);
   background-color: var(--bg-canvas);
   color: var(--text-dark);
-  line-height: 1.55;
+  line-height: 1.5;
   font-weight: 400;
 }
 
@@ -89,25 +100,25 @@ body {
 
 /* Utility Eyebrow */
 .swiss-eyebrow {
-  font-size: 0.67rem;
+  font-size: 0.65rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   color: var(--active-blue);
   text-transform: uppercase;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
 }
 
 .swiss-panel-eyebrow {
-  font-size: 0.72rem;
+  font-size: 0.70rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   color: var(--text-muted);
   text-transform: uppercase;
   display: block;
-  margin-bottom: 5px;
+  margin-bottom: 4px;
 }
 
 /* ==========================================================================
@@ -116,10 +127,10 @@ body {
 .dark-navbar {
   background-color: var(--header-bg);
   color: #ffffff;
-  height: 66px;
+  height: 64px;
   display: flex;
   align-items: center;
-  padding: 0 32px;
+  padding: 0 48px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   position: relative;
   z-index: 60;
@@ -127,7 +138,7 @@ body {
 
 .dark-navbar-inner {
   width: 100%;
-  max-width: 1560px;
+  max-width: 1520px;
   margin: 0 auto;
   display: flex;
   align-items: center;
@@ -143,34 +154,34 @@ body {
 }
 
 .yash-logo-badge {
-  height: 44px;
+  height: 42px;
   background: #ffffff;
-  border-radius: 9px;
-  padding: 4px 14px;
+  border-radius: 8px;
+  padding: 4px 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.16);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.14);
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .yash-logo-badge:hover {
   transform: scale(1.02);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.22);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
 }
 
 .yash-logo-img {
-  height: 32px;
+  height: 30px;
   width: auto;
-  max-width: 140px;
+  max-width: 130px;
   object-fit: contain;
   display: block;
 }
 
 .brand-divider {
   width: 1px;
-  height: 28px;
-  background-color: rgba(255, 255, 255, 0.22);
+  height: 26px;
+  background-color: rgba(255, 255, 255, 0.2);
 }
 
 .brand-title-group {
@@ -179,7 +190,7 @@ body {
 }
 
 .brand-app-title {
-  font-size: 1.22rem;
+  font-size: 1.20rem;
   font-weight: 700;
   color: #ffffff;
   letter-spacing: -0.015em;
@@ -197,23 +208,24 @@ body {
 .navbar-right {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
 }
 
+/* Secondary/System State Indicator (Change 14) */
 .navbar-telemetry-pill {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
   padding: 5px 12px;
-  border-radius: var(--radius-pill);
+  border-radius: 6px;
 }
 
 .telemetry-label {
-  font-size: 0.72rem;
+  font-size: 0.70rem;
   font-weight: 600;
-  color: #e2e8f0;
+  color: #cbd5e1;
   letter-spacing: 0.02em;
 }
 
@@ -227,7 +239,7 @@ body {
 
 .status-pulse-dot.dot-online {
   background-color: #10b981;
-  box-shadow: 0 0 8px #10b981;
+  box-shadow: 0 0 6px #10b981;
   animation: pulse-dot 2s infinite;
 }
 
@@ -237,59 +249,63 @@ body {
 
 @keyframes pulse-dot {
   0% { transform: scale(0.95); opacity: 0.85; }
-  50% { transform: scale(1.18); opacity: 1; }
+  50% { transform: scale(1.15); opacity: 1; }
   100% { transform: scale(0.95); opacity: 0.85; }
 }
 
+/* Primary Action: Connect System (Change 14) */
 .btn-connect-system {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: var(--active-blue);
+  border: 1px solid var(--active-blue);
   color: #ffffff;
-  font-size: 0.78rem;
+  font-size: 0.80rem;
   font-weight: 600;
   padding: 7px 16px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-btn);
   cursor: pointer;
-  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  transition: background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
 .btn-connect-system:hover {
-  background: rgba(255, 255, 255, 0.18);
-  border-color: rgba(255, 255, 255, 0.4);
+  background: var(--active-blue-hover);
+  border-color: var(--active-blue-hover);
+  box-shadow: 0 2px 6px rgba(2, 132, 199, 0.35);
 }
 
 .btn-connect-system.is-connected {
-  background: rgba(16, 185, 129, 0.18);
+  background: rgba(16, 185, 129, 0.16);
   border-color: rgba(16, 185, 129, 0.5);
   color: #34d399;
+  box-shadow: none;
 }
 
 /* ==========================================================================
-   2. Sub-Ribbon (Smooth Module Navigation & Standards Selector)
+   2. Sub-Ribbon (Compact Enterprise Module Navigation & Standards Selector)
    ========================================================================== */
 .dark-sub-ribbon {
   background-color: var(--subribbon-bg);
-  height: 52px;
+  height: 48px;
   display: flex;
   align-items: center;
-  padding: 0 32px;
+  padding: 0 48px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   position: sticky;
   top: 0;
   z-index: 50;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.10);
 }
 
 .dark-sub-ribbon-inner {
   width: 100%;
-  max-width: 1560px;
+  max-width: 1520px;
   margin: 0 auto;
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
 }
 
 .ribbon-back-button {
@@ -297,31 +313,31 @@ body {
   align-items: center;
   gap: 6px;
   background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   color: #ffffff;
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   font-weight: 600;
-  padding: 6px 14px;
-  border-radius: var(--radius-pill);
+  padding: 5px 12px;
+  border-radius: 6px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.18s ease;
 }
 
 .ribbon-back-button:hover {
-  background: rgba(255, 255, 255, 0.18);
-  border-color: rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.3);
 }
 
 .ribbon-v-divider {
   width: 1px;
-  height: 24px;
-  background: rgba(255, 255, 255, 0.18);
+  height: 20px;
+  background: rgba(255, 255, 255, 0.16);
 }
 
 .ribbon-tabs-list {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   flex: 1;
   overflow-x: auto;
 }
@@ -330,10 +346,10 @@ body {
   background: transparent;
   border: 1px solid transparent;
   color: #94a3b8;
-  font-size: 0.82rem;
+  font-size: 0.80rem;
   font-weight: 600;
-  padding: 6px 16px;
-  border-radius: var(--radius-pill);
+  padding: 5px 14px;
+  border-radius: 6px;
   cursor: pointer;
   white-space: nowrap;
   transition: all 0.18s ease;
@@ -344,17 +360,18 @@ body {
   background: rgba(255, 255, 255, 0.08);
 }
 
+/* Elegant Restrained Active State (Change 12) */
 .ribbon-tab-btn.active {
-  background-color: var(--active-blue);
+  background-color: rgba(2, 132, 199, 0.18);
+  border: 1px solid rgba(2, 132, 199, 0.45);
   color: #ffffff;
-  font-weight: 700;
-  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.35);
+  font-weight: 600;
 }
 
 .ribbon-right-controls {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
   margin-left: auto;
 }
 
@@ -365,25 +382,24 @@ body {
 }
 
 .ribbon-status-label {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 600;
   color: #94a3b8;
 }
 
-/* Smooth Standards Toggle with External Labels */
+/* Compact Enterprise Segmented Control (Change 13) */
 .standards-toggle-wrapper {
   display: inline-flex;
   align-items: center;
-  gap: 12px;
-  background: rgba(0, 0, 0, 0.32);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  padding: 5px 16px;
-  border-radius: var(--radius-pill);
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  padding: 3px 10px;
+  border-radius: 8px;
 }
 
 .standards-toggle-label {
-  font-size: 0.80rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: #94a3b8;
   cursor: pointer;
@@ -399,18 +415,17 @@ body {
 .standards-toggle-label.active {
   color: #ffffff;
   font-weight: 700;
-  text-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
 }
 
 .standards-switch-btn {
   position: relative;
-  width: 38px;
-  height: 22px;
+  width: 32px;
+  height: 18px;
   background: #334155;
-  border: 1.5px solid rgba(255, 255, 255, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.25);
   border-radius: var(--radius-pill);
   cursor: pointer;
-  padding: 2px;
+  padding: 1.5px;
   display: inline-flex;
   align-items: center;
   transition: background-color 0.25s ease, border-color 0.25s ease;
@@ -423,11 +438,11 @@ body {
 
 .standards-switch-thumb {
   display: block;
-  width: 15px;
-  height: 15px;
+  width: 13px;
+  height: 13px;
   background: #ffffff;
   border-radius: 50%;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
   transform: translateX(0);
   transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -438,7 +453,7 @@ body {
 }
 
 .standards-switch-btn.checked .standards-switch-thumb {
-  transform: translateX(16px);
+  transform: translateX(14px);
 }
 
 .standards-switch-btn.shake-anim {
@@ -456,14 +471,14 @@ body {
    ========================================================================== */
 .content-viewport {
   width: 100%;
-  max-width: 1560px;
+  max-width: 1520px;
   margin: 0 auto;
-  padding: 20px 32px 36px 32px;
+  padding: 26px 48px 36px 48px;
   flex: 1;
 }
 
 /* ==========================================================================
-   4. Module Overview & Smooth Cards (Fluid & Inviting Tiles)
+   4. Module Overview & Cards (Balanced Enterprise Proportions)
    ========================================================================== */
 .overview-container {
   display: flex;
@@ -475,26 +490,26 @@ body {
 
 .overview-heading-wrap {
   text-align: left;
-  margin-bottom: 14px;
+  margin-bottom: 18px;
 }
 
 .overview-main-title {
-  font-size: 1.68rem;
-  font-weight: 800;
+  font-size: 1.65rem;
+  font-weight: 700;
   color: var(--text-dark);
-  letter-spacing: -0.025em;
-  margin-bottom: 5px;
-  line-height: 1.2;
+  letter-spacing: -0.015em;
+  margin-bottom: 6px;
+  line-height: 1.22;
 }
 
 .overview-sub-title {
-  font-size: 0.86rem;
+  font-size: 0.88rem;
   color: var(--text-muted);
-  max-width: 720px;
-  line-height: 1.5;
+  max-width: 780px;
+  line-height: 1.48;
 }
 
-/* Smooth Executive KPI Banner Strip */
+/* Relaxed Executive KPI Banner Strip */
 .swiss-kpi-strip {
   display: grid;
   grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr;
@@ -502,19 +517,19 @@ body {
   background: var(--bg-surface);
   border: 1px solid var(--border-light);
   border-radius: 12px;
-  padding: 12px 24px;
-  margin-bottom: 20px;
+  padding: 15px 28px;
+  margin-bottom: 22px;
   box-shadow: var(--shadow-card);
 }
 
 .kpi-strip-cell {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
 }
 
 .kpi-cell-label {
-  font-size: 0.67rem;
+  font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.05em;
   color: var(--text-muted);
@@ -522,35 +537,36 @@ body {
 }
 
 .kpi-cell-value {
-  font-size: 1.48rem;
-  font-weight: 800;
+  font-size: 1.75rem;
+  font-weight: 700;
   color: var(--text-dark);
   line-height: 1.15;
   letter-spacing: -0.02em;
 }
 
 .kpi-cell-sub {
-  font-size: 0.72rem;
+  font-size: 0.73rem;
   font-weight: 500;
-  color: var(--text-muted);
+  color: var(--text-light);
 }
 
 .kpi-strip-divider {
   width: 1px;
   height: 32px;
   background-color: var(--border-light);
-  margin: 0 14px;
+  margin: 0 16px;
 }
 
+/* Status colors only where communicating status */
 .text-critical {
-  color: var(--critical-text);
+  color: var(--critical-accent);
 }
 
 .text-at-risk {
-  color: var(--at-risk-text);
+  color: var(--at-risk-accent);
 }
 
-/* 4 Smooth Module Cards Grid */
+/* 4 Unified Module Cards Grid (Relaxed Breathing Room) */
 .module-cards-row {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -561,23 +577,21 @@ body {
 .overview-card {
   background-color: var(--bg-surface);
   border: 1px solid var(--border-light);
-  border-radius: 14px;
-  padding: 18px 18px 16px 18px;
+  border-radius: 12px;
+  padding: 20px 20px 18px 20px;
   display: flex;
   flex-direction: column;
   cursor: pointer;
-  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), 
-              box-shadow 0.22s cubic-bezier(0.16, 1, 0.3, 1), 
-              border-color 0.2s ease;
-  min-height: 215px;
+  min-height: 208px;
   box-shadow: var(--shadow-card);
   position: relative;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
+/* Subtle hover state: no dramatic card movement */
 .overview-card:hover {
-  transform: translateY(-4px);
+  border-color: #cbd5e1;
   box-shadow: var(--shadow-hover);
-  border-color: rgba(2, 132, 199, 0.4);
 }
 
 .card-top-meta {
@@ -585,7 +599,7 @@ body {
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .card-module-title {
@@ -598,37 +612,63 @@ body {
   flex: 1;
 }
 
+/* Refined 40px × 40px icon containers */
 .card-icon-box {
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
+  width: 40px;
+  height: 40px;
+  border-radius: 9px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #ffffff;
   flex-shrink: 0;
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12);
+  transition: background-color 0.18s ease, border-color 0.18s ease;
 }
 
 .card-icon-box svg {
-  width: 18px;
-  height: 18px;
+  width: 19px;
+  height: 19px;
+}
+
+/* Subtle Tinted Backgrounds for Module Colors */
+.card-icon-ec {
+  background-color: #eff6ff;
+  color: #0284c7;
+  border: 1px solid #bae6fd;
+}
+
+.card-icon-rcm {
+  background-color: #faf5ff;
+  color: #7c3aed;
+  border: 1px solid #e9d5ff;
+}
+
+.card-icon-onb {
+  background-color: #f0fdf4;
+  color: #059669;
+  border: 1px solid #bbf7d0;
+}
+
+.card-icon-offb,
+.card-icon-ofb {
+  background-color: #fff7ed;
+  color: #ea580c;
+  border: 1px solid #fed7aa;
 }
 
 .card-module-desc {
-  font-size: 0.82rem;
+  font-size: 0.84rem;
   color: var(--text-body);
-  line-height: 1.48;
-  margin-bottom: 12px;
+  line-height: 1.46;
+  margin-bottom: 14px;
   flex: 1;
 }
 
 .card-kpi-count-tag {
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .card-kpi-count-tag span {
-  font-size: 0.70rem;
+  font-size: 0.72rem;
   font-weight: 600;
   color: var(--text-muted);
   background-color: #f8fafc;
@@ -646,36 +686,45 @@ body {
   border-top: 1px solid #f1f5f9;
 }
 
+/* Refinement of View Analysis */
 .view-analysis-link {
   font-size: 0.80rem;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--active-blue);
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   white-space: nowrap;
-  transition: gap 0.2s ease, color 0.15s ease;
+  transition: color 0.15s ease;
+}
+
+.view-analysis-link svg {
+  transition: transform 0.18s ease;
 }
 
 .overview-card:hover .view-analysis-link {
-  gap: 8px;
   color: var(--active-blue-hover);
 }
 
+.overview-card:hover .view-analysis-link svg {
+  transform: translateX(3px);
+}
+
 /* ==========================================================================
-   5. Smooth Pill & Health Badges
+   5. Refined Status Badges
    ========================================================================== */
 .pill-badge {
-  font-size: 0.72rem;
-  font-weight: 700;
+  font-size: 0.71rem;
+  font-weight: 600;
   letter-spacing: 0.02em;
-  padding: 4px 12px;
+  padding: 3px 9px;
   border-radius: var(--radius-pill);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   white-space: nowrap;
   border: 1px solid transparent;
+  line-height: 1.2;
 }
 
 .badge-critical {
@@ -697,12 +746,12 @@ body {
 }
 
 /* ==========================================================================
-   6. Module Analysis View (Smooth 50/50 Split)
+   6. Module Analysis View (Compact Proportion • Decreased Right Tile)
    ========================================================================== */
 .analysis-view-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 26px;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 16px;
   align-items: start;
 }
 
@@ -714,155 +763,158 @@ body {
 .white-panel {
   background-color: var(--bg-surface);
   border: 1px solid var(--border-light);
-  border-radius: var(--radius-panel);
-  padding: 30px 30px 34px 30px;
+  border-radius: 10px;
+  padding: 16px 20px 18px 20px;
   box-shadow: var(--shadow-card);
 }
 
 .panel-main-title {
-  font-size: 1.45rem;
-  font-weight: 800;
-  letter-spacing: -0.02em;
+  font-size: 1.18rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
   color: var(--text-dark);
   line-height: 1.25;
 }
 
 /* Left Panel: AI Diagnostic Report */
 .ai-report-header {
-  margin-bottom: 20px;
+  margin-bottom: 10px;
   border-bottom: 1px solid var(--border-light);
-  padding-bottom: 16px;
+  padding-bottom: 8px;
 }
 
+/* Executive Summary Information Box */
 .ai-summary-callout {
-  background-color: #f0f9ff;
-  border: 1px solid #bae6fd;
-  border-left: 4px solid var(--active-blue);
-  padding: 18px 20px;
-  border-radius: 12px;
-  margin-bottom: 26px;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-left: 3.5px solid var(--active-blue);
+  padding: 10px 14px;
+  border-radius: 6px;
+  margin-bottom: 12px;
 }
 
 .callout-header-tag {
-  font-size: 0.72rem;
+  font-size: 0.65rem;
   font-weight: 700;
-  letter-spacing: 0.05em;
-  color: var(--active-blue);
+  letter-spacing: 0.06em;
+  color: #0369a1;
   text-transform: uppercase;
-  margin-bottom: 6px;
+  margin-bottom: 3px;
 }
 
 .callout-text {
-  font-size: 0.90rem;
-  color: #0c4a6e;
-  line-height: 1.6;
-  font-weight: 500;
+  font-size: 0.82rem;
+  color: #334155;
+  line-height: 1.45;
+  font-weight: 400;
 }
 
+/* Numbered Diagnostic Sections */
 .ai-section-title-wrap {
-  margin-bottom: 16px;
+  margin-bottom: 8px;
 }
 
 .ai-section-numbered-title {
-  font-size: 1.05rem;
+  font-size: 0.94rem;
   font-weight: 700;
   color: var(--text-dark);
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .section-index-num {
-  font-size: 0.76rem;
-  font-weight: 800;
-  color: #ffffff;
-  background-color: var(--text-dark);
-  padding: 3px 8px;
-  border-radius: 6px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #0284c7;
+  background-color: #e0f2fe;
+  padding: 2px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.02em;
 }
 
 .ai-issue-cards-list {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  margin-bottom: 26px;
+  gap: 8px;
+  margin-bottom: 12px;
 }
 
 .ai-issue-item-card {
   border: 1px solid var(--border-light);
-  border-radius: 12px;
-  padding: 16px 18px;
+  border-radius: 6px;
+  padding: 10px 12px;
   background-color: var(--bg-surface);
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.02);
-  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.02);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .ai-issue-item-card:hover {
-  border-color: rgba(2, 132, 199, 0.35);
-  box-shadow: 0 4px 12px -2px rgba(15, 23, 42, 0.06);
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.05);
 }
 
 .issue-item-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .issue-item-name {
-  font-size: 0.95rem;
+  font-size: 0.86rem;
   font-weight: 700;
   color: var(--text-dark);
 }
 
 .issue-tag-box {
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 .code-tag {
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 600;
   background-color: #f1f5f9;
-  color: #0369a1;
+  color: #475569;
   border: 1px solid #e2e8f0;
-  padding: 3px 9px;
-  border-radius: 6px;
+  padding: 1px 6px;
+  border-radius: 4px;
 }
 
 .issue-desc-text {
-  font-size: 0.85rem;
+  font-size: 0.80rem;
   color: var(--text-body);
-  line-height: 1.55;
+  line-height: 1.4;
 }
 
 .ai-sub-block {
-  margin-top: 24px;
-  border-top: 1px solid var(--border-light);
-  padding-top: 20px;
+  margin-top: 12px;
+  border-top: 1px solid #f1f5f9;
+  padding-top: 10px;
 }
 
 .ai-numbered-list {
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin-top: 14px;
+  gap: 6px;
+  margin-top: 8px;
 }
 
 .numbered-item {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
+  gap: 10px;
 }
 
 .item-counter {
-  font-size: 0.80rem;
+  font-size: 0.68rem;
   font-weight: 700;
   color: var(--active-blue);
   background: #f0f9ff;
   border: 1px solid #bae6fd;
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -872,22 +924,22 @@ body {
 }
 
 .item-text {
-  font-size: 0.87rem;
+  font-size: 0.80rem;
   color: var(--text-body);
-  line-height: 1.6;
+  line-height: 1.4;
 }
 
 /* ==========================================================================
-   7. Right Panel: Company vs. Standards Comparison Table
+   7. Right Panel: Company vs. Standards Comparison Table (Decreased Tile Width)
    ========================================================================== */
 .comparison-header {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  margin-bottom: 22px;
+  margin-bottom: 12px;
   border-bottom: 1px solid var(--border-light);
-  padding-bottom: 16px;
-  gap: 14px;
+  padding-bottom: 8px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
@@ -895,14 +947,14 @@ body {
   margin-bottom: 0;
 }
 
-/* Pill Filter Buttons */
+/* Refined Pill Filter Buttons */
 .pill-filter-group {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 2px;
   background-color: #f1f5f9;
   border: 1px solid var(--border-light);
-  padding: 4px;
+  padding: 2px;
   border-radius: var(--radius-pill);
 }
 
@@ -910,13 +962,13 @@ body {
   background: transparent;
   border: none;
   font-family: var(--font-family);
-  font-size: 0.76rem;
+  font-size: 0.70rem;
   font-weight: 600;
   color: var(--text-muted);
-  padding: 6px 14px;
+  padding: 3px 10px;
   border-radius: var(--radius-pill);
   cursor: pointer;
-  transition: all 0.18s ease;
+  transition: all 0.15s ease;
   white-space: nowrap;
 }
 
@@ -928,10 +980,10 @@ body {
   background-color: #ffffff;
   color: var(--text-dark);
   font-weight: 700;
-  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
 }
 
-/* Clean Benchmark Table */
+/* Compact Enterprise Benchmark Table */
 .clean-table-container {
   overflow-x: auto;
 }
@@ -942,18 +994,19 @@ body {
 }
 
 .clean-benchmark-table th {
-  font-size: 0.72rem;
+  font-size: 0.66rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   color: var(--text-muted);
   text-transform: uppercase;
-  padding: 12px 16px;
-  border-bottom: 1.5px solid var(--border-light);
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--border-light);
   background-color: #f8fafc;
+  white-space: nowrap;
 }
 
 .clean-benchmark-table td {
-  padding: 16px 16px;
+  padding: 8px 10px;
   border-bottom: 1px solid #f1f5f9;
   vertical-align: middle;
 }
@@ -967,39 +1020,39 @@ body {
 }
 
 .td-metric {
-  width: 34%;
+  width: 33%;
 }
 
 .metric-primary-name {
-  font-size: 0.88rem;
-  font-weight: 700;
+  font-size: 0.80rem;
+  font-weight: 600;
   color: var(--text-dark);
-  line-height: 1.35;
+  line-height: 1.3;
 }
 
 .metric-category-subtext {
-  font-size: 0.74rem;
-  font-weight: 500;
+  font-size: 0.68rem;
+  font-weight: 400;
   color: var(--text-muted);
-  margin-top: 3px;
+  margin-top: 1px;
 }
 
 .bold-company-val {
-  font-size: 0.92rem;
-  font-weight: 800;
+  font-size: 0.82rem;
+  font-weight: 700;
   color: var(--text-dark);
 }
 
 .standard-val {
-  font-size: 0.86rem;
+  font-size: 0.80rem;
   color: var(--text-body);
-  font-weight: 500;
+  font-weight: 400;
 }
 
-/* Variance Tags */
+/* Restrained Variance Tags */
 .variance-tag {
-  font-size: 0.82rem;
-  font-weight: 700;
+  font-size: 0.74rem;
+  font-weight: 600;
   letter-spacing: 0.01em;
   display: inline-block;
 }
@@ -1047,7 +1100,7 @@ body {
 
 .modal-card {
   background: #ffffff;
-  border-radius: 18px;
+  border-radius: 12px;
   width: 100%;
   max-width: 560px;
   border: 1px solid rgba(226, 232, 240, 0.9);
@@ -1407,7 +1460,624 @@ select.form-control {
 }
 
 /* ==========================================================================
-   10. Responsive Breakpoints
+   10. Metric Deep-Dive Interactive Rows & Tags
+   ========================================================================== */
+.clean-benchmark-table tr.clickable-metric-row {
+  cursor: pointer;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.clean-benchmark-table tr.clickable-metric-row:hover td {
+  background-color: #f0f9ff;
+}
+
+.clean-benchmark-table tr.clickable-metric-row:focus {
+  outline: 2px solid var(--active-blue);
+  outline-offset: -2px;
+}
+
+.metric-deepdive-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.70rem;
+  font-weight: 700;
+  color: var(--active-blue);
+  background-color: #f0f9ff;
+  border: 1px solid #bae6fd;
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.clickable-metric-row:hover .metric-deepdive-tag {
+  background-color: var(--active-blue);
+  color: #ffffff;
+  border-color: var(--active-blue);
+}
+
+.deepdive-arrow {
+  transition: transform 0.15s ease;
+}
+
+.clickable-metric-row:hover .deepdive-arrow {
+  transform: translateX(2px);
+}
+
+.metric-on-target-tag {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #64748b;
+  background-color: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
+  display: inline-block;
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+   11. Metric Deep-Dive Diagnostics Overlay Modal
+   ========================================================================== */
+.metric-analysis-modal {
+  max-width: 680px;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.metric-modal-header {
+  padding: 18px 24px;
+  background: var(--header-bg);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.metric-modal-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.metric-modal-eyebrow {
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #94a3b8;
+  margin-bottom: 3px;
+}
+
+.metric-modal-icon-badge {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.metric-modal-icon-badge.icon-critical {
+  background: rgba(225, 29, 72, 0.15);
+  border: 1px solid rgba(225, 29, 72, 0.35);
+  color: #fb7185;
+}
+
+.metric-modal-icon-badge.icon-at-risk {
+  background: rgba(217, 119, 6, 0.15);
+  border: 1px solid rgba(217, 119, 6, 0.35);
+  color: #fbbf24;
+}
+
+.metric-modal-body {
+  padding: 20px 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: #f8fafc;
+}
+
+/* Top Performance Metric Summary Strip */
+.metric-summary-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #ffffff;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: 12px 18px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
+}
+
+.summary-stat-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stat-cell-label {
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.stat-cell-value {
+  font-size: 0.96rem;
+  font-weight: 700;
+  color: var(--text-dark);
+}
+
+.stat-cell-value.current-val {
+  color: #0f172a;
+}
+
+.stat-cell-value.val-critical {
+  color: var(--critical-accent);
+}
+
+.stat-cell-value.val-at-risk {
+  color: var(--at-risk-accent);
+}
+
+.summary-stat-divider {
+  width: 1px;
+  height: 28px;
+  background-color: var(--border-light);
+}
+
+/* Diagnostic Cards Container */
+.diagnostic-cards-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.diagnostic-card {
+  background: #ffffff;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: 14px 16px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.02);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.diagnostic-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+}
+
+.diagnostic-card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 8px;
+}
+
+.card-step-badge {
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: #0284c7;
+  background-color: #e0f2fe;
+  padding: 2px 7px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.card-header-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.diagnostic-card-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-dark);
+  line-height: 1.25;
+}
+
+.diagnostic-card-subtitle {
+  font-size: 0.70rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+.analysis-text-paragraph {
+  font-size: 0.82rem;
+  color: #334155;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.analysis-text-paragraph.mb-sm {
+  margin-bottom: 8px;
+}
+
+/* Trend Point Chips */
+.trend-points-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.trend-point-chip {
+  background: #f8fafc;
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  padding: 6px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 90px;
+}
+
+.trend-period {
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.trend-value {
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: var(--text-dark);
+}
+
+/* Remediation Steps List */
+.remediation-steps-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+}
+
+.remediation-step-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.step-counter {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #0284c7;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.step-text {
+  font-size: 0.82rem;
+  color: #334155;
+  line-height: 1.45;
+}
+
+/* Healthy State Notices */
+.healthy-state-notice,
+.healthy-state-report-callout {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px 18px;
+  background-color: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+}
+
+.healthy-icon-pill {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: #16a34a;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.80rem;
+  font-weight: 800;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.healthy-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #15803d;
+  margin: 0 0 4px 0;
+}
+
+.healthy-desc {
+  font-size: 0.80rem;
+  color: #166534;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.metric-modal-footer {
+  padding: 14px 24px;
+  background: #ffffff;
+  border-top: 1px solid var(--border-light);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modal-footer-caption {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* ==========================================================================
+   12. Consolidated GenAI Report Issue Cards & Lists
+   ========================================================================== */
+.clickable-issue-card {
+  cursor: pointer;
+  padding: 10px 14px;
+  background-color: var(--bg-surface);
+  border-radius: 8px;
+  border: 1px solid var(--border-light);
+  border-left: 3.5px solid var(--active-blue);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease, background-color 0.16s ease;
+}
+
+.clickable-issue-card.issue-card-critical {
+  border-left-color: var(--critical-accent);
+}
+
+.clickable-issue-card.issue-card-at-risk {
+  border-left-color: var(--at-risk-accent);
+}
+
+.clickable-issue-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 3px 10px rgba(15, 23, 42, 0.06);
+  transform: translateY(-1px);
+  background-color: #ffffff;
+}
+
+.clickable-issue-card.issue-card-critical:hover {
+  border-left-color: var(--critical-accent);
+}
+
+.clickable-issue-card.issue-card-at-risk:hover {
+  border-left-color: var(--at-risk-accent);
+}
+
+.issue-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.issue-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.issue-item-name {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-dark);
+  margin: 0;
+  line-height: 1.25;
+}
+
+.issue-desc-text {
+  font-size: 0.79rem;
+  color: var(--text-body);
+  line-height: 1.44;
+  margin: 0;
+}
+
+/* Consolidated Root Causes */
+.issue-root-cause-item {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-left: 3.5px solid var(--active-blue);
+  border-radius: 8px;
+  padding: 10px 14px;
+}
+
+.issue-root-cause-item.cause-critical {
+  border-left-color: var(--critical-accent);
+}
+
+.issue-root-cause-item.cause-at-risk {
+  border-left-color: var(--at-risk-accent);
+}
+
+.clickable-diagnostic-item {
+  cursor: pointer;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease, background-color 0.16s ease;
+}
+
+.issue-root-cause-item.clickable-diagnostic-item:hover {
+  background-color: #ffffff;
+  border-color: #cbd5e1;
+  box-shadow: 0 3px 10px rgba(15, 23, 42, 0.06);
+  transform: translateY(-1px);
+}
+
+.issue-root-cause-item.cause-critical:hover {
+  border-left-color: var(--critical-accent);
+}
+
+.issue-root-cause-item.cause-at-risk:hover {
+  border-left-color: var(--at-risk-accent);
+}
+
+.clickable-diagnostic-item:focus {
+  outline: 2px solid var(--active-blue);
+  outline-offset: 1px;
+}
+
+.item-content-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+}
+
+.item-metric-headline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.headline-metric-name {
+  font-size: 0.80rem;
+  font-weight: 700;
+  color: var(--text-dark);
+}
+
+.headline-status-badge {
+  font-size: 0.64rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+}
+
+/* Consolidated Suggestions Metric Groups */
+.ai-suggestions-metric-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.suggestion-action-summary {
+  margin-top: 3px;
+}
+
+.suggestion-action-text {
+  font-size: 0.78rem;
+  color: var(--text-body);
+  line-height: 1.44;
+  margin: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.deepdive-more-tag {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--active-blue);
+  margin-top: 4px;
+  margin-left: 12px;
+}
+
+.metric-suggestion-group {
+  background: #ffffff;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: 10px 14px;
+}
+
+.metric-suggestion-group.clickable-diagnostic-item {
+  border-left: 3.5px solid var(--active-blue);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
+}
+
+.metric-suggestion-group.suggestion-critical {
+  border-left-color: var(--critical-accent);
+}
+
+.metric-suggestion-group.suggestion-at-risk {
+  border-left-color: var(--at-risk-accent);
+}
+
+.metric-suggestion-group.clickable-diagnostic-item:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 3px 10px rgba(15, 23, 42, 0.06);
+  transform: translateY(-1px);
+}
+
+.metric-suggestion-group.suggestion-critical:hover {
+  border-left-color: var(--critical-accent);
+}
+
+.metric-suggestion-group.suggestion-at-risk:hover {
+  border-left-color: var(--at-risk-accent);
+}
+
+.suggestion-metric-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.suggestion-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.suggestion-step-num {
+  font-size: 0.66rem;
+  font-weight: 800;
+  color: #0284c7;
+  background: #e0f2fe;
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+
+.suggestion-metric-label {
+  font-size: 0.80rem;
+  font-weight: 700;
+  color: var(--text-dark);
+}
+
+.suggestion-actions-sublist {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.suggestion-action-subitem {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: var(--text-body);
+  line-height: 1.4;
+}
+
+.bullet-indicator {
+  color: #0284c7;
+  font-weight: 800;
+  font-size: 0.88rem;
+  line-height: 1;
+}
+
+/* ==========================================================================
+   13. Responsive Breakpoints
    ========================================================================== */
 @media (max-width: 1200px) {
   .analysis-view-grid {
