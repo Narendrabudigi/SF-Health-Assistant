@@ -42,20 +42,52 @@ function ModuleIcon({ type }) {
 }
 
 export default function HomeDashboard({ modules, onSelectModule }) {
+  // Compute executive metrics for Swiss business summary
+  const criticalCount = modules.filter(m => m.status === 'Critical').length;
+  const atRiskCount = modules.filter(m => m.status === 'At Risk').length;
+  const totalMetrics = modules.reduce((acc, m) => acc + (m.benchmarks ? m.benchmarks.length : 0), 0);
+
   return (
     <div className="overview-container">
-      {/* Title & Subtitle */}
+      {/* Header Area */}
       <div className="overview-heading-wrap">
+        <div className="swiss-eyebrow">EXECUTIVE OVERVIEW • LIVE HEALTH MONITORING</div>
         <h2 className="overview-main-title">Module Health Overview</h2>
         <p className="overview-sub-title">
-          Select any module below to view its health analysis and industry comparison.
+          Real-time benchmark comparisons, SLA tracking, and diagnostic insights across your core SAP SuccessFactors modules.
         </p>
       </div>
 
-      {/* 4 Clean Module Cards */}
+      {/* Smooth Executive KPI Banner Strip */}
+      <div className="swiss-kpi-strip" role="region" aria-label="Executive KPI Summary">
+        <div className="kpi-strip-cell">
+          <span className="kpi-cell-label">Active Modules</span>
+          <span className="kpi-cell-value">{modules.length}</span>
+          <span className="kpi-cell-sub">Core Human Resources Scope</span>
+        </div>
+        <div className="kpi-strip-divider"></div>
+        <div className="kpi-strip-cell">
+          <span className="kpi-cell-label">Critical Alerts</span>
+          <span className="kpi-cell-value text-critical">{criticalCount}</span>
+          <span className="kpi-cell-sub">Immediate Attention Needed</span>
+        </div>
+        <div className="kpi-strip-divider"></div>
+        <div className="kpi-strip-cell">
+          <span className="kpi-cell-label">At-Risk Processes</span>
+          <span className="kpi-cell-value text-at-risk">{atRiskCount}</span>
+          <span className="kpi-cell-sub">SLA Variance Identified</span>
+        </div>
+        <div className="kpi-strip-divider"></div>
+        <div className="kpi-strip-cell">
+          <span className="kpi-cell-label">Monitored Metrics</span>
+          <span className="kpi-cell-value">{totalMetrics}</span>
+          <span className="kpi-cell-sub">Benchmark Comparisons</span>
+        </div>
+      </div>
+
+      {/* 4 Smooth Module Cards Grid */}
       <div className="module-cards-row">
         {modules.map((mod) => {
-          const isCritical = mod.status === 'Critical';
           return (
             <div 
               key={mod.id} 
@@ -65,28 +97,33 @@ export default function HomeDashboard({ modules, onSelectModule }) {
               tabIndex={0}
               onKeyDown={(e) => e.key === 'Enter' && onSelectModule(mod.id)}
             >
-              {/* Rounded Color Icon */}
-              <div 
-                className="card-icon-box" 
-                style={{ backgroundColor: mod.iconBg }}
-              >
-                <ModuleIcon type={mod.iconType} />
+              {/* Card Header: Module Title on Left, Icon on Right */}
+              <div className="card-top-meta">
+                <h3 className="card-module-title">{mod.name}</h3>
+                <div 
+                  className="card-icon-box" 
+                  style={{ backgroundColor: mod.iconBg }}
+                >
+                  <ModuleIcon type={mod.iconType} />
+                </div>
               </div>
-
-              {/* Module Name */}
-              <h3 className="card-module-title">{mod.name}</h3>
 
               {/* Short Description */}
               <p className="card-module-desc">{mod.description}</p>
 
+              {/* KPI Count Micro-pill */}
+              <div className="card-kpi-count-tag">
+                <span>{mod.benchmarks?.length || 0} Benchmark Metrics</span>
+              </div>
+
               {/* Footer: Status Pill on left, View Analysis link on right */}
               <div className="card-bottom-actions">
-                <span className={`pill-badge ${isCritical ? 'badge-critical' : 'badge-at-risk'}`}>
+                <span className={`pill-badge ${mod.status === 'Critical' ? 'badge-critical' : mod.status === 'Healthy' ? 'badge-healthy' : 'badge-at-risk'}`}>
                   {mod.status}
                 </span>
 
                 <span className="view-analysis-link">
-                  View Analysis
+                  <span>View Analysis</span>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="5" y1="12" x2="19" y2="12"></line>
                     <polyline points="12 5 19 12 12 19"></polyline>

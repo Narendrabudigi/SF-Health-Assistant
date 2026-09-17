@@ -74,7 +74,7 @@ export default function ModuleRibbon({
           {activeModule && (
             <div className="ribbon-status-area">
               <span className="ribbon-status-label">Status:</span>
-              <span className={`pill-badge ${activeModule.status === 'Critical' ? 'badge-critical' : 'badge-at-risk'}`}>
+              <span className={`pill-badge ${activeModule.status === 'Critical' ? 'badge-critical' : activeModule.status === 'Healthy' ? 'badge-healthy' : 'badge-at-risk'}`}>
                 {activeModule.status}
               </span>
             </div>

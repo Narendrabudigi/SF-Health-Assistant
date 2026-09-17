@@ -24,35 +24,38 @@ export default function ComparisonTable({ module, standardMode = 'standard' }) {
     <div className="white-panel comparison-panel">
       {/* Header with Title and Filter Buttons */}
       <div className="comparison-header">
-        <h2 className="panel-main-title">
-          {isCustom ? 'Company vs. Custom Standards' : 'Company vs. Industry Standards'}
-        </h2>
+        <div className="comparison-title-wrap">
+          <span className="swiss-panel-eyebrow">Benchmark Standards • SLA Tracking</span>
+          <h2 className="panel-main-title">
+            {isCustom ? 'Company vs. Custom Standards' : 'Company vs. Industry Standards'}
+          </h2>
+        </div>
 
-        <div className="pill-filter-group">
-          <button
-            type="button"
+        <div className="pill-filter-group" role="tablist" aria-label="Filter Metrics">
+          <button 
+            type="button" 
             className={`pill-filter-btn ${filterMode === 'all' ? 'active' : ''}`}
             onClick={() => setFilterMode('all')}
           >
-            All
+            All ({benchmarks.length})
           </button>
-          <button
-            type="button"
-            className={`pill-filter-btn ${filterMode === 'critical' ? 'active' : ''}`}
+          <button 
+            type="button" 
+            className={`pill-filter-btn filter-btn-critical ${filterMode === 'critical' ? 'active' : ''}`}
             onClick={() => setFilterMode('critical')}
           >
             Critical
           </button>
-          <button
-            type="button"
-            className={`pill-filter-btn ${filterMode === 'at-risk' ? 'active' : ''}`}
+          <button 
+            type="button" 
+            className={`pill-filter-btn filter-btn-at-risk ${filterMode === 'at-risk' ? 'active' : ''}`}
             onClick={() => setFilterMode('at-risk')}
           >
             At Risk
           </button>
-          <button
-            type="button"
-            className={`pill-filter-btn ${filterMode === 'healthy' ? 'active' : ''}`}
+          <button 
+            type="button" 
+            className={`pill-filter-btn filter-btn-healthy ${filterMode === 'healthy' ? 'active' : ''}`}
             onClick={() => setFilterMode('healthy')}
           >
             Healthy
@@ -65,13 +68,13 @@ export default function ComparisonTable({ module, standardMode = 'standard' }) {
         <table className="clean-benchmark-table">
           <thead>
             <tr>
-              <th scope="col" className="th-metric">METRIC</th>
-              <th scope="col" className="th-company text-left">OUR COMPANY</th>
+              <th scope="col" className="th-metric">Metric Name</th>
+              <th scope="col" className="th-company text-left">Our Company</th>
               <th scope="col" className="th-standard text-left">
-                {isCustom ? 'CUSTOM STANDARD' : 'INDUSTRY STANDARD'}
+                {isCustom ? 'Custom Standard' : 'Industry Standard'}
               </th>
-              <th scope="col" className="th-status text-center">HEALTH STATE</th>
-              <th scope="col" className="th-variance text-center">VARIANCE</th>
+              <th scope="col" className="th-status text-center">Health Status</th>
+              <th scope="col" className="th-variance text-right">Variance</th>
             </tr>
           </thead>
           <tbody>
@@ -109,8 +112,10 @@ export default function ComparisonTable({ module, standardMode = 'standard' }) {
                     </td>
 
                     {/* VARIANCE */}
-                    <td className="td-variance text-center">
-                      <span className="variance-text">{row.variance}</span>
+                    <td className="td-variance text-right">
+                      <span className={`variance-tag variance-${row.status.toLowerCase().replace(/\s+/g, '-')}`}>
+                        {row.variance}
+                      </span>
                     </td>
                   </tr>
                 );
