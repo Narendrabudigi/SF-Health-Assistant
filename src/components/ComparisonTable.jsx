@@ -70,7 +70,7 @@ export default function ComparisonTable({ module, standardMode = 'standard' }) {
               <th scope="col" className="th-standard text-left">
                 {isCustom ? 'CUSTOM STANDARD' : 'INDUSTRY STANDARD'}
               </th>
-              <th scope="col" className="th-status text-center">HEALTHY STATE</th>
+              <th scope="col" className="th-status text-center">HEALTH STATE</th>
               <th scope="col" className="th-variance text-center">VARIANCE</th>
             </tr>
           </thead>
