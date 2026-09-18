@@ -144,7 +144,8 @@ export default function ComparisonTable({
                     {/* HEALTHY STATE */}
                     <td className="td-status text-center">
                       <span className={`pill-badge ${getBadgeClass(row.status)}`}>
-                        {row.status}
+                        <span className="badge-dot" aria-hidden="true"></span>
+                        <span>{row.status}</span>
                       </span>
                     </td>
 

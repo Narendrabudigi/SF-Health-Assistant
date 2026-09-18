@@ -25,14 +25,18 @@ export default function GenAIReport({ module }) {
     <div className="white-panel ai-diagnostic-panel">
       {/* Panel Header */}
       <div className="ai-report-header">
-        <span className="swiss-panel-eyebrow">Diagnostic Analysis • AI Insights</span>
+        <span className="swiss-panel-eyebrow">
+          <span className="ai-sparkle-icon" aria-hidden="true">✨</span>
+          <span>Diagnostic Analysis • AI Insights</span>
+        </span>
         <h2 className="panel-main-title">AI Diagnostic Report</h2>
       </div>
 
       {/* Executive Summary Callout */}
       <div className="ai-summary-callout">
         <div className="callout-header-tag">
-          Executive Summary • {criticalCount} Critical, {atRiskCount} At Risk
+          <span className="callout-icon">💡</span>
+          <span>Executive Summary • {criticalCount} Critical, {atRiskCount} At Risk</span>
         </div>
         <p className="callout-text">{executiveSummary}</p>
       </div>
@@ -78,7 +82,8 @@ export default function GenAIReport({ module }) {
                       </div>
 
                       <span className={`pill-badge ${isCritical ? 'badge-critical' : 'badge-at-risk'}`}>
-                        {metricRow.status}
+                        <span className="badge-dot" aria-hidden="true"></span>
+                        <span>{metricRow.status}</span>
                       </span>
                     </div>
 
