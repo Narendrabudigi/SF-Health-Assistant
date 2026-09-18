@@ -256,33 +256,6 @@ export const SF_MODULES = [
         }
       },
       {
-        metric: 'Offer acceptance rate',
-        category: 'Offer Conversion',
-        company: '81.0%',
-        standard: '≥ 88.0%',
-        status: 'At Risk',
-        variance: '-7.0% (-8.0%)',
-        detailedAnalysis: {
-          whereItHappens: 'Final compensation benchmarking and formal offer letter presentation stage for specialized engineering and mid-senior roles.',
-          whyItHappens: 'Extended turnaround between final interview and offer generation (avg 6 days), coupled with non-competitive base salary benchmarking for niche specialized skills.',
-          trendAnalysis: {
-            summary: 'Dipped below the 88% industry benchmark in Q2 and has remained suppressed.',
-            points: [
-              { period: 'Q1', value: '86.4%' },
-              { period: 'Q2', value: '84.0%' },
-              { period: 'Q3', value: '82.5%' },
-              { period: 'Q4 (Current)', value: '81.0%' }
-            ]
-          },
-          howItEffects: 'Forces recruiters to restart candidate searches from scratch, doubling cost-per-hire and leaving revenue-generating positions vacant.',
-          howToOvercome: [
-            'Streamline offer approval workflows to deliver formalized offer letters within 48 hours of verbal agreement.',
-            'Integrate live compensation market benchmarks into RCM requisition compensation fields.',
-            'Deploy dynamic total rewards preview statements within candidate offer portals.'
-          ]
-        }
-      },
-      {
         metric: 'Applicant-to-Interview Conversion Rate',
         category: 'Screening Efficiency',
         company: '12.4%',
@@ -306,6 +279,33 @@ export const SF_MODULES = [
             'Implement mandatory role-specific pre-screening questions with automated qualification scoring.',
             'Leverage SAP SuccessFactors AI candidate matching to surface top-fit applicants instantly.',
             'Refine job postings with precise competency requirements developed via Job Profile Builder.'
+          ]
+        }
+      },
+      {
+        metric: 'Offer acceptance rate',
+        category: 'Offer Conversion',
+        company: '81.0%',
+        standard: '≥ 88.0%',
+        status: 'At Risk',
+        variance: '-7.0% (-8.0%)',
+        detailedAnalysis: {
+          whereItHappens: 'Final compensation benchmarking and formal offer letter presentation stage for specialized engineering and mid-senior roles.',
+          whyItHappens: 'Extended turnaround between final interview and offer generation (avg 6 days), coupled with non-competitive base salary benchmarking for niche specialized skills.',
+          trendAnalysis: {
+            summary: 'Dipped below the 88% industry benchmark in Q2 and has remained suppressed.',
+            points: [
+              { period: 'Q1', value: '86.4%' },
+              { period: 'Q2', value: '84.0%' },
+              { period: 'Q3', value: '82.5%' },
+              { period: 'Q4 (Current)', value: '81.0%' }
+            ]
+          },
+          howItEffects: 'Forces recruiters to restart candidate searches from scratch, doubling cost-per-hire and leaving revenue-generating positions vacant.',
+          howToOvercome: [
+            'Streamline offer approval workflows to deliver formalized offer letters within 48 hours of verbal agreement.',
+            'Integrate live compensation market benchmarks into RCM requisition compensation fields.',
+            'Deploy dynamic total rewards preview statements within candidate offer portals.'
           ]
         }
       },
@@ -462,33 +462,6 @@ export const SF_MODULES = [
     },
     benchmarks: [
       {
-        metric: 'Offboarding Cycle Time',
-        category: 'Separation Velocity',
-        company: '9.4 Days',
-        standard: '≤ 5.0 Days',
-        status: 'At Risk',
-        variance: '+4.4 Days (+88.0%)',
-        detailedAnalysis: {
-          whereItHappens: 'Supervisor separation notice routing and cross-departmental clearance workflows across HR Operations, Facilities, and Payroll.',
-          whyItHappens: 'Delayed supervisor submission of separation notices and fragmented communication across HR, Facilities, and Payroll for clearance sign-off.',
-          trendAnalysis: {
-            summary: 'Cycle turnaround lengthened steadily across the year, predominantly for voluntary resignations.',
-            points: [
-              { period: 'Q1', value: '7.8 Days' },
-              { period: 'Q2', value: '8.4 Days' },
-              { period: 'Q3', value: '9.0 Days' },
-              { period: 'Q4 (Current)', value: '9.4 Days' }
-            ]
-          },
-          howItEffects: 'Extends administrative clearance timelines, delays timely release of experience letters, and leaves system accounts active longer than required.',
-          howToOvercome: [
-            'Implement an employee self-service resignation workflow in Employee Central with auto-approval routing.',
-            'Deploy parallel offboarding task assignment across HR, IT, and Facilities rather than sequential chains.',
-            'Set automated daily escalation alerts to managers for pending departure checklist items.'
-          ]
-        }
-      },
-      {
         metric: 'Access & Asset Revocation Timeliness',
         category: 'Security & IAM SLA',
         company: '4.2 Hours',
@@ -512,6 +485,33 @@ export const SF_MODULES = [
             'Configure real-time automated webhook triggers via SAP BTP Event Mesh to disable AD/Okta credentials immediately at separation timestamp.',
             'Implement automated single sign-on (SSO) session termination for cloud apps upon termination event.',
             'Establish an automated security dashboard logging timestamp difference between termination and credential revocation.'
+          ]
+        }
+      },
+      {
+        metric: 'Offboarding Cycle Time',
+        category: 'Separation Velocity',
+        company: '9.4 Days',
+        standard: '≤ 5.0 Days',
+        status: 'At Risk',
+        variance: '+4.4 Days (+88.0%)',
+        detailedAnalysis: {
+          whereItHappens: 'Supervisor separation notice routing and cross-departmental clearance workflows across HR Operations, Facilities, and Payroll.',
+          whyItHappens: 'Delayed supervisor submission of separation notices and fragmented communication across HR, Facilities, and Payroll for clearance sign-off.',
+          trendAnalysis: {
+            summary: 'Cycle turnaround lengthened steadily across the year, predominantly for voluntary resignations.',
+            points: [
+              { period: 'Q1', value: '7.8 Days' },
+              { period: 'Q2', value: '8.4 Days' },
+              { period: 'Q3', value: '9.0 Days' },
+              { period: 'Q4 (Current)', value: '9.4 Days' }
+            ]
+          },
+          howItEffects: 'Extends administrative clearance timelines, delays timely release of experience letters, and leaves system accounts active longer than required.',
+          howToOvercome: [
+            'Implement an employee self-service resignation workflow in Employee Central with auto-approval routing.',
+            'Deploy parallel offboarding task assignment across HR, IT, and Facilities rather than sequential chains.',
+            'Set automated daily escalation alerts to managers for pending departure checklist items.'
           ]
         }
       },

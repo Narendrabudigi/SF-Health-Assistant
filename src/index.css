@@ -540,116 +540,176 @@ body {
 
 .overview-heading-wrap {
   text-align: left;
-  margin-bottom: 20px;
+  margin-bottom: 26px;
+}
+
+.overview-title-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+.live-health-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.70rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #047857;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  padding: 4px 11px;
+  border-radius: var(--radius-pill);
+  box-shadow: 0 1px 2px rgba(16, 185, 129, 0.08);
+}
+
+.live-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #10b981;
+  box-shadow: 0 0 8px #10b981;
+  animation: pulse-dot 2s infinite ease-in-out;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.35); opacity: 0.55; }
 }
 
 .overview-main-title {
-  font-size: 1.85rem;
+  font-size: 2.10rem;
   font-weight: 800;
-  color: var(--text-dark);
-  letter-spacing: -0.025em;
-  margin-bottom: 6px;
-  line-height: 1.2;
+  color: #0f172a;
+  letter-spacing: -0.035em;
+  line-height: 1.18;
+  margin-bottom: 0;
 }
 
 .overview-sub-title {
-  font-size: 0.90rem;
-  color: var(--text-body);
-  max-width: 720px;
-  line-height: 1.55;
+  font-size: 0.94rem;
+  color: #475569;
+  max-width: 760px;
+  line-height: 1.6;
 }
 
 /* ==========================================================================
-   4. KPI Strip Hierarchy & Separators (Improvements 03, 04, 16)
+   4. KPI Strip Hierarchy & Executive Glass Surface
    ========================================================================== */
 .swiss-kpi-strip {
   display: grid;
   grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr;
   align-items: center;
-  background: var(--bg-surface);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-card);
-  padding: 16px 24px;
-  margin-bottom: 24px;
-  box-shadow: var(--shadow-card);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 20px 28px;
+  margin-bottom: 28px;
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.02);
+  position: relative;
 }
 
 .kpi-strip-cell {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
 }
 
 .kpi-cell-label {
-  font-size: 0.68rem;
-  font-weight: 700;
+  font-size: 0.70rem;
+  font-weight: 750;
   letter-spacing: 0.07em;
-  color: var(--text-muted);
+  color: #64748b;
   text-transform: uppercase;
 }
 
 .kpi-cell-value {
-  font-size: 2.05rem;
+  font-size: 2.25rem;
   font-weight: 800;
-  color: var(--text-dark);
-  line-height: 1.1;
-  letter-spacing: -0.025em;
+  color: #0f172a;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
 }
 
 .kpi-cell-sub {
-  font-size: 0.72rem;
+  font-size: 0.74rem;
   font-weight: 500;
-  color: var(--text-light);
-  line-height: 1.3;
+  color: #94a3b8;
+  line-height: 1.35;
 }
 
 .kpi-strip-divider {
   width: 1px;
-  height: 38px;
-  background-color: var(--border-light);
-  margin: 0 16px;
-  opacity: 0.8;
+  height: 44px;
+  background-color: #e2e8f0;
+  margin: 0 20px;
 }
 
 .text-critical {
-  color: var(--critical-accent);
+  color: #ef4444;
 }
 
 .text-at-risk {
-  color: var(--at-risk-accent);
+  color: #f59e0b;
 }
 
 /* ==========================================================================
-   5. Module Cards (Improvements 05, 06, 07, 28)
+   5. Module Cards (Top 1% Precision Architecture)
    ========================================================================== */
 .module-cards-row {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 20px;
+  gap: 22px;
   width: 100%;
   align-items: stretch;
 }
 
 .overview-card {
-  background-color: var(--bg-surface);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-card);
-  padding: 22px 20px 18px 20px;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 24px 22px 20px 22px;
   display: flex;
   flex-direction: column;
   height: 100%;
-  min-height: 275px;
+  min-height: 290px;
   cursor: pointer;
-  transition: border-color var(--trans-fast), box-shadow var(--trans-fast), transform var(--trans-fast);
-  box-shadow: var(--shadow-card);
+  transition: all 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 8px -2px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.02);
   position: relative;
+  overflow: hidden;
 }
 
 .overview-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-hover);
-  border-color: rgba(2, 132, 199, 0.4);
+  transform: translateY(-5px);
+  box-shadow: 0 20px 35px -8px rgba(15, 23, 42, 0.09), 0 6px 14px -3px rgba(15, 23, 42, 0.04);
+}
+
+/* Module Specific Color Hover Nuances */
+.overview-card.card-theme-ec:hover {
+  border-color: #7dd3fc;
+  box-shadow: 0 20px 35px -8px rgba(2, 132, 199, 0.14), 0 6px 14px -3px rgba(2, 132, 199, 0.06);
+}
+
+.overview-card.card-theme-rcm:hover {
+  border-color: #c4b5fd;
+  box-shadow: 0 20px 35px -8px rgba(139, 92, 246, 0.14), 0 6px 14px -3px rgba(139, 92, 246, 0.06);
+}
+
+.overview-card.card-theme-onb:hover {
+  border-color: #6ee7b7;
+  box-shadow: 0 20px 35px -8px rgba(16, 185, 129, 0.14), 0 6px 14px -3px rgba(16, 185, 129, 0.06);
+}
+
+.overview-card.card-theme-ofb:hover {
+  border-color: #fdba74;
+  box-shadow: 0 20px 35px -8px rgba(249, 115, 22, 0.14), 0 6px 14px -3px rgba(249, 115, 22, 0.06);
 }
 
 .card-top-meta {
@@ -660,56 +720,86 @@ body {
 }
 
 .card-module-title {
-  font-size: 1.15rem;
-  font-weight: 700;
-  color: var(--text-dark);
-  letter-spacing: -0.015em;
+  font-size: 1.20rem;
+  font-weight: 750;
+  color: #0f172a;
+  letter-spacing: -0.02em;
   line-height: 1.25;
 }
 
-/* Standardized Module Icons (Improvement 07) */
+/* Top 1% Gradients & Soft Ambient Shadows for Module Icons */
 .card-icon-box {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
+  width: 42px;
+  height: 42px;
+  border-radius: 11px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #ffffff;
   flex-shrink: 0;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.card-icon-ec { background-color: var(--color-ec); }
-.card-icon-rcm { background-color: var(--color-rcm); }
-.card-icon-onb { background-color: var(--color-onb); }
-.card-icon-ofb { background-color: var(--color-ofb); }
+.overview-card:hover .card-icon-box {
+  transform: scale(1.06);
+}
+
+.card-icon-ec { 
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); 
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.32);
+}
+
+.card-icon-rcm { 
+  background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); 
+  box-shadow: 0 4px 14px rgba(139, 92, 246, 0.32);
+}
+
+.card-icon-onb { 
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%); 
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.32);
+}
+
+.card-icon-ofb { 
+  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); 
+  box-shadow: 0 4px 14px rgba(249, 115, 22, 0.32);
+}
 
 .card-icon-box svg {
-  width: 18px;
-  height: 18px;
+  width: 19px;
+  height: 19px;
 }
 
 .card-module-desc {
-  font-size: 0.84rem;
-  color: var(--text-body);
-  line-height: 1.5;
+  font-size: 0.85rem;
+  color: #475569;
+  line-height: 1.58;
   margin-bottom: 16px;
   flex: 1;
 }
 
 .card-kpi-count-tag {
-  margin-bottom: 14px;
+  margin-bottom: 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #475569;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  width: fit-content;
+  transition: all 0.2s;
 }
 
-.card-kpi-count-tag span {
-  font-size: 0.70rem;
-  font-weight: 600;
-  color: var(--text-muted);
-  background-color: #f8fafc;
-  border: 1px solid var(--border-light);
-  padding: 3px 9px;
-  border-radius: var(--radius-pill);
+.card-kpi-count-tag svg {
+  color: #64748b;
+}
+
+.overview-card:hover .card-kpi-count-tag {
+  background-color: #f1f5f9;
+  border-color: #cbd5e1;
 }
 
 .card-bottom-actions {
@@ -717,60 +807,92 @@ body {
   align-items: center;
   justify-content: space-between;
   margin-top: auto;
-  padding-top: 14px;
-  border-top: 1px solid var(--border-subtle);
+  padding-top: 15px;
+  border-top: 1px solid #f1f5f9;
 }
 
 .view-analysis-link {
-  font-size: 0.78rem;
+  font-size: 0.80rem;
   font-weight: 700;
-  color: var(--active-blue);
+  color: #0284c7;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   white-space: nowrap;
-  transition: gap var(--trans-fast), color var(--trans-fast);
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.view-analysis-link .view-arrow-icon {
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .overview-card:hover .view-analysis-link {
-  gap: 8px;
-  color: var(--active-blue-hover);
+  color: #0369a1;
+}
+
+.overview-card:hover .view-arrow-icon {
+  transform: translateX(4px);
 }
 
 /* ==========================================================================
-   6. Standardized Status Badges (Improvements 11, 17, 18)
+   6. Standardized Status Badges with Live Micro-Dots
    ========================================================================== */
 .pill-badge {
-  font-size: 0.70rem;
+  font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.02em;
-  padding: 3px 10px;
-  height: 22px;
+  padding: 4px 11px;
+  height: 24px;
   border-radius: var(--radius-pill);
   display: inline-flex;
   align-items: center;
+  gap: 6px;
   justify-content: center;
   white-space: nowrap;
   border: 1px solid transparent;
   line-height: 1;
 }
 
+.badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
 .badge-critical {
-  background-color: var(--critical-bg);
-  color: var(--critical-text);
-  border-color: var(--critical-border);
+  background-color: #fef2f2;
+  color: #b91c1c;
+  border-color: #fecaca;
+}
+
+.badge-critical .badge-dot {
+  background-color: #ef4444;
+  box-shadow: 0 0 6px #ef4444;
+  animation: pulse-dot 2s infinite ease-in-out;
 }
 
 .badge-at-risk {
-  background-color: var(--at-risk-bg);
-  color: var(--at-risk-text);
-  border-color: var(--at-risk-border);
+  background-color: #fffbeb;
+  color: #b45309;
+  border-color: #fde68a;
+}
+
+.badge-at-risk .badge-dot {
+  background-color: #f59e0b;
+  box-shadow: 0 0 5px #f59e0b;
 }
 
 .badge-healthy {
-  background-color: var(--healthy-bg);
-  color: var(--healthy-text);
-  border-color: var(--healthy-border);
+  background-color: #f0fdf4;
+  color: #15803d;
+  border-color: #bbf7d0;
+}
+
+.badge-healthy .badge-dot {
+  background-color: #10b981;
+  box-shadow: 0 0 5px #10b981;
 }
 
 /* Metadata Category Tag (Improvement 08) */
@@ -991,14 +1113,36 @@ body {
 }
 
 .accordion-dropdown-trigger:hover {
-  background: #f1f5f9;
-  border-color: #cbd5e1;
+  background: #f0f9ff;
+  border-color: #bae6fd;
+}
+
+.accordion-dropdown-trigger:hover .dropdown-trigger-label {
+  color: #0284c7;
+}
+
+.accordion-dropdown-trigger:hover .accordion-chevron-box {
+  color: #0284c7;
+}
+
+.accordion-dropdown-trigger.is-expanded {
+  background: #f0f9ff;
+  border-color: #bae6fd;
+}
+
+.accordion-dropdown-trigger.is-expanded .dropdown-trigger-label {
+  color: #0284c7;
+}
+
+.accordion-dropdown-trigger.is-expanded .accordion-chevron-box {
+  color: #0284c7;
 }
 
 .dropdown-trigger-label {
   font-size: 0.74rem;
   font-weight: 600;
   color: var(--text-body);
+  transition: color var(--trans-fast);
 }
 
 .accordion-chevron-box {
@@ -1009,7 +1153,7 @@ body {
   align-items: center;
   justify-content: center;
   color: var(--text-muted);
-  transition: transform var(--trans-normal);
+  transition: transform var(--trans-normal), color var(--trans-fast);
 }
 
 .accordion-chevron-box.rotated {

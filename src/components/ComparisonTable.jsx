@@ -25,6 +25,10 @@ export default function ComparisonTable({
     return 'badge-at-risk';
   };
 
+  const criticalCount = benchmarks.filter(b => b.status === 'Critical').length;
+  const atRiskCount = benchmarks.filter(b => b.status === 'At Risk').length;
+  const healthyCount = benchmarks.filter(b => b.status === 'Healthy').length;
+
   return (
     <div className="white-panel comparison-panel">
       {/* Header with Title and Filter Buttons */}
@@ -49,21 +53,21 @@ export default function ComparisonTable({
             className={`pill-filter-btn filter-btn-critical ${filterMode === 'critical' ? 'active' : ''}`}
             onClick={() => setFilterMode('critical')}
           >
-            Critical
+            Critical ({criticalCount})
           </button>
           <button 
             type="button" 
             className={`pill-filter-btn filter-btn-at-risk ${filterMode === 'at-risk' ? 'active' : ''}`}
             onClick={() => setFilterMode('at-risk')}
           >
-            At Risk
+            At Risk ({atRiskCount})
           </button>
           <button 
             type="button" 
             className={`pill-filter-btn filter-btn-healthy ${filterMode === 'healthy' ? 'active' : ''}`}
             onClick={() => setFilterMode('healthy')}
           >
-            Healthy
+            Healthy ({healthyCount})
           </button>
         </div>
       </div>

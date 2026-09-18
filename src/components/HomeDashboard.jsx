@@ -51,7 +51,6 @@ export default function HomeDashboard({ modules, onSelectModule }) {
     <div className="overview-container">
       {/* Header Area */}
       <div className="overview-heading-wrap">
-        <div className="swiss-eyebrow">EXECUTIVE OVERVIEW • LIVE HEALTH MONITORING</div>
         <h2 className="overview-main-title">Module Health Overview</h2>
         <p className="overview-sub-title">
           Real-time benchmark comparisons, SLA tracking, and diagnostic insights across your core SAP SuccessFactors modules.
@@ -91,7 +90,7 @@ export default function HomeDashboard({ modules, onSelectModule }) {
           return (
             <div 
               key={mod.id} 
-              className="overview-card"
+              className={`overview-card card-theme-${mod.id}`}
               onClick={() => onSelectModule(mod.id)}
               role="button"
               tabIndex={0}
@@ -112,13 +111,19 @@ export default function HomeDashboard({ modules, onSelectModule }) {
 
               {/* KPI Count Micro-pill */}
               <div className="card-kpi-count-tag">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <line x1="18" y1="20" x2="18" y2="10"></line>
+                  <line x1="12" y1="20" x2="12" y2="4"></line>
+                  <line x1="6" y1="20" x2="6" y2="14"></line>
+                </svg>
                 <span>{mod.benchmarks?.length || 0} Benchmark Metrics</span>
               </div>
 
               {/* Footer: Status Pill on left, View Analysis link on right */}
               <div className="card-bottom-actions">
                 <span className={`pill-badge ${mod.status === 'Critical' ? 'badge-critical' : mod.status === 'Healthy' ? 'badge-healthy' : 'badge-at-risk'}`}>
-                  {mod.status}
+                  <span className="badge-dot" aria-hidden="true"></span>
+                  <span>{mod.status}</span>
                 </span>
 
                 <span 
@@ -137,7 +142,7 @@ export default function HomeDashboard({ modules, onSelectModule }) {
                   }}
                 >
                   <span>View Analysis</span>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <svg className="view-arrow-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="5" y1="12" x2="19" y2="12"></line>
                     <polyline points="12 5 19 12 12 19"></polyline>
                   </svg>
