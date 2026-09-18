@@ -18,10 +18,15 @@ export default function Navbar({ onGoHome, onOpenConnectSystem, isConnected }) {
 
         {/* Right: Connect System Option */}
         <div className="navbar-right">
-          <div className="navbar-telemetry-pill">
-            <span className={`status-pulse-dot ${isConnected ? 'dot-online' : 'dot-standby'}`}></span>
-            <span className="telemetry-label">{isConnected ? 'LIVE' : 'LOCAL CACHE MODE'}</span>
-          </div>
+          {isConnected && (
+            <div 
+              className="navbar-telemetry-pill"
+              title="Live Telemetry: Connected to SAP SuccessFactors via OData v2 API"
+            >
+              <span className="status-pulse-dot dot-online"></span>
+              <span className="telemetry-label">LIVE</span>
+            </div>
+          )}
 
           <button
             className={`btn-connect-system ${isConnected ? 'is-connected' : ''}`}

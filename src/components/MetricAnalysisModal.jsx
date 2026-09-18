@@ -7,8 +7,17 @@ export default function MetricAnalysisModal({ metric, onClose }) {
         onClose();
       }
     };
+    const prevBodyOverflow = document.body.style.overflow;
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = prevBodyOverflow;
+      document.documentElement.style.overflow = prevHtmlOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
   }, [onClose]);
 
   if (!metric) return null;
@@ -120,12 +129,12 @@ export default function MetricAnalysisModal({ metric, onClose }) {
                 </div>
               )}
 
-              {/* Card 3: How is it effecting */}
+              {/* Card 3: How is it affecting */}
               <div className="diagnostic-card">
                 <div className="diagnostic-card-header">
                   <span className="card-step-badge">03</span>
                   <div className="card-header-text">
-                    <h4 className="diagnostic-card-title">How Is It Effecting the Business?</h4>
+                    <h4 className="diagnostic-card-title">How Is It Affecting the Business?</h4>
                     <span className="diagnostic-card-subtitle">Downstream SLA, Payroll & Operational Impact</span>
                   </div>
                 </div>

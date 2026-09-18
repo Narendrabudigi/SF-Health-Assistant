@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 
-export default function UploadCustomStandardsModal({ 
-  isOpen, 
-  onClose, 
-  onImport, 
-  module 
+export default function UploadCustomStandardsModal({
+  isOpen,
+  onClose,
+  onImport,
+  module
 }) {
   const [dragOver, setDragOver] = useState(false);
   const [file, setFile] = useState(null);
@@ -19,8 +19,18 @@ export default function UploadCustomStandardsModal({
         handleClose();
       }
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    if (isOpen) {
+      const prevBodyOverflow = document.body.style.overflow;
+      const prevHtmlOverflow = document.documentElement.style.overflow;
+      document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
+      window.addEventListener('keydown', handleKeyDown);
+      return () => {
+        document.body.style.overflow = prevBodyOverflow;
+        document.documentElement.style.overflow = prevHtmlOverflow;
+        window.removeEventListener('keydown', handleKeyDown);
+      };
+    }
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -223,12 +233,12 @@ export default function UploadCustomStandardsModal({
           <div className="upload-instruction-card">
             <div className="instruction-badge">CSV Format Requirement</div>
             <p className="instruction-text">
-              The uploaded file must be a <strong>.csv</strong> containing <strong>exactly two columns</strong>: 
+              The uploaded file must be a <strong>.csv</strong> containing <strong>exactly two columns</strong>:
               <code>Metric Name</code> and <code>Custom Standard</code>.
             </p>
-            <button 
-              type="button" 
-              className="btn-download-sample" 
+            <button
+              type="button"
+              className="btn-download-sample"
               onClick={handleDownloadSample}
               title="Download formatted CSV template for current module"
             >
@@ -242,7 +252,7 @@ export default function UploadCustomStandardsModal({
           </div>
 
           {/* Drag & Drop File Zone */}
-          <div 
+          <div
             className={`csv-dropzone ${dragOver ? 'drag-over' : ''} ${file ? 'has-file' : ''}`}
             onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
             onDragLeave={() => setDragOver(false)}
@@ -252,12 +262,12 @@ export default function UploadCustomStandardsModal({
             tabIndex={0}
             onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && fileInputRef.current?.click()}
           >
-            <input 
-              type="file" 
-              ref={fileInputRef} 
-              accept=".csv" 
-              style={{ display: 'none' }} 
-              onChange={handleFileChange} 
+            <input
+              type="file"
+              ref={fileInputRef}
+              accept=".csv"
+              style={{ display: 'none' }}
+              onChange={handleFileChange}
             />
 
             <div className="dropzone-icon">
@@ -341,9 +351,9 @@ export default function UploadCustomStandardsModal({
           <button type="button" className="btn-secondary" onClick={handleClose}>
             Cancel
           </button>
-          <button 
-            type="button" 
-            className="btn-primary" 
+          <button
+            type="button"
+            className="btn-primary"
             disabled={parsedData.length === 0 || !!parseError}
             onClick={handleImportSubmit}
           >
