@@ -1,6 +1,11 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { getBrdPlan } from '../utils/brdPlanData';
+import { generateMetricBrdPdf } from '../utils/pdfGenerator';
 
 export default function MetricAnalysisModal({ metric, onClose }) {
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadSuccess, setDownloadSuccess] = useState(false);
+
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
@@ -23,9 +28,25 @@ export default function MetricAnalysisModal({ metric, onClose }) {
   if (!metric) return null;
 
   const { detailedAnalysis, metric: metricName, category, company, standard, status, variance } = metric;
+  const brdPlan = getBrdPlan(metric);
 
   const isCritical = status === 'Critical';
   const badgeClass = isCritical ? 'badge-critical' : status === 'Healthy' ? 'badge-healthy' : 'badge-at-risk';
+
+  const handleDownloadPDF = () => {
+    setIsDownloading(true);
+    setTimeout(() => {
+      try {
+        generateMetricBrdPdf(metric);
+        setIsDownloading(false);
+        setDownloadSuccess(true);
+        setTimeout(() => setDownloadSuccess(false), 3000);
+      } catch (err) {
+        console.error('PDF Generation Error:', err);
+        setIsDownloading(false);
+      }
+    }, 350);
+  };
 
   return (
     <div className="modal-backdrop" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="modal-metric-title">
@@ -143,25 +164,83 @@ export default function MetricAnalysisModal({ metric, onClose }) {
                 </div>
               </div>
 
-              {/* Card 4: How to overcome */}
-              {detailedAnalysis.howToOvercome && detailedAnalysis.howToOvercome.length > 0 && (
-                <div className="diagnostic-card">
+              {/* Card 4: How to Overcome • BRD Plan of Action */}
+              {detailedAnalysis.howToOvercome && detailedAnalysis.howToOvercome.length > 0 && brdPlan && (
+                <div className="diagnostic-card brd-clean-card">
                   <div className="diagnostic-card-header">
                     <span className="card-step-badge">04</span>
                     <div className="card-header-text">
-                      <h4 className="diagnostic-card-title">How to Overcome</h4>
-                      <span className="diagnostic-card-subtitle">Prescriptive Corrective Actions & Configuration Adjustments</span>
+                      <div className="card-badge-row">
+                        <h4 className="diagnostic-card-title">How to Overcome</h4>
+                        <span className="brd-pill-tag">BRD Plan of Action</span>
+                      </div>
+                      <span className="diagnostic-card-subtitle">
+                        Resource allocation and execution roadmap to eliminate variance gap
+                      </span>
                     </div>
                   </div>
+
                   <div className="diagnostic-card-content">
-                    <ol className="remediation-steps-list">
-                      {detailedAnalysis.howToOvercome.map((step, sIdx) => (
-                        <li key={sIdx} className="remediation-step-item">
-                          <span className="step-counter">{sIdx + 1}</span>
-                          <span className="step-text">{step}</span>
-                        </li>
-                      ))}
-                    </ol>
+                    {/* Compact Resource & Timeline Strip */}
+                    <div className="brd-compact-strip">
+                      <div className="brd-compact-item brd-compact-grow">
+                        <span className="brd-compact-label">
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                          </svg>
+                          Manpower Required
+                        </span>
+                        <div className="brd-role-chips">
+                          {brdPlan.workforceRequired.map((wf, wIdx) => (
+                            <span key={wIdx} className="brd-role-chip">
+                              <strong>{wf.count}x</strong> {wf.role} <span className="chip-hrs">({wf.hours})</span>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="brd-compact-divider"></div>
+
+                      <div className="brd-compact-item brd-compact-timeline">
+                        <span className="brd-compact-label">
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
+                          </svg>
+                          Est. Timeline & Effort
+                        </span>
+                        <div className="brd-timeline-val">
+                          <strong>{brdPlan.timeline}</strong>
+                          <span className="brd-effort-badge">{brdPlan.totalEffortHours} Total Hours</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Prescriptive Remediation Steps */}
+                    <div className="brd-clean-steps">
+                      <div className="brd-clean-steps-header">
+                        Execution Plan & Workstreams
+                      </div>
+                      <ol className="remediation-steps-list">
+                        {detailedAnalysis.howToOvercome.map((step, sIdx) => (
+                          <li key={sIdx} className="remediation-step-item">
+                            <span className="step-counter">{sIdx + 1}</span>
+                            <span className="step-text">{step}</span>
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+
+                    {/* Target Business Outcome */}
+                    {brdPlan.expectedOutcome && (
+                      <div className="brd-clean-outcome">
+                        <span className="outcome-tag">Target Outcome</span>
+                        <span className="outcome-text">{brdPlan.expectedOutcome}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -179,13 +258,30 @@ export default function MetricAnalysisModal({ metric, onClose }) {
           )}
         </div>
 
-        {/* Modal Footer */}
+        {/* Modal Footer with PDF Download option instead of close button */}
         <div className="modal-footer metric-modal-footer">
           <span className="modal-footer-caption">
-            SAP SuccessFactors Enterprise Diagnostic Intelligence
+            SAP SuccessFactors Enterprise Diagnostic Intelligence • BRD Implementation Plan
           </span>
-          <button type="button" className="btn-secondary" onClick={onClose}>
-            Close Analysis
+          <button 
+            type="button" 
+            className={`btn-primary btn-download-pdf ${downloadSuccess ? 'btn-download-success' : ''}`}
+            onClick={handleDownloadPDF}
+            disabled={isDownloading}
+            title="Download complete BRD Action Plan and diagnostic report as a PDF document"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            <span>
+              {downloadSuccess 
+                ? 'Downloaded (PDF) ✓' 
+                : isDownloading 
+                  ? 'Generating PDF...' 
+                  : 'Download BRD Plan (PDF)'}
+            </span>
           </button>
         </div>
       </div>
