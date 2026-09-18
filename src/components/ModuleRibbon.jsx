@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 
-export default function ModuleRibbon({ 
-  modules, 
-  activeModuleId, 
-  onSelectModule, 
+export default function ModuleRibbon({
+  modules,
+  activeModuleId,
+  onSelectModule,
   onGoHome,
   standardMode = 'standard',
   onSelectStandardMode,
@@ -56,7 +56,7 @@ export default function ModuleRibbon({
     <nav className="dark-sub-ribbon" aria-label="Module Navigation Ribbon">
       <div className="dark-sub-ribbon-inner">
         {/* Back Button */}
-        <button 
+        <button
           className="ribbon-back-button"
           onClick={onGoHome}
           title="Back to Overview"
@@ -99,7 +99,7 @@ export default function ModuleRibbon({
           )}
 
           {/* Upload Custom Standards Trigger */}
-          <button 
+          <button
             type="button"
             className="btn-ribbon-upload"
             onClick={onOpenUploadModal}
@@ -116,7 +116,7 @@ export default function ModuleRibbon({
 
           {/* External Labels: Industrial Standards & Custom Standards with Toggle Switch */}
           <div className="standards-toggle-wrapper" aria-label="Standards Selector">
-            <span 
+            <span
               className={`standards-toggle-label ${standardMode === 'standard' ? 'active' : ''}`}
               onClick={handleIndustrialClick}
               role="button"
@@ -127,7 +127,7 @@ export default function ModuleRibbon({
               Industrial Standards
             </span>
 
-            <button 
+            <button
               type="button"
               className={`standards-switch-btn ${standardMode === 'custom' ? 'checked' : ''} ${isShaking ? 'shake-anim' : ''}`}
               onClick={handleToggleClick}
@@ -139,7 +139,7 @@ export default function ModuleRibbon({
               <span className="standards-switch-thumb"></span>
             </button>
 
-            <span 
+            <span
               className={`standards-toggle-label ${standardMode === 'custom' ? 'active' : ''}`}
               onClick={handleCustomClick}
               role="button"

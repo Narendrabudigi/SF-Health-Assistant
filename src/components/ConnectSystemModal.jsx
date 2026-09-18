@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 export default function ConnectSystemModal({ 
   isOpen, 
@@ -13,6 +13,18 @@ export default function ConnectSystemModal({
   const [clientSecret, setClientSecret] = useState('••••••••••••••••');
   const [isConnecting, setIsConnecting] = useState(false);
   const [feedbackMsg, setFeedbackMsg] = useState('');
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const prevBodyOverflow = document.body.style.overflow;
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prevBodyOverflow;
+      document.documentElement.style.overflow = prevHtmlOverflow;
+    };
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -46,7 +58,7 @@ export default function ConnectSystemModal({
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-card connect-system-modal" onClick={(e) => e.stopPropagation()}>
         {/* Modal Header */}
         <div className="modal-header">
           <div className="modal-title-wrap">
@@ -69,9 +81,10 @@ export default function ConnectSystemModal({
         </div>
 
         {/* Modal Body */}
-        <form onSubmit={handleTestAndConnect} className="modal-form">
-          {/* Status Alert Banner */}
-          <div className={`connection-status-banner ${isConnected ? 'status-active' : 'status-inactive'}`}>
+        <form onSubmit={handleTestAndConnect} className="modal-form connect-system-form">
+          <div className="modal-form-body">
+            {/* Status Alert Banner */}
+            <div className={`connection-status-banner ${isConnected ? 'status-active' : 'status-inactive'}`}>
             <span className={`status-indicator-dot ${isConnected ? 'dot-live' : ''}`}></span>
             <div style={{ flex: 1 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2px' }}>
@@ -152,6 +165,7 @@ export default function ConnectSystemModal({
               {feedbackMsg}
             </div>
           )}
+          </div>
 
           {/* Modal Actions */}
           <div className="modal-footer">
