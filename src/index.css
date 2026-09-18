@@ -435,9 +435,6 @@ body {
   box-shadow: 0 0 14px rgba(56, 189, 248, 0.25);
   transform: translateY(-1px);
 }
-  border-color: rgba(255, 255, 255, 0.35);
-  color: #ffffff;
-}
 
 /* Standards Toggle Switch (Improvement 27) */
 .standards-toggle-wrapper {
