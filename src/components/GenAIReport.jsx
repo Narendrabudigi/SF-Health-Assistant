@@ -8,8 +8,8 @@ export default function GenAIReport({ module }) {
     (b) => (b.status === 'Critical' || b.status === 'At Risk') && b.detailedAnalysis
   );
 
-  // Manage accordion state: first metric expanded by default
-  const [expandedIndex, setExpandedIndex] = useState(0);
+  // Manage accordion state: collapsed by default
+  const [expandedIndex, setExpandedIndex] = useState(null);
 
   const toggleMetric = (idx) => {
     setExpandedIndex(expandedIndex === idx ? null : idx);

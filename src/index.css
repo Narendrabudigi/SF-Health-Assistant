@@ -853,8 +853,7 @@ body {
 
 .badge-critical .badge-dot {
   background-color: #ef4444;
-  box-shadow: 0 0 6px #ef4444;
-  animation: pulse-dot 2s infinite ease-in-out;
+  box-shadow: 0 0 5px #ef4444;
 }
 
 .badge-at-risk {

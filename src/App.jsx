@@ -40,7 +40,11 @@ export default function App() {
   const handleSelectStandardMode = (mode) => {
     if (mode === 'custom') {
       if (!hasCustomStandards) {
-        setIsUploadModalOpen(true);
+        setToast({
+          id: Date.now(),
+          type: 'warning',
+          message: 'No custom standards uploaded yet. Please use "Upload Standards" button to import a CSV file first.'
+        });
         return;
       }
       setStandardMode('custom');

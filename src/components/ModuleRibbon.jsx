@@ -22,11 +22,7 @@ export default function ModuleRibbon({
     if (standardMode === 'standard') {
       if (!hasCustomStandards) {
         triggerShake();
-        if (onOpenUploadModal) {
-          onOpenUploadModal();
-        } else {
-          onSelectStandardMode('custom');
-        }
+        onSelectStandardMode('custom');
       } else {
         onSelectStandardMode('custom');
       }
@@ -38,11 +34,7 @@ export default function ModuleRibbon({
   const handleCustomClick = () => {
     if (!hasCustomStandards) {
       triggerShake();
-      if (onOpenUploadModal) {
-        onOpenUploadModal();
-      } else {
-        onSelectStandardMode('custom');
-      }
+      onSelectStandardMode('custom');
     } else {
       onSelectStandardMode('custom');
     }
