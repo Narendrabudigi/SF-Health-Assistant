@@ -51,7 +51,7 @@ export default function HomeDashboard({ modules, onSelectModule }) {
     <div className="overview-container">
       {/* Header Area */}
       <div className="overview-heading-wrap">
-        <h2 className="overview-main-title">Module Health Overview</h2>
+        <h2 className="overview-main-title">Module Health Overview<span className="yash-accent-dot">.</span></h2>
         <p className="overview-sub-title">
           Real-time benchmark comparisons, SLA tracking, and diagnostic insights across your core SAP SuccessFactors modules.
         </p>

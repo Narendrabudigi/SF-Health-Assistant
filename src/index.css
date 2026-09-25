@@ -18,11 +18,11 @@
   --space-16: 64px;
 
   /* --------------------------------------------------------------------------
-     2. Color Palette (Enterprise Modern Identity - Improvement 30)
+     2. Color Palette (YASH Technologies Inspired Enterprise Identity)
      -------------------------------------------------------------------------- */
-  --header-bg: #091a2f;              /* Deep executive corporate navy */
-  --subribbon-bg: #0f2742;           /* Dark corporate sub-ribbon */
-  --bg-canvas: #f8fafc;              /* Crisp light soft-slate canvas */
+  --header-bg: #000000;              /* Pure black YASH executive header */
+  --subribbon-bg: #091a2f;           /* Deep corporate navy sub-ribbon */
+  --bg-canvas: #f8fafc;              /* Crisp clean light canvas */
   --bg-surface: #ffffff;             /* Pure white surface */
   --bg-surface-subtle: #f1f5f9;      /* Light neutral fill */
   --bg-surface-hover: #f8fafc;       /* Gentle hover tint */
@@ -30,21 +30,24 @@
   /* Structural Borders & Rules */
   --border-light: #e2e8f0;           /* Clean structural border */
   --border-subtle: #f1f5f9;          /* Faint internal row divider */
-  --border-focus: #0284c7;           /* Active interaction border */
+  --border-focus: #0077d8;           /* Active interaction border */
 
   /* Typography Colors */
-  --text-dark: #0f172a;              /* Slate-black primary heading ink */
+  --text-dark: #0f172a;              /* Rich black heading ink */
   --text-body: #334155;              /* Balanced reading text */
   --text-muted: #64748b;             /* Professional secondary metadata */
   --text-light: #94a3b8;             /* Subtle tertiary captions */
 
-  /* Primary Interactive Brand Blue */
-  --active-blue: #0284c7;
-  --active-blue-hover: #0369a1;
-  --active-blue-subtle: #f0f9ff;
-  --active-blue-border: #bae6fd;
+  /* Primary Interactive Brand Blue (YASH Royal Blue Accent #0077d8 / #00579e) */
+  --active-blue: #0077d8;
+  --active-blue-hover: #00579e;
+  --active-blue-subtle: #eff6ff;
+  --active-blue-border: #bfdbfe;
 
-  /* Semantic Health Status Colors (Restrained Enterprise - Improvements 11, 17, 18) */
+  /* YASH Brand Red Accent */
+  --yash-red: #e0331e;
+
+  /* Semantic Health Status Colors (Restrained Enterprise) */
   --critical-bg: #fef2f2;
   --critical-border: #fecaca;
   --critical-text: #991b1b;
@@ -61,9 +64,9 @@
   --healthy-accent: #16a34a;
 
   /* Module Specific Brand Accents */
-  --color-ec: #0284c7;               /* Blue - Employee Central */
+  --color-ec: #0077d8;               /* YASH Blue - Employee Central */
   --color-rcm: #7c3aed;              /* Purple - Recruitment */
-  --color-onb: #16a34a;              /* Green - Onboarding */
+  --color-onb: #059669;              /* Emerald Green - Onboarding */
   --color-ofb: #ea580c;              /* Amber/Orange - Offboarding */
 
   /* --------------------------------------------------------------------------
@@ -285,26 +288,30 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: #0077d8;
+  border: 1px solid #0077d8;
   color: #ffffff;
-  font-size: 0.76rem;
-  font-weight: 600;
-  padding: 6px 14px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 7px 18px;
   border-radius: var(--radius-pill);
   cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 119, 216, 0.35);
   transition: all var(--trans-fast);
 }
 
 .btn-connect-system:hover {
-  background: rgba(255, 255, 255, 0.18);
-  border-color: rgba(255, 255, 255, 0.35);
+  background: #00579e;
+  border-color: #00579e;
+  box-shadow: 0 4px 14px rgba(0, 119, 216, 0.45);
+  transform: translateY(-1px);
 }
 
 .btn-connect-system.is-connected {
   background: rgba(16, 185, 129, 0.18);
   border-color: rgba(16, 185, 129, 0.45);
   color: #34d399;
+  box-shadow: none;
 }
 
 /* ==========================================================================
@@ -429,10 +436,10 @@ body {
 }
 
 .btn-ribbon-upload:hover {
-  background: rgba(2, 132, 199, 0.22);
-  border-color: #38bdf8;
+  background: rgba(0, 119, 216, 0.22);
+  border-color: #60a5fa;
   color: #ffffff;
-  box-shadow: 0 0 14px rgba(56, 189, 248, 0.25);
+  box-shadow: 0 0 14px rgba(0, 119, 216, 0.25);
   transform: translateY(-1px);
 }
 
@@ -573,6 +580,12 @@ body {
   letter-spacing: -0.035em;
   line-height: 1.18;
   margin-bottom: 0;
+}
+
+.yash-accent-dot {
+  color: var(--yash-red);
+  font-weight: 900;
+  display: inline;
 }
 
 .overview-sub-title {
@@ -798,7 +811,7 @@ body {
 .view-analysis-link {
   font-size: 0.80rem;
   font-weight: 700;
-  color: #0284c7;
+  color: var(--active-blue);
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -811,7 +824,7 @@ body {
 }
 
 .overview-card:hover .view-analysis-link {
-  color: #0369a1;
+  color: var(--active-blue-hover);
 }
 
 .overview-card:hover .view-arrow-icon {
