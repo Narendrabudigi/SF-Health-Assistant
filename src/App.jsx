@@ -10,9 +10,9 @@ import { SF_MODULES } from './data/modulesData';
 import './index.css';
 
 export default function App() {
-  // activeModuleId: null indicates Overview/Home, string ID indicates module analysis view
-  const [activeModuleId, setActiveModuleId] = useState(null);
-  
+  // activeModuleId: default to 'rcm' (Recruitment) so the user immediately sees the requested analysis view
+  const [activeModuleId, setActiveModuleId] = useState('rcm');
+
   // Benchmark Standards Toggle: 'standard' | 'custom'
   const [standardMode, setStandardMode] = useState('standard');
   const [customStandardsMap, setCustomStandardsMap] = useState({});
@@ -24,16 +24,21 @@ export default function App() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [connectedSystemDetails, setConnectedSystemDetails] = useState(null);
 
+  // Deep Dive State for Auto-Hiding the Sub-Ribbon
+  const [isDeepDive, setIsDeepDive] = useState(false);
+
   const activeModule = SF_MODULES.find((m) => m.id === activeModuleId) || null;
   const hasCustomStandards = Object.keys(customStandardsMap).length > 0;
 
   const handleSelectModule = (moduleId) => {
     setActiveModuleId(moduleId);
+    setIsDeepDive(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleGoHome = () => {
     setActiveModuleId(null);
+    setIsDeepDive(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -76,38 +81,43 @@ export default function App() {
   return (
     <div className="app-container">
       {/* 1. Dark Top Header with YASH Logo & Success Factors Title */}
-      <Navbar 
-        onGoHome={handleGoHome} 
+      <Navbar
+        onGoHome={handleGoHome}
         onOpenConnectSystem={() => setIsModalOpen(true)}
         isConnected={isSystemConnected}
       />
 
-      {/* 2. Sub-Ribbon: Shown when inside a module, with Standard/Custom toggle & Upload trigger */}
+      {/* 2. Sub-Ribbon: Shown when inside a module (auto-hides in Deep Dive till hovered) */}
       {activeModule && (
-        <ModuleRibbon 
-          modules={SF_MODULES} 
-          activeModuleId={activeModuleId} 
-          onSelectModule={handleSelectModule} 
-          onGoHome={handleGoHome}
-          standardMode={standardMode}
-          onSelectStandardMode={handleSelectStandardMode}
-          onOpenUploadModal={() => setIsUploadModalOpen(true)}
-          hasCustomStandards={hasCustomStandards}
-        />
+        <div className={`module-ribbon-autohide-container ${isDeepDive ? 'is-autohide' : ''}`}>
+          <ModuleRibbon
+            modules={SF_MODULES}
+            activeModuleId={activeModuleId}
+            onSelectModule={handleSelectModule}
+            onGoHome={handleGoHome}
+            standardMode={standardMode}
+            onSelectStandardMode={handleSelectStandardMode}
+            onOpenUploadModal={() => setIsUploadModalOpen(true)}
+            hasCustomStandards={hasCustomStandards}
+          />
+        </div>
       )}
 
       {/* 3. Main View Area */}
       <main className="content-viewport">
         {activeModule ? (
-          <ModuleAnalysisView 
-            module={activeModule} 
-            standardMode={standardMode} 
+          <ModuleAnalysisView
+            module={activeModule}
+            standardMode={standardMode}
             customStandardsMap={customStandardsMap}
+            onGoHome={handleGoHome}
+            onSelectModule={handleSelectModule}
+            onDeepDiveChange={setIsDeepDive}
           />
         ) : (
-          <HomeDashboard 
-            modules={SF_MODULES} 
-            onSelectModule={handleSelectModule} 
+          <HomeDashboard
+            modules={SF_MODULES}
+            onSelectModule={handleSelectModule}
           />
         )}
       </main>
@@ -130,9 +140,9 @@ export default function App() {
       />
 
       {/* 6. Toast Notification (bottom-right) */}
-      <ToastNotification 
-        toast={toast} 
-        onClose={() => setToast(null)} 
+      <ToastNotification
+        toast={toast}
+        onClose={() => setToast(null)}
       />
     </div>
   );

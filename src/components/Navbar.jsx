@@ -1,6 +1,10 @@
 import React from 'react';
 
-export default function Navbar({ onGoHome, onOpenConnectSystem, isConnected }) {
+export default function Navbar({ 
+  onGoHome, 
+  onOpenConnectSystem, 
+  isConnected
+}) {
   return (
     <header className="dark-navbar">
       <div className="dark-navbar-inner">
