@@ -24,3 +24,4 @@ dist-ssr
 *.sw?
 *.env
 *.env.*
+*.BACKENDD_FASTAPI_ARCHITECTURE_GUIDE.*
