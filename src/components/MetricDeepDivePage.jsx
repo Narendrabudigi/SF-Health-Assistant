@@ -2,10 +2,11 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { createPortal } from 'react-dom';
 import { getBrdPlan } from '../utils/brdPlanData';
 import { generateMetricBrdPdf } from '../utils/pdfGenerator';
+import TrendDrillDownView from './TrendDrillDownView';
 
 const CATALOG_SECTIONS = [
   { id: 'sec-diagnosis', label: 'Diagnosis', icon: 'help', desc: 'LLM diagnostic synthesis & touchpoints' },
-  { id: 'sec-trend', label: 'Trend Analysis', icon: 'trend', desc: 'Progression & trajectory' },
+  { id: 'sec-trend', label: 'Trend Analysis', icon: 'trend', desc: 'Yearly, quarterly & monthly drill-down' },
   { id: 'sec-rca', label: 'Root Cause Analysis', icon: 'search', desc: 'Stage & segment breach drivers' },
   { id: 'sec-impact', label: 'Business Impact', icon: 'alert', desc: 'Downstream SLA & financial risk' },
   { id: 'sec-brd', label: 'BRD Plan of Action', icon: 'clipboard', desc: 'Workforce, hours & milestones' },
@@ -511,47 +512,19 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
               </div>
 
               {/* SECTION 03: TREND ANALYSIS (ALIGNED WITH BRD ORDER) */}
-              {detailedAnalysis.trendAnalysis && (
-                <div id="sec-trend" className="diagnostic-card deepdive-card">
-                  <div className="diagnostic-card-header">
-                    <div className="card-header-text">
-                      <h2 className="diagnostic-card-title">3. Trend Analysis</h2>
-                      <span className="diagnostic-card-subtitle">Quarterly Progression & Trajectory Tracking</span>
-                    </div>
-                  </div>
-                  <div className="diagnostic-card-content">
-                    <div className="trend-summary-row">
-                      <div className="trend-summary-text">{detailedAnalysis.trendAnalysis.summary}</div>
-                      <span className={`trend-status-pill ${isCritical ? 'pill-drift-critical' : 'pill-drift-atrisk'}`}>
-                        {isCritical ? 'Trajectory Below SLA' : 'Sub-Optimal Variance'}
-                      </span>
-                    </div>
-
-                    {detailedAnalysis.trendAnalysis.points && (
-                      <div className="trend-visual-container">
-                        <div className="trend-points-grid">
-                          {detailedAnalysis.trendAnalysis.points.map((pt, pIdx) => {
-                            const isCurrent = pIdx === detailedAnalysis.trendAnalysis.points.length - 1;
-                            return (
-                              <div key={pIdx} className={`trend-visual-card ${isCurrent ? 'trend-card-current' : ''}`}>
-                                <div className="trend-card-quarter">{pt.period}</div>
-                                <div className="trend-card-bar-wrap">
-                                  <div
-                                    className={`trend-card-bar-fill ${isCurrent ? (isCritical ? 'bar-critical' : 'bar-atrisk') : 'bar-historical'}`}
-                                    style={{ height: `${48 + (pIdx * 14)}%` }}
-                                  />
-                                </div>
-                                <div className="trend-card-value">{pt.value}</div>
-                                {isCurrent && <span className="trend-current-tag">Current</span>}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
+              <div id="sec-trend" className="diagnostic-card deepdive-card">
+                <div className="diagnostic-card-header">
+                  <div className="card-header-text">
+                    <h2 className="diagnostic-card-title">3. Trend Analysis</h2>
+                    <span className="diagnostic-card-subtitle">
+                      Hierarchical Drill-Down Trajectory Tracking (Yearly › Quarterly › Monthly)
+                    </span>
                   </div>
                 </div>
-              )}
+                <div className="diagnostic-card-content">
+                  <TrendDrillDownView metric={currentMetric} />
+                </div>
+              </div>
 
               {/* SECTION 04: ROOT CAUSE ANALYSIS (ALIGNED WITH BRD ORDER) */}
               <div id="sec-rca" className="diagnostic-card deepdive-card">

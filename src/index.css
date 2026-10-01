@@ -3947,6 +3947,578 @@ select.form-control {
   letter-spacing: 0.04em;
 }
 
+/* ========================================================
+   DRILL-DOWN TREND ANALYSIS ENGINE (YEARLY -> QUARTERLY -> MONTHLY)
+   ======================================================== */
+.trend-drilldown-container {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Top Toolbar: Breadcrumbs & Granularity Pill Tabs */
+.trend-drilldown-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 10px 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.trend-breadcrumb-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.trend-crumb-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  font-size: 0.74rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.trend-crumb-btn:hover {
+  background: #e0f2fe;
+  color: #0284c7;
+  border-color: #38bdf8;
+}
+
+.trend-crumb-btn.crumb-active {
+  background: #0284c7;
+  color: #ffffff;
+  border-color: #0284c7;
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(2, 132, 199, 0.25);
+}
+
+.trend-crumb-sep {
+  color: #94a3b8;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.trend-crumb-active {
+  display: inline-flex;
+  align-items: center;
+  background: #0284c7;
+  color: #ffffff;
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(2, 132, 199, 0.25);
+}
+
+.trend-level-pill-group {
+  display: inline-flex;
+  background: #e2e8f0;
+  padding: 3px;
+  border-radius: 7px;
+  gap: 2px;
+}
+
+.trend-level-pill {
+  border: none;
+  background: transparent;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #64748b;
+  padding: 4px 12px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.trend-level-pill:hover {
+  color: #0f172a;
+}
+
+.trend-level-pill.level-pill-active {
+  background: #ffffff;
+  color: #0284c7;
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* Secondary Sub-Bar (Scope switcher and Back Step-Up) */
+.trend-sub-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 8px 12px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.trend-sub-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.trend-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.trend-filter-label {
+  font-size: 0.70rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.trend-filter-pills {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.trend-filter-chip {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  font-size: 0.70rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.trend-filter-chip:hover {
+  border-color: #0284c7;
+  color: #0284c7;
+}
+
+.trend-filter-chip.chip-selected {
+  background: #e0f2fe;
+  border-color: #0284c7;
+  color: #0369a1;
+  font-weight: 700;
+}
+
+.btn-trend-stepup {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #0284c7;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin-left: auto;
+}
+
+.btn-trend-stepup:hover {
+  background: #e0f2fe;
+  border-color: #0284c7;
+}
+
+/* Scope Summary Banner */
+.trend-scope-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid #e2e8f0;
+  border-left: 4px solid #0284c7;
+  border-radius: 8px;
+}
+
+.trend-scope-text-wrap {
+  flex: 1;
+  min-width: 260px;
+}
+
+.trend-scope-heading-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.trend-scope-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.trend-scope-context {
+  font-size: 0.76rem;
+  color: #475569;
+  line-height: 1.45;
+  margin: 4px 0 0 0;
+}
+
+.trend-scope-kpis {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: #ffffff;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.trend-kpi-block {
+  display: flex;
+  flex-direction: column;
+}
+
+.trend-kpi-lbl {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.trend-kpi-val {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.trend-kpi-val.val-standard {
+  color: #0284c7;
+}
+
+.trend-kpi-sep {
+  width: 1px;
+  height: 24px;
+  background: #e2e8f0;
+}
+
+/* Responsive Cards Grid for Yearly (3), Quarterly (4), Monthly (3) */
+.trend-cards-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.trend-cards-grid.grid-yearly {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.trend-cards-grid.grid-quarterly {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.trend-cards-grid.grid-monthly {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+@media (max-width: 900px) {
+  .trend-cards-grid.grid-yearly,
+  .trend-cards-grid.grid-quarterly,
+  .trend-cards-grid.grid-monthly {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 580px) {
+  .trend-cards-grid.grid-yearly,
+  .trend-cards-grid.grid-quarterly,
+  .trend-cards-grid.grid-monthly {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Individual Trend Interactive Card */
+.trend-interactive-card {
+  position: relative;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 14px 14px 12px 14px;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.trend-interactive-card.card-clickable {
+  cursor: pointer;
+}
+
+.trend-interactive-card.card-clickable:hover {
+  transform: translateY(-3px);
+  border-color: #0284c7;
+  box-shadow: 0 6px 16px -2px rgba(2, 132, 199, 0.12);
+}
+
+.trend-interactive-card.card-clickable:focus-visible {
+  outline: 2px solid #0284c7;
+  outline-offset: 2px;
+}
+
+.trend-interactive-card.card-is-current {
+  border-color: #0284c7;
+  background: #f8fbfe;
+  box-shadow: 0 2px 6px rgba(2, 132, 199, 0.08);
+}
+
+.trend-active-ribbon {
+  position: absolute;
+  top: -8px;
+  right: 12px;
+  background: #0284c7;
+  color: #ffffff;
+  font-size: 0.58rem;
+  font-weight: 800;
+  padding: 1px 7px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  box-shadow: 0 1px 3px rgba(2, 132, 199, 0.3);
+  z-index: 2;
+}
+
+/* Card Top Row */
+.trend-card-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.trend-card-period-tag {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #334155;
+}
+
+.trend-micro-pill {
+  font-size: 0.62rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.micro-critical {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+.micro-atrisk {
+  background: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+
+.micro-healthy {
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+
+/* Card Value Row */
+.trend-card-val-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.trend-card-primary-val {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.01em;
+}
+
+.trend-change-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 5px;
+  border-radius: 4px;
+}
+
+.trend-delta-better {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.trend-delta-worse {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+/* Bar Representation */
+.trend-bar-track-wrap {
+  height: 56px;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.trend-bar-track {
+  height: 100%;
+  width: 22px;
+  background: #f1f5f9;
+  border-radius: 6px;
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+}
+
+.trend-bar-fill {
+  width: 100%;
+  border-radius: 6px 6px 0 0;
+  transition: height 0.35s ease;
+}
+
+.trend-bar-fill.bar-critical {
+  background: linear-gradient(180deg, #ef4444 0%, #dc2626 100%);
+}
+
+.trend-bar-fill.bar-atrisk {
+  background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%);
+}
+
+.trend-bar-fill.bar-healthy {
+  background: linear-gradient(180deg, #10b981 0%, #059669 100%);
+}
+
+.trend-target-baseline {
+  position: absolute;
+  top: 38%;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: #0284c7;
+  opacity: 0.45;
+  border-top: 1px dashed #ffffff;
+  pointer-events: none;
+}
+
+/* Card Footer */
+.trend-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 8px;
+  border-top: 1px solid #f1f5f9;
+  margin-top: auto;
+}
+
+.trend-variance-sub {
+  font-size: 0.68rem;
+  color: #64748b;
+}
+
+.trend-variance-sub strong {
+  color: #334155;
+}
+
+.trend-drill-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: #0284c7;
+  font-size: 0.68rem;
+  font-weight: 700;
+  transition: transform 0.15s ease;
+}
+
+.trend-interactive-card.card-clickable:hover .trend-drill-indicator {
+  transform: translateX(2px);
+}
+
+.trend-leaf-indicator {
+  font-size: 0.64rem;
+  color: #64748b;
+  font-style: italic;
+}
+
+/* Drill-Down Footer Hint */
+.trend-drilldown-footer-hint {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.72rem;
+  color: #475569;
+}
+
+.trend-drilldown-footer-hint .hint-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.trend-drilldown-footer-hint .hint-right {
+  display: flex;
+  align-items: center;
+}
+
+.hint-target-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.legend-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.legend-dot.dot-critical {
+  background: #ef4444;
+}
+
+.legend-dot.dot-atrisk {
+  background: #f59e0b;
+}
+
+.legend-dot.dot-healthy {
+  background: #10b981;
+}
+
 /* Business Impact Triad Grid */
 .impact-triad-grid {
   display: grid;
