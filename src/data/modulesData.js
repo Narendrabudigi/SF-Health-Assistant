@@ -231,27 +231,28 @@ export const SF_MODULES = [
       {
         metric: 'Time to hire',
         category: 'Cycle Turnaround',
-        company: '48 Days',
-        standard: '≤ 30 Days',
+        company: '34.2 days',
+        standard: '20 days',
         status: 'Critical',
-        variance: '+18 Days (+60%)',
+        variance: '+14.2 (+71.0%)',
         detailedAnalysis: {
           whereItHappens: 'Recruiter screening stages, hiring manager interview scorecard submission queues, and panel coordination workflows.',
-          whyItHappens: 'Lengthy recruiter initial screening, delays of 5+ days in hiring managers returning interview scorecards, and multi-round scheduling friction across external panels.',
+          whyItHappens: 'Time to Hire is 71.0% above the industry standard and has risen every year. Company Time to Hire averages 34.2 days against an industry standard of 20 days, a variance of +14.2 days. The trend is up year over year, from 27.9 to 31.3 to 34.2 days. The interview-to-offer-release stage accounts for 41% of the breach, followed by screening-to-interview at 27% and offer-release-to-acceptance at 19%. Engineering (41.3 days), Agency-sourced hires (39.0 days) and grade G7 (42.6 days) run well above the company average.',
           trendAnalysis: {
-            summary: 'Cycle turnaround lengthened steadily across the last 3 quarters due to increased interview rounds.',
+            summary: 'Average per period, last 3 years including current year. Trend direction: up.',
             points: [
-              { period: 'Q1', value: '38 Days' },
-              { period: 'Q2', value: '42 Days' },
-              { period: 'Q3', value: '45 Days' },
-              { period: 'Q4 (Current)', value: '48 Days' }
+              { period: '2024', value: '27.9 days' },
+              { period: '2025', value: '31.3 days' },
+              { period: '2026 (Current)', value: '34.2 days' }
             ]
           },
-          howItEffects: 'Causes high top-tier candidate drop-out to competing offers, delays strategic project kick-offs, and increases agency spend by 28%.',
+          howItEffects: 'Slow hiring keeps critical roles vacant, pushes strong candidates toward competing offers and increases dependence on costly sourcing channels.',
           howToOvercome: [
-            'Activate automated self-scheduling for candidates via SAP SuccessFactors Interview Central.',
-            'Establish a strict 24-hour SLA for interview scorecard submission with auto-reminders.',
-            'Cap standard requisition interview processes to a maximum of 3 structured rounds.'
+            'Introduce stage-aging SLAs with recruiter and hiring-manager escalation for the interview-to-offer-release stage.',
+            'Configure offer approval routing so senior-grade offers are approved in parallel, not in sequence.',
+            'Configure interview scheduling reminders and panel-availability rules, prioritising Engineering requisitions.',
+            'Set up candidate follow-up reminders and pre-approved offer ranges to shorten offer acceptance.',
+            'Review Agency source SLAs and introduce pipeline targets to reduce requisition-to-application time.'
           ]
         }
       },

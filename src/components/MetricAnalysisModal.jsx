@@ -37,7 +37,7 @@ export default function MetricAnalysisModal({ metric, onClose }) {
     setIsDownloading(true);
     setTimeout(() => {
       try {
-        generateMetricBrdPdf(metric);
+        generateMetricBrdPdf(metric, { brdPlan });
         setIsDownloading(false);
         setDownloadSuccess(true);
         setTimeout(() => setDownloadSuccess(false), 3000);

@@ -2400,6 +2400,241 @@ body {
   box-shadow: 0 2px 5px rgba(5, 150, 105, 0.3);
 }
 
+/* ==========================================================================
+   High-Fidelity BRD Specification Document Tables
+   ========================================================================== */
+.brd-spec-table-container {
+  margin-top: 14px;
+  overflow-x: auto;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.brd-spec-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  color: #1e293b;
+  text-align: left;
+}
+
+.brd-spec-table th {
+  background-color: #0b4d75;
+  color: #ffffff;
+  font-weight: 700;
+  padding: 10px 14px;
+  font-size: 0.80rem;
+  letter-spacing: 0.02em;
+  border-bottom: 2px solid #083b5a;
+  white-space: nowrap;
+}
+
+.brd-spec-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid #e2e8f0;
+  line-height: 1.45;
+  vertical-align: middle;
+}
+
+.brd-spec-table tbody tr:hover {
+  background-color: #f8fafc;
+}
+
+/* Phase Header Rows in Activity Table */
+.brd-phase-header-row td {
+  background-color: #e8eff6;
+  color: #0b3954;
+  font-weight: 700;
+  font-size: 0.81rem;
+  padding: 11px 14px;
+  border-top: 1px solid #cbd5e1;
+  border-bottom: 1px solid #cbd5e1;
+}
+
+/* Summary / Total Rows */
+.brd-spec-summary-row td {
+  background-color: #f1f5f9;
+  font-weight: 700;
+  color: #0f172a;
+  border-top: 2px solid #cbd5e1;
+}
+
+/* Workstream & Root-Cause ID badges */
+.workstream-id-badge {
+  display: inline-block;
+  font-weight: 700;
+  color: #0b4d75;
+  font-size: 0.82rem;
+}
+
+.fixes-driver-badge {
+  display: inline-block;
+  font-weight: 600;
+  color: #334155;
+  font-size: 0.80rem;
+  background: #f1f5f9;
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1px solid #e2e8f0;
+}
+
+/* Target Outcome Banner */
+.brd-target-outcome-banner {
+  margin-top: 18px;
+  margin-bottom: 18px;
+  padding: 12px 16px;
+  background-color: #f0fdf4;
+  border: 1px solid #86efac;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brd-target-outcome-label {
+  font-weight: 800;
+  font-size: 0.78rem;
+  letter-spacing: 0.05em;
+  color: #166534;
+  white-space: nowrap;
+}
+
+.brd-target-outcome-text {
+  font-size: 0.84rem;
+  color: #14532d;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+/* Sub-headings for 8. Success Criteria and 9. Assumptions */
+.brd-section-subheading {
+  font-size: 0.96rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-top: 22px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Footnote styling */
+.brd-spec-footnote {
+  margin-top: 20px;
+  font-size: 0.72rem;
+  color: #64748b;
+  font-style: italic;
+  line-height: 1.5;
+  border-top: 1px dashed #cbd5e1;
+  padding-top: 10px;
+}
+
+/* Deep-Dive Card Smooth Anchor Margin */
+.deepdive-card {
+  scroll-margin-top: 85px;
+}
+
+/* Side-by-side Responsive Grid for RCA Drivers (Section 4) */
+.rca-drivers-split-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+  align-items: start;
+}
+
+.rca-drivers-split-grid .brd-spec-table-container {
+  margin-top: 0;
+}
+
+/* Side-by-side Responsive Grid for Section 8 (Criteria) & Section 9 (Risks) */
+.criteria-risks-split-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 20px;
+  align-items: start;
+}
+
+.criteria-risks-split-grid .brd-spec-table-container {
+  margin-top: 0;
+}
+
+.criteria-col,
+.risks-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Dark theme overrides */
+.dark-theme .brd-spec-table-container {
+  background: #0f172a;
+  border-color: #334155;
+}
+
+.dark-theme .brd-spec-table {
+  color: #e2e8f0;
+}
+
+.dark-theme .brd-spec-table th {
+  background-color: #1e3a5f;
+  border-bottom-color: #2563eb;
+}
+
+.dark-theme .brd-spec-table td {
+  border-bottom-color: #1e293b;
+}
+
+.dark-theme .brd-spec-table tbody tr:hover {
+  background-color: #1e293b;
+}
+
+.dark-theme .brd-phase-header-row td {
+  background-color: #172554;
+  color: #93c5fd;
+  border-color: #1e3a8a;
+}
+
+.dark-theme .brd-spec-summary-row td {
+  background-color: #1e293b;
+  color: #f8fafc;
+  border-top-color: #334155;
+}
+
+.dark-theme .fixes-driver-badge {
+  background: #1e293b;
+  color: #cbd5e1;
+  border-color: #334155;
+}
+
+.dark-theme .workstream-id-badge {
+  color: #38bdf8;
+}
+
+.dark-theme .brd-target-outcome-banner {
+  background-color: rgba(22, 101, 52, 0.2);
+  border-color: rgba(134, 239, 172, 0.3);
+}
+
+.dark-theme .brd-target-outcome-label {
+  color: #4ade80;
+}
+
+.dark-theme .brd-target-outcome-text {
+  color: #86efac;
+}
+
+.dark-theme .brd-section-subheading {
+  color: #f1f5f9;
+}
+
+.dark-theme .brd-spec-footnote {
+  color: #94a3b8;
+  border-top-color: #334155;
+}
+
 @media (max-width: 768px) {
   .brd-compact-strip {
     flex-direction: column;

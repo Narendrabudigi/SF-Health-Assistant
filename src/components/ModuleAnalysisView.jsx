@@ -11,37 +11,63 @@ export default function ModuleAnalysisView({
   onSelectModule,
   onDeepDiveChange
 }) {
-  const [selectedMetric, setSelectedMetric] = useState(null);
+  const [selectedMetric, setSelectedMetric] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem(`sf_active_metric_${module?.id}`);
+      if (saved && module?.benchmarks) {
+        const found = module.benchmarks.find((b) => b.metric === saved);
+        if (found) return found;
+      }
+    } catch (e) {
+      // ignore
+    }
+    return null;
+  });
 
-  // Sync deep dive status with parent App component
+  // Sync deep dive status with parent App component and persist in sessionStorage
   useEffect(() => {
     if (onDeepDiveChange) {
       onDeepDiveChange(Boolean(selectedMetric));
     }
-  }, [selectedMetric, onDeepDiveChange]);
+    try {
+      if (selectedMetric?.metric && module?.id) {
+        sessionStorage.setItem(`sf_active_metric_${module.id}`, selectedMetric.metric);
+      } else if (module?.id) {
+        sessionStorage.removeItem(`sf_active_metric_${module.id}`);
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, [selectedMetric, module?.id, onDeepDiveChange]);
 
-  // When active module changes (e.g. from ribbon), reset deep-dive metric view back to module analysis
+  // When active module changes (e.g. from ribbon), reset selected metric
   useEffect(() => {
     setSelectedMetric(null);
   }, [module?.id]);
 
-  if (!module) return null;
+  // Handle ESC key to close deep dive
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && selectedMetric) {
+        setSelectedMetric(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedMetric]);
 
-  // When a metric is selected for deep dive, render as a full page view!
+  // If a metric is selected, render the dedicated Full-Page Deep Dive with BRD Plan
   if (selectedMetric) {
     return (
       <MetricDeepDivePage
-        initialMetric={selectedMetric}
+        metric={selectedMetric}
         module={module}
-        onGoHome={onGoHome}
-        onSelectModule={onSelectModule}
-        onBack={() => {
-          setSelectedMetric(null);
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        }}
+        onBack={() => setSelectedMetric(null)}
       />
     );
   }
+
+  if (!module) return null;
 
   const benchmarks = module.benchmarks || [];
   const criticalCount = benchmarks.filter(b => b.status === 'Critical').length;
@@ -53,9 +79,9 @@ export default function ModuleAnalysisView({
 
   return (
     <div className="analysis-page-wrapper">
-      {/* 1. Header: AI Diagnostic Report & Subtitle */}
+      {/* 1. Header: Summary Report & Subtitle */}
       <div className="analysis-page-header">
-        <h1 className="analysis-page-title">AI Diagnostic Report</h1>
+        <h1 className="analysis-page-title">Summary Report</h1>
         <p className="analysis-page-subtitle">
           Analyze your SuccessFactors configuration against SAP best practices and industry standards.
         </p>
@@ -143,4 +169,3 @@ export default function ModuleAnalysisView({
     </div>
   );
 }
-

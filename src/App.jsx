@@ -10,8 +10,21 @@ import { SF_MODULES } from './data/modulesData';
 import './index.css';
 
 export default function App() {
-  // activeModuleId: default to 'rcm' (Recruitment) so the user immediately sees the requested analysis view
-  const [activeModuleId, setActiveModuleId] = useState('rcm');
+  // activeModuleId: restore from localStorage if available, or default to 'ec' (Employee Central)
+  const [activeModuleId, setActiveModuleId] = useState(() => {
+    try {
+      const saved = localStorage.getItem('sf_active_module_id');
+      if (saved && SF_MODULES.some((m) => m.id === saved)) {
+        return saved;
+      }
+      if (saved === 'home') {
+        return null;
+      }
+    } catch (e) {
+      // ignore
+    }
+    return 'ec'; // Default to Employee Central (first module) instead of 'rcm'
+  });
 
   // Benchmark Standards Toggle: 'standard' | 'custom'
   const [standardMode, setStandardMode] = useState('standard');
@@ -33,12 +46,22 @@ export default function App() {
   const handleSelectModule = (moduleId) => {
     setActiveModuleId(moduleId);
     setIsDeepDive(false);
+    try {
+      localStorage.setItem('sf_active_module_id', moduleId);
+    } catch (e) {
+      // ignore
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleGoHome = () => {
     setActiveModuleId(null);
     setIsDeepDive(false);
+    try {
+      localStorage.setItem('sf_active_module_id', 'home');
+    } catch (e) {
+      // ignore
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 

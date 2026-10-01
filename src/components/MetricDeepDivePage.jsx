@@ -4,13 +4,13 @@ import { getBrdPlan } from '../utils/brdPlanData';
 import { generateMetricBrdPdf } from '../utils/pdfGenerator';
 
 const CATALOG_SECTIONS = [
-  { id: 'sec-where', key: 'WHERE', label: 'Where It Happens', icon: 'location', desc: 'Architecture touchpoints & portlets' },
-  { id: 'sec-why', key: 'WHY', label: 'Why It Happens', icon: 'help', desc: 'Technical bottlenecks & direct cause' },
-  { id: 'sec-rca', key: 'RCA', label: 'Root Cause Analysis', icon: 'search', desc: 'Deep failure modes & systemic gaps' },
-  { id: 'sec-trend', key: 'TREND', label: 'Historical Trend', icon: 'trend', desc: 'Quarterly telemetry & trajectory' },
-  { id: 'sec-impact', key: 'IMPACT', label: 'Business Impact', icon: 'alert', desc: 'Downstream SLA & financial risk' },
-  { id: 'sec-brd', key: 'BRD PLAN', label: 'BRD Plan of Action', icon: 'clipboard', desc: 'Workforce, hours & milestones' },
-  { id: 'sec-overcome', key: 'HOW TO OVERCOME', label: 'Execution Roadmap', icon: 'check', desc: 'Remediation steps & target ROI' }
+  { id: 'sec-diagnosis', label: 'Diagnosis', icon: 'help', desc: 'LLM diagnostic synthesis & touchpoints' },
+  { id: 'sec-trend', label: 'Trend Analysis', icon: 'trend', desc: 'Progression & trajectory' },
+  { id: 'sec-rca', label: 'Root Cause Analysis', icon: 'search', desc: 'Stage & segment breach drivers' },
+  { id: 'sec-impact', label: 'Business Impact', icon: 'alert', desc: 'Downstream SLA & financial risk' },
+  { id: 'sec-brd', label: 'BRD Plan of Action', icon: 'clipboard', desc: 'Workforce, hours & milestones' },
+  { id: 'sec-overcome', label: 'Execution Roadmap', icon: 'check', desc: 'Remediation steps & target ROI' },
+  { id: 'sec-criteria', label: 'Success Criteria & Risks', icon: 'target', desc: 'Monitoring targets & mitigations' }
 ];
 
 // Module-specific technical mapping for Architecture Touchpoints & RCA Failure Modes
@@ -101,26 +101,26 @@ function getModuleMapping(moduleId, metricName) {
     default:
       return {
         touchpoints: [
-          { label: 'Employee Central Core', type: 'core' },
-          { label: 'Custom MDF Objects', type: 'config' },
-          { label: 'Integration Center / OData', type: 'integration' },
-          { label: 'Intelligent Services Rules', type: 'workflow' }
+          { label: 'Custom MDF Objects & Extension Portals', type: 'core' },
+          { label: 'Biographical & Personal Info Portlets', type: 'config' },
+          { label: 'Integration Center CSV Ingestion Pipelines', type: 'integration' },
+          { label: 'Employee Central Business Rules Engine', type: 'workflow' }
         ],
         rca: [
           {
-            title: 'Data Ingestion & Field Mask Gaps',
-            category: 'Architecture Vulnerability',
-            detail: 'Absence of mandatory effective-dating and strict picklist validation on custom MDF portlets allows unverified records into production tables.'
+            title: 'Unstructured Custom MDF Data Entry Gaps',
+            category: 'Data Governance',
+            detail: 'High reliance on free-text fields in custom MDF objects leads to non-standard abbreviations and broken downstream payroll sync.'
           },
           {
-            title: 'Workflow Delegation Latency',
-            category: 'Approval Governance',
-            detail: 'Static approval chains without dynamic auto-escalation thresholds trigger multi-day queue stalemates during managerial leave cycles.'
+            title: 'Real-Time Validation Rule Deficits',
+            category: 'Validation Architecture',
+            detail: 'Absence of mandatory attachment verification rules on National ID portlets enables incomplete employee records to bypass standard approval.'
           },
           {
-            title: 'Downstream Sync & Audit Lag',
-            category: 'Interface Reliability',
-            detail: 'Nightly batch sync jobs lack automated failure alerts, leading to silent synchronization backlogs with the Payroll Control Center.'
+            title: 'Mass Data Upload Exception Routing Latency',
+            category: 'Batch Integration',
+            detail: 'Integration Center automated uploads lack real-time email alerting for validation failures, delaying exception resolution by 48+ hours.'
           }
         ]
       };
@@ -129,7 +129,7 @@ function getModuleMapping(moduleId, metricName) {
 
 export default function MetricDeepDivePage({ metric, initialMetric, module, onBack, onGoHome, onSelectModule }) {
   const currentMetric = metric || initialMetric;
-  const [activeSection, setActiveSection] = useState('sec-where');
+  const [activeSection, setActiveSection] = useState('sec-diagnosis');
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadSuccess, setDownloadSuccess] = useState(false);
   const isManualScrollRef = useRef(false);
@@ -147,10 +147,10 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
   } = currentMetric;
 
   const isCritical = status === 'Critical';
-  const badgeClass = isCritical 
-    ? 'badge-critical' 
-    : status === 'Healthy' 
-      ? 'badge-healthy' 
+  const badgeClass = isCritical
+    ? 'badge-critical'
+    : status === 'Healthy'
+      ? 'badge-healthy'
       : 'badge-at-risk';
 
   // Scroll to top upon entering a metric deep dive
@@ -181,11 +181,14 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
     [activeSectionIndex]
   );
 
+  const currentSectionRef = useRef('sec-diagnosis');
+
   // Smooth scroll to section when clicked in left catalog using native GPU scrollIntoView
   const handleScrollToSection = useCallback((sectionId) => {
     isManualScrollRef.current = true;
+    currentSectionRef.current = sectionId;
     setActiveSection(sectionId);
-    
+
     const element = document.getElementById(sectionId);
     if (element) {
       element.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -193,56 +196,120 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
 
     setTimeout(() => {
       isManualScrollRef.current = false;
-    }, 700);
+    }, 750);
   }, []);
 
-  // High-performance IntersectionObserver for section scroll tracking (Zero CPU overhead, no layout thrashing)
+  // Cache section DOM elements to avoid document.getElementById queries on every scroll frame
+  const renderedSectionsRef = useRef([]);
+
   useEffect(() => {
-    const sectionIds = CATALOG_SECTIONS.map(s => s.id);
-    const elements = sectionIds.map(id => document.getElementById(id)).filter(Boolean);
-    if (!elements.length) return;
+    const updateElements = () => {
+      renderedSectionsRef.current = CATALOG_SECTIONS
+        .map((s) => ({ id: s.id, el: document.getElementById(s.id) }))
+        .filter((s) => s.el !== null);
+    };
+    updateElements();
+    const timer = setTimeout(updateElements, 120);
+    return () => clearTimeout(timer);
+  }, [currentMetric]);
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (isManualScrollRef.current) return;
-        const visible = entries.filter(e => e.isIntersecting);
-        if (visible.length > 0) {
-          // Sort by proximity to top reading line (75px)
-          visible.sort((a, b) => Math.abs(a.boundingClientRect.top - 75) - Math.abs(b.boundingClientRect.top - 75));
-          setActiveSection(visible[0].target.id);
-        }
-      },
-      {
-        rootMargin: '-75px 0px -40% 0px',
-        threshold: [0, 0.25, 0.5, 0.75, 1.0]
-      }
-    );
+  // Rock-solid hysteresis scroll spy that NEVER flickers or jumps backward when scrolling slowly
+  useEffect(() => {
+    let ticking = false;
+    currentSectionRef.current = 'sec-diagnosis';
 
-    elements.forEach(el => observer.observe(el));
-
-    // Fallback: When scrolled to absolute bottom, ensure the last section is active
-    const handleBottomCheck = () => {
+    const onScroll = () => {
       if (isManualScrollRef.current) return;
-      const scrollHeight = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight);
-      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-      if (scrollTop + window.innerHeight >= scrollHeight - 120) {
-        setActiveSection('sec-overcome');
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          ticking = false;
+          if (isManualScrollRef.current) return;
+
+          const scrollY = window.scrollY || window.pageYOffset || 0;
+          const windowHeight = window.innerHeight;
+          const documentHeight = document.documentElement.scrollHeight;
+
+          // Retrieve cached section elements (with fallback)
+          let renderedSections = (renderedSectionsRef.current || []).filter(s => s && s.el);
+          if (renderedSections.length === 0) {
+            renderedSections = CATALOG_SECTIONS
+              .map((s) => ({ id: s.id, el: document.getElementById(s.id) }))
+              .filter((s) => s.el !== null);
+            renderedSectionsRef.current = renderedSections;
+          }
+
+          if (renderedSections.length === 0) return;
+
+          // 1. Extreme top: Lock to first section
+          if (scrollY < 120) {
+            currentSectionRef.current = renderedSections[0].id;
+            setActiveSection(renderedSections[0].id);
+            return;
+          }
+
+          // 2. Extreme bottom: Lock to last section
+          if (scrollY + windowHeight >= documentHeight - 60) {
+            const lastId = renderedSections[renderedSections.length - 1].id;
+            currentSectionRef.current = lastId;
+            setActiveSection(lastId);
+            return;
+          }
+
+          // 3. Robust hysteresis-based section tracking:
+          const prevActiveId = currentSectionRef.current;
+          const currentIdx = renderedSections.findIndex((s) => s.id === prevActiveId);
+          const safeCurrentIdx = currentIdx >= 0 ? currentIdx : 0;
+
+          let targetId = prevActiveId;
+
+          // Check sections from bottom up
+          for (let i = renderedSections.length - 1; i >= 0; i--) {
+            const item = renderedSections[i];
+            if (!item || !item.el) continue;
+            const rect = item.el.getBoundingClientRect();
+            if (i > safeCurrentIdx) {
+              // Advancing forward: trigger when top reaches reading zone (<= 150px)
+              if (rect.top <= 150) {
+                targetId = item.id;
+                break;
+              }
+            } else if (i === safeCurrentIdx) {
+              // Current section: only drop back if its top has moved down past 200px (scrolling up)
+              if (rect.top > 200) {
+                let bestPrev = 0;
+                for (let k = 0; k < safeCurrentIdx; k++) {
+                  const prevItem = renderedSections[k];
+                  if (prevItem && prevItem.el && prevItem.el.getBoundingClientRect().top <= 150) {
+                    bestPrev = k;
+                  }
+                }
+                targetId = renderedSections[bestPrev]?.id || prevActiveId;
+                break;
+              } else {
+                targetId = prevActiveId;
+                break;
+              }
+            }
+          }
+
+          if (targetId && targetId !== currentSectionRef.current) {
+            currentSectionRef.current = targetId;
+            setActiveSection(targetId);
+          }
+        });
+        ticking = true;
       }
     };
 
-    window.addEventListener('scroll', handleBottomCheck, { passive: true });
-
-    return () => {
-      observer.disconnect();
-      window.removeEventListener('scroll', handleBottomCheck);
-    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
   }, [currentMetric]);
 
   const handleDownloadPDF = useCallback(() => {
     setIsDownloading(true);
     setTimeout(() => {
       try {
-        generateMetricBrdPdf(currentMetric);
+        generateMetricBrdPdf(currentMetric, { brdPlan });
         setIsDownloading(false);
         setDownloadSuccess(true);
         setTimeout(() => setDownloadSuccess(false), 3000);
@@ -251,15 +318,15 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
         setIsDownloading(false);
       }
     }, 350);
-  }, [currentMetric]);
+  }, [currentMetric, brdPlan]);
 
   return (
     <div className="deepdive-page-container">
       {/* 1. Top Compact Breadcrumb & Actions Bar */}
       <div className="deepdive-top-bar">
         <div className="deepdive-breadcrumb-group">
-          <button 
-            type="button" 
+          <button
+            type="button"
             className="btn-deepdive-back"
             onClick={onBack}
             title={`Back to ${module?.name || 'Module'} Analysis`}
@@ -297,9 +364,9 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
 
       {/* 2. Master-Detail Split Layout */}
       <div className="deepdive-split-layout">
-        
+
         {/* ========================================================
-            LEFT COLUMN: DIAGNOSTIC CATALOG (RCA, WHERE, WHY, BRD...)
+            LEFT COLUMN: DIAGNOSTIC CATALOG (TRACKER & PROGRESS)
            ======================================================== */}
         <aside className="deepdive-catalog-col" aria-label="Diagnostic Catalog">
           <div className="catalog-panel">
@@ -316,10 +383,9 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
               <div className="catalog-progress-box">
                 <div className="catalog-progress-info">
                   <span className="catalog-progress-label">Section {activeSectionIndex + 1} of {CATALOG_SECTIONS.length}</span>
-                  <span className="catalog-progress-pct">{progressPercent}%</span>
                 </div>
                 <div className="catalog-progress-track">
-                  <div 
+                  <div
                     className="catalog-progress-bar"
                     style={{ width: `${progressPercent}%` }}
                   />
@@ -329,7 +395,7 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
 
             {/* Catalog Section Navigation Items */}
             <nav className="catalog-nav-list" aria-label="Diagnostic Sections">
-              {CATALOG_SECTIONS.map((sec, idx) => {
+              {CATALOG_SECTIONS.map((sec) => {
                 const isActive = activeSection === sec.id;
                 return (
                   <button
@@ -339,7 +405,6 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                     onClick={() => handleScrollToSection(sec.id)}
                   >
                     <div className="catalog-nav-left">
-                      <span className="catalog-nav-tag">{sec.key}</span>
                       <div className="catalog-nav-text">
                         <span className="catalog-nav-title">{sec.label}</span>
                         <span className="catalog-nav-desc">{sec.desc}</span>
@@ -359,8 +424,8 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
             RIGHT COLUMN: DETAILED ANALYSIS SECTIONS
            ======================================================== */}
         <main className="deepdive-detail-col" aria-label="Detailed Analysis">
-          
-          {/* Hero Header Card */}
+
+          {/* Hero Header Card (Metric Snapshot) */}
           <div className="deepdive-hero-card">
             <div className="deepdive-hero-header">
               <div>
@@ -402,7 +467,7 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                 <span className="track-right-label">Target Standard: <strong>{standard}</strong></span>
               </div>
               <div className="track-bar-bg">
-                <div 
+                <div
                   className={`track-bar-fill ${isCritical ? 'bg-critical-bar' : status === 'Healthy' ? 'bg-healthy-bar' : 'bg-atrisk-bar'}`}
                   style={{ width: isCritical ? '65%' : status === 'Healthy' ? '98%' : '80%' }}
                 />
@@ -412,87 +477,50 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
 
           {detailedAnalysis ? (
             <div className="deepdive-cards-stack">
-              
-              {/* SECTION 01: WHERE IT HAPPENS */}
-              <div id="sec-where" className="diagnostic-card deepdive-card">
+
+              {/* SECTION 02: DIAGNOSIS (MERGED & AUTHORITATIVE - ELIMINATING DUPLICATE WHERE/WHY) */}
+              <div id="sec-diagnosis" className="diagnostic-card deepdive-card">
                 <div className="diagnostic-card-header">
-                  <span className="card-step-badge">WHERE</span>
                   <div className="card-header-text">
-                    <h2 className="diagnostic-card-title">Where It Happens</h2>
-                    <span className="diagnostic-card-subtitle">SAP SF Architecture Touchpoints & Manifestation Location</span>
+                    <h2 className="diagnostic-card-title">2. Diagnosis</h2>
+                    <span className="diagnostic-card-subtitle">Written by the LLM from the ML insights only</span>
                   </div>
                 </div>
                 <div className="diagnostic-card-content">
-                  {detailedAnalysis.whereItHappens && (
-                    <div className="manifestation-chip">
-                      <strong>Target System Entities:</strong> {detailedAnalysis.whereItHappens}
+                  <p className="analysis-text-paragraph">{detailedAnalysis.whyItHappens || detailedAnalysis.whereItHappens}</p>
+
+                  <div className="sf-footprint-box" style={{ marginTop: '16px' }}>
+                    <div className="footprint-header">
+                      {detailedAnalysis.whereItHappens ? (
+                        <span><strong>Impacted Architecture Touchpoints:</strong> {detailedAnalysis.whereItHappens}</span>
+                      ) : (
+                        'Impacted Architecture Touchpoints:'
+                      )}
                     </div>
-                  )}
-
-                  <div className="sf-footprint-box">
-                    <div className="footprint-header">Impacted Architecture Layers:</div>
-                    <div className="footprint-chips">
-                      {systemTouchpoints.map((tp, idx) => (
-                        <span key={idx} className={`footprint-chip chip-${tp.type}`}>
-                          {tp.label}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* SECTION 02: WHY IT HAPPENS */}
-              <div id="sec-why" className="diagnostic-card deepdive-card">
-                <div className="diagnostic-card-header">
-                  <span className="card-step-badge">WHY</span>
-                  <div className="card-header-text">
-                    <h2 className="diagnostic-card-title">Why It Happens</h2>
-                    <span className="diagnostic-card-subtitle">Technical Bottlenecks & Trigger Factors</span>
-                  </div>
-                </div>
-                <div className="diagnostic-card-content">
-                  <p className="analysis-text-paragraph">{detailedAnalysis.whyItHappens}</p>
-                </div>
-              </div>
-
-              {/* SECTION 03: ROOT CAUSE ANALYSIS (RCA) */}
-              <div id="sec-rca" className="diagnostic-card deepdive-card">
-                <div className="diagnostic-card-header">
-                  <span className="card-step-badge">RCA</span>
-                  <div className="card-header-text">
-                    <h2 className="diagnostic-card-title">Root Cause Analysis (RCA)</h2>
-                    <span className="diagnostic-card-subtitle">Deep Failure Modes & Systemic Diagnostic Trace</span>
-                  </div>
-                </div>
-                <div className="diagnostic-card-content">
-                  <div className="rca-breakdown-grid">
-                    {rcaFailureModes.map((item, rIdx) => (
-                      <div key={rIdx} className="rca-mode-card">
-                        <div className="rca-mode-header">
-                          <span className="rca-step-num">0{rIdx + 1}</span>
-                          <span className="rca-priority-tag">{rcaPriorityLabels[rIdx] || item.category}</span>
-                        </div>
-                        <h3 className="rca-mode-title">{item.title}</h3>
-                        <p className="rca-mode-desc">{item.detail}</p>
+                    {systemTouchpoints && systemTouchpoints.length > 0 && (
+                      <div className="footprint-chips" style={{ marginTop: '8px' }}>
+                        {systemTouchpoints.map((tp, idx) => (
+                          <span key={idx} className={`footprint-chip chip-${tp.type}`}>
+                            {tp.label}
+                          </span>
+                        ))}
                       </div>
-                    ))}
+                    )}
                   </div>
                 </div>
               </div>
 
-              {/* SECTION 04: HISTORICAL TREND */}
+              {/* SECTION 03: TREND ANALYSIS (ALIGNED WITH BRD ORDER) */}
               {detailedAnalysis.trendAnalysis && (
                 <div id="sec-trend" className="diagnostic-card deepdive-card">
                   <div className="diagnostic-card-header">
-                    <span className="card-step-badge">TREND</span>
                     <div className="card-header-text">
-                      <h2 className="diagnostic-card-title">Historical Trend Analysis</h2>
+                      <h2 className="diagnostic-card-title">3. Trend Analysis</h2>
                       <span className="diagnostic-card-subtitle">Quarterly Progression & Trajectory Tracking</span>
                     </div>
                   </div>
                   <div className="diagnostic-card-content">
-                    <div className="trend-banner-box">
+                    <div className="trend-summary-row">
                       <div className="trend-summary-text">{detailedAnalysis.trendAnalysis.summary}</div>
                       <span className={`trend-status-pill ${isCritical ? 'pill-drift-critical' : 'pill-drift-atrisk'}`}>
                         {isCritical ? 'Trajectory Below SLA' : 'Sub-Optimal Variance'}
@@ -508,7 +536,7 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                               <div key={pIdx} className={`trend-visual-card ${isCurrent ? 'trend-card-current' : ''}`}>
                                 <div className="trend-card-quarter">{pt.period}</div>
                                 <div className="trend-card-bar-wrap">
-                                  <div 
+                                  <div
                                     className={`trend-card-bar-fill ${isCurrent ? (isCritical ? 'bar-critical' : 'bar-atrisk') : 'bar-historical'}`}
                                     style={{ height: `${48 + (pIdx * 14)}%` }}
                                   />
@@ -525,13 +553,90 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                 </div>
               )}
 
+              {/* SECTION 04: ROOT CAUSE ANALYSIS (ALIGNED WITH BRD ORDER) */}
+              <div id="sec-rca" className="diagnostic-card deepdive-card">
+                <div className="diagnostic-card-header">
+                  <div className="card-header-text">
+                    <h2 className="diagnostic-card-title">4. Root Cause Analysis</h2>
+                    <span className="diagnostic-card-subtitle">
+                      {brdPlan?.stageDrivers ? 'What is causing the breach, rendered from the ML insight JSON' : 'Deep Failure Modes & Systemic Diagnostic Trace'}
+                    </span>
+                  </div>
+                </div>
+                <div className="diagnostic-card-content">
+                  {brdPlan?.stageDrivers && (
+                    <div className="rca-drivers-split-grid">
+                      <div className="brd-spec-table-container">
+                        <table className="brd-spec-table">
+                          <thead>
+                            <tr>
+                              <th style={{ width: '45%' }}>Stage driver</th>
+                              <th style={{ width: '25%' }}>Avg days</th>
+                              <th style={{ width: '20%' }}>Share of breach</th>
+                              <th style={{ width: '10%' }}>ID</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {brdPlan.stageDrivers.map((sd, sIdx) => (
+                              <tr key={sIdx}>
+                                <td><strong>{sd.driver}</strong></td>
+                                <td>{sd.avgDays}</td>
+                                <td>{sd.share}</td>
+                                <td><span className="workstream-id-badge">{sd.id}</span></td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {brdPlan?.segmentDrivers && (
+                        <div className="brd-spec-table-container">
+                          <table className="brd-spec-table">
+                            <thead>
+                              <tr>
+                                <th style={{ width: '45%' }}>Segment driver</th>
+                                <th style={{ width: '25%' }}>Avg days</th>
+                                <th style={{ width: '20%' }}>Vs company average</th>
+                                <th style={{ width: '10%' }}>ID</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {brdPlan.segmentDrivers.map((seg, segIdx) => (
+                                <tr key={segIdx}>
+                                  <td><strong>{seg.driver}</strong></td>
+                                  <td>{seg.avgDays}</td>
+                                  <td>{seg.vsCompany}</td>
+                                  <td><span className="workstream-id-badge">{seg.id}</span></td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="rca-breakdown-grid">
+                    {rcaFailureModes.map((item, rIdx) => (
+                      <div key={rIdx} className="rca-mode-card">
+                        <div className="rca-mode-header">
+                          <span className="rca-step-num">0{rIdx + 1}</span>
+                          <span className="rca-priority-tag">{rcaPriorityLabels[rIdx] || item.category}</span>
+                        </div>
+                        <h3 className="rca-mode-title">{item.title}</h3>
+                        <p className="rca-mode-desc">{item.detail}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
               {/* SECTION 05: BUSINESS IMPACT */}
               <div id="sec-impact" className="diagnostic-card deepdive-card">
                 <div className="diagnostic-card-header">
-                  <span className="card-step-badge">IMPACT</span>
                   <div className="card-header-text">
-                    <h2 className="diagnostic-card-title">Business & Operational Impact</h2>
-                    <span className="diagnostic-card-subtitle">Downstream Process, Cost Overrun & Compliance Exposure</span>
+                    <h2 className="diagnostic-card-title">5. Business &amp; Operational Impact</h2>
+                    <span className="diagnostic-card-subtitle">Downstream Process, Cost Overrun &amp; Compliance Exposure</span>
                   </div>
                 </div>
                 <div className="diagnostic-card-content">
@@ -541,17 +646,17 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                     <div className="impact-triad-card triad-cost">
                       <div className="triad-icon">💰</div>
                       <div className="triad-title">Financial Exposure</div>
-                      <div className="triad-desc">Off-cycle adjustments, replacement recruiting fees & lost productivity overhead</div>
+                      <div className="triad-desc">Off-cycle adjustments, replacement recruiting fees &amp; lost productivity overhead</div>
                     </div>
                     <div className="impact-triad-card triad-sla">
                       <div className="triad-icon">⏱️</div>
-                      <div className="triad-title">SLA & Turnaround</div>
-                      <div className="triad-desc">Process stagnation, managerial escalation queues & extended cycle delays</div>
+                      <div className="triad-title">SLA &amp; Turnaround</div>
+                      <div className="triad-desc">Process stagnation, managerial escalation queues &amp; extended cycle delays</div>
                     </div>
                     <div className="impact-triad-card triad-gov">
                       <div className="triad-icon">🛡️</div>
-                      <div className="triad-title">Governance & Audit</div>
-                      <div className="triad-desc">Downstream integration exceptions, compliance findings & security exposure</div>
+                      <div className="triad-title">Governance &amp; Audit</div>
+                      <div className="triad-desc">Downstream integration exceptions, compliance findings &amp; security exposure</div>
                     </div>
                   </div>
                 </div>
@@ -561,105 +666,232 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
               {brdPlan && (
                 <div id="sec-brd" className="diagnostic-card deepdive-card brd-clean-card">
                   <div className="diagnostic-card-header">
-                    <span className="card-step-badge">BRD PLAN</span>
                     <div className="card-header-text">
                       <div className="card-badge-row">
-                        <h2 className="diagnostic-card-title">BRD Plan of Action</h2>
+                        <h2 className="diagnostic-card-title">6. BRD Plan of Action</h2>
                         <span className="brd-pill-tag">Approved Spec</span>
                       </div>
                       <span className="diagnostic-card-subtitle">
-                        Resource allocation, specialist hours, and sprint timeline
+                        Resource allocation, specialist hours and sprint timeline
                       </span>
                     </div>
                   </div>
 
                   <div className="diagnostic-card-content">
-                    <div className="brd-compact-strip">
-                      <div className="brd-compact-item brd-compact-grow">
-                        <span className="brd-compact-label">
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                            <circle cx="9" cy="7" r="4"></circle>
-                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                          </svg>
-                          Specialist Manpower Required
-                        </span>
-                        <div className="brd-role-chips">
-                          {brdPlan.workforceRequired.map((wf, wIdx) => (
-                            <span key={wIdx} className="brd-role-chip">
-                              <strong>{wf.count}x</strong> {wf.role} <span className="chip-hrs">({wf.hours})</span>
-                            </span>
+                    {/* Specialist Manpower Required Table */}
+                    <div className="brd-spec-table-container">
+                      <table className="brd-spec-table">
+                        <thead>
+                          <tr>
+                            <th style={{ width: '56%' }}>Specialist manpower required</th>
+                            <th style={{ width: '22%' }}>Headcount</th>
+                            <th style={{ width: '22%' }}>Effort</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(brdPlan.specialistManpower || []).map((sp, idx) => (
+                            <tr key={idx}>
+                              <td><strong>{sp.role}</strong></td>
+                              <td>{sp.headcount}</td>
+                              <td>{sp.effort}</td>
+                            </tr>
                           ))}
-                        </div>
-                      </div>
-
-                      <div className="brd-compact-divider"></div>
-
-                      <div className="brd-compact-item brd-compact-timeline">
-                        <span className="brd-compact-label">
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                            <circle cx="12" cy="12" r="10"></circle>
-                            <polyline points="12 6 12 12 16 14"></polyline>
-                          </svg>
-                          Timeline & Total Effort
-                        </span>
-                        <div className="brd-timeline-val">
-                          <strong>{brdPlan.timeline}</strong>
-                          <span className="brd-effort-badge">{brdPlan.totalEffortHours} Total Hours</span>
-                        </div>
-                      </div>
+                          <tr className="brd-spec-summary-row">
+                            <td><strong>Timeline &amp; total effort</strong></td>
+                            <td><strong>{brdPlan.timelineAndEffort?.timeline || brdPlan.timeline}</strong></td>
+                            <td><strong>{brdPlan.timelineAndEffort?.totalEffort || `${brdPlan.totalEffortHours} Total Hours`}</strong></td>
+                          </tr>
+                        </tbody>
+                      </table>
                     </div>
 
-                    {/* Phased Milestones */}
-                    {brdPlan.milestones && brdPlan.milestones.length > 0 && (
-                      <div className="milestones-section-box">
-                        <div className="milestones-box-title">Phased Implementation Milestones</div>
-                        <div className="milestones-grid-row">
-                          {brdPlan.milestones.map((m, mIdx) => (
-                            <div key={mIdx} className="milestone-box-card">
-                              <span className="milestone-box-phase">{m.phase}</span>
-                              <strong className="milestone-box-title">{m.title}</strong>
-                              <span className="milestone-box-deliv">{m.deliverable}</span>
-                            </div>
-                          ))}
-                        </div>
+                    {/* Phased Activities Table */}
+                    {brdPlan.phasedActivities && brdPlan.phasedActivities.length > 0 && (
+                      <div className="brd-spec-table-container" style={{ marginTop: '20px' }}>
+                        <table className="brd-spec-table">
+                          <thead>
+                            <tr>
+                              <th style={{ width: '40%' }}>Phase / Activity</th>
+                              <th style={{ width: '38%' }}>Owner</th>
+                              <th style={{ width: '11%' }}>Workstream</th>
+                              <th style={{ width: '11%' }}>Effort</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {brdPlan.phasedActivities.map((phase, pIdx) => (
+                              <React.Fragment key={pIdx}>
+                                <tr className="brd-phase-header-row">
+                                  <td colSpan="4">
+                                    <strong>{phase.phaseName}</strong>
+                                    {phase.milestone && <span> | Milestone: {phase.milestone}</span>}
+                                    {phase.deliverable && <span> | Deliverable: {phase.deliverable}</span>}
+                                  </td>
+                                </tr>
+                                {(phase.activities || []).map((act, aIdx) => (
+                                  <tr key={`${pIdx}-${aIdx}`}>
+                                    <td>{act.activity}</td>
+                                    <td style={{ color: '#334155' }}>{act.owner}</td>
+                                    <td>
+                                      {act.workstream && act.workstream !== '-' ? (
+                                        <span className="workstream-id-badge">{act.workstream}</span>
+                                      ) : (
+                                        <span style={{ color: '#94a3b8' }}>-</span>
+                                      )}
+                                    </td>
+                                    <td style={{ whiteSpace: 'nowrap' }}>{act.effort}</td>
+                                  </tr>
+                                ))}
+                              </React.Fragment>
+                            ))}
+                            <tr className="brd-spec-summary-row">
+                              <td colSpan="3"><strong>Total Efforts</strong></td>
+                              <td style={{ whiteSpace: 'nowrap' }}>
+                                <strong>{brdPlan.totalEffortsDisplay || `${brdPlan.totalEffortHours} Hours`}</strong>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
                       </div>
                     )}
                   </div>
                 </div>
               )}
 
-              {/* SECTION 07: HOW TO OVERCOME / EXECUTION ROADMAP */}
-              {detailedAnalysis.howToOvercome && detailedAnalysis.howToOvercome.length > 0 && (
+              {/* SECTION 07: HOW TO OVERCOME - EXECUTION WORKSTREAMS */}
+              {brdPlan && (
                 <div id="sec-overcome" className="diagnostic-card deepdive-card">
                   <div className="diagnostic-card-header">
-                    <span className="card-step-badge">ROADMAP</span>
                     <div className="card-header-text">
-                      <h2 className="diagnostic-card-title">How to Overcome • Execution Workstreams</h2>
-                      <span className="diagnostic-card-subtitle">Prescriptive remediation steps to eliminate variance</span>
+                      <h2 className="diagnostic-card-title">7. How to Overcome - Execution Workstreams</h2>
+                      <span className="diagnostic-card-subtitle">
+                        Prescriptive remediation steps, each traced to the root-cause drivers it fixes
+                      </span>
                     </div>
                   </div>
 
                   <div className="diagnostic-card-content">
-                    <ol className="remediation-steps-list">
-                      {detailedAnalysis.howToOvercome.map((step, sIdx) => (
-                        <li key={sIdx} className="remediation-step-item">
-                          <span className="step-counter">{sIdx + 1}</span>
-                          <span className="step-text">{step}</span>
-                        </li>
-                      ))}
-                    </ol>
+                    {/* Execution Workstreams Matrix */}
+                    {brdPlan.executionWorkstreams && brdPlan.executionWorkstreams.length > 0 && (
+                      <div className="brd-spec-table-container">
+                        <table className="brd-spec-table">
+                          <thead>
+                            <tr>
+                              <th style={{ width: '8%' }}>ID</th>
+                              <th style={{ width: '74%' }}>Remediation step</th>
+                              <th style={{ width: '18%' }}>Fixes drivers</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {brdPlan.executionWorkstreams.map((ws, wIdx) => (
+                              <tr key={wIdx}>
+                                <td><strong className="workstream-id-badge">{ws.id}</strong></td>
+                                <td>{ws.remediationStep}</td>
+                                <td><span className="fixes-driver-badge">{ws.fixesDrivers}</span></td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
 
-                    {brdPlan?.expectedOutcome && (
-                      <div className="brd-clean-outcome">
-                        <span className="outcome-tag">Target Outcome</span>
-                        <span className="outcome-text">{brdPlan.expectedOutcome}</span>
+                    {/* Target Outcome Banner */}
+                    {brdPlan.targetOutcome && (
+                      <div className="brd-target-outcome-banner">
+                        <span className="brd-target-outcome-label">TARGET OUTCOME</span>
+                        <span className="brd-target-outcome-text">{brdPlan.targetOutcome}</span>
                       </div>
                     )}
                   </div>
                 </div>
               )}
+
+              {/* SECTIONS 08 & 09: SUCCESS CRITERIA & RISKS */}
+              {brdPlan && (
+                <div id="sec-criteria" className="diagnostic-card deepdive-card">
+                  <div className="diagnostic-card-header">
+                    <div className="card-header-text">
+                      <h2 className="diagnostic-card-title">8. Success Criteria &amp; 9. Assumptions &amp; Risks</h2>
+                      <span className="diagnostic-card-subtitle">
+                        Measurable verification targets, implementation dependencies, and risk mitigations
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="diagnostic-card-content">
+                    <div className="criteria-risks-split-grid">
+                      {/* 8. Success Criteria & Monitoring */}
+                      {brdPlan.successCriteria && brdPlan.successCriteria.length > 0 && (
+                        <div className="criteria-col">
+                          <div className="brd-section-subheading" style={{ marginTop: '0px' }}>
+                            <span>8. Success Criteria &amp; Monitoring</span>
+                          </div>
+                          <div className="brd-spec-table-container">
+                            <table className="brd-spec-table">
+                              <thead>
+                                <tr>
+                                  <th style={{ width: '25%' }}>Criterion</th>
+                                  <th style={{ width: '45%' }}>Target</th>
+                                  <th style={{ width: '30%' }}>Verified by</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {brdPlan.successCriteria.map((sc, scIdx) => (
+                                  <tr key={scIdx}>
+                                    <td><strong>{sc.criterion}</strong></td>
+                                    <td>{sc.target}</td>
+                                    <td>{sc.verifiedBy}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 9. Assumptions & Risks */}
+                      {brdPlan.assumptionsAndRisks && brdPlan.assumptionsAndRisks.length > 0 && (
+                        <div className="risks-col">
+                          <div className="brd-section-subheading" style={{ marginTop: '0px' }}>
+                            <span>9. Assumptions &amp; Risks</span>
+                          </div>
+                          <div className="brd-spec-table-container">
+                            <table className="brd-spec-table">
+                              <thead>
+                                <tr>
+                                  <th style={{ width: '18%' }}>Type</th>
+                                  <th style={{ width: '47%' }}>Description</th>
+                                  <th style={{ width: '35%' }}>Mitigation</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {brdPlan.assumptionsAndRisks.map((ar, arIdx) => (
+                                  <tr key={arIdx}>
+                                    <td>
+                                      <span className={`pill-badge ${ar.type === 'Risk' ? 'badge-at-risk' : 'badge-healthy'}`}>
+                                        {ar.type}
+                                      </span>
+                                    </td>
+                                    <td>{ar.description}</td>
+                                    <td>{ar.mitigation}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Footnote */}
+                    {brdPlan.footnote && (
+                      <div className="brd-spec-footnote">
+                        {brdPlan.footnote}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
             </div>
           ) : (
             <div className="healthy-state-notice">
@@ -704,10 +936,10 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
               )}
             </span>
             <span className="fab-label-text">
-              {downloadSuccess 
-                ? 'Downloaded (PDF) ✓' 
-                : isDownloading 
-                  ? 'Generating PDF...' 
+              {downloadSuccess
+                ? 'Downloaded (PDF) ✓'
+                : isDownloading
+                  ? 'Generating PDF...'
                   : 'Download BRD Plan (PDF)'}
             </span>
           </button>

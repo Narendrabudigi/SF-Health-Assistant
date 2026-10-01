@@ -1,4 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+
+const getBadgeClass = (status) => {
+  if (status === 'Critical') return 'badge-critical';
+  if (status === 'At Risk') return 'badge-at-risk';
+  if (status === 'Healthy') return 'badge-healthy';
+  return 'badge-at-risk';
+};
 
 export default function ComparisonTable({ 
   module, 
@@ -6,28 +13,33 @@ export default function ComparisonTable({
   onSelectMetric, 
   customStandardsMap = {} 
 }) {
-  const { benchmarks } = module;
+  const { benchmarks = [] } = module || {};
   const [filterMode, setFilterMode] = useState('all'); // 'all' | 'critical' | 'at-risk' | 'healthy'
 
   const isCustom = standardMode === 'custom';
 
-  const filteredBenchmarks = benchmarks.filter(row => {
-    if (filterMode === 'critical') return row.status === 'Critical';
-    if (filterMode === 'at-risk') return row.status === 'At Risk';
-    if (filterMode === 'healthy') return row.status === 'Healthy';
-    return true;
-  });
+  // Single-pass count computation memoized against benchmarks array
+  const { criticalCount, atRiskCount, healthyCount } = useMemo(() => {
+    let crit = 0;
+    let atRisk = 0;
+    let healthy = 0;
+    for (let i = 0; i < benchmarks.length; i++) {
+      const st = benchmarks[i].status;
+      if (st === 'Critical') crit++;
+      else if (st === 'At Risk') atRisk++;
+      else if (st === 'Healthy') healthy++;
+    }
+    return { criticalCount: crit, atRiskCount: atRisk, healthyCount: healthy };
+  }, [benchmarks]);
 
-  const getBadgeClass = (status) => {
-    if (status === 'Critical') return 'badge-critical';
-    if (status === 'At Risk') return 'badge-at-risk';
-    if (status === 'Healthy') return 'badge-healthy';
-    return 'badge-at-risk';
-  };
-
-  const criticalCount = benchmarks.filter(b => b.status === 'Critical').length;
-  const atRiskCount = benchmarks.filter(b => b.status === 'At Risk').length;
-  const healthyCount = benchmarks.filter(b => b.status === 'Healthy').length;
+  // Memoize filtered benchmarks to prevent re-filtering on unrelated parent re-renders
+  const filteredBenchmarks = useMemo(() => {
+    if (filterMode === 'all') return benchmarks;
+    if (filterMode === 'critical') return benchmarks.filter(row => row.status === 'Critical');
+    if (filterMode === 'at-risk') return benchmarks.filter(row => row.status === 'At Risk');
+    if (filterMode === 'healthy') return benchmarks.filter(row => row.status === 'Healthy');
+    return benchmarks;
+  }, [benchmarks, filterMode]);
 
   return (
     <div className="white-panel comparison-panel">
@@ -114,13 +126,21 @@ export default function ComparisonTable({
                     className="clickable-metric-row"
                     onClick={() => {
                       if (onSelectMetric) {
-                        onSelectMetric(row);
+                        onSelectMetric({
+                          ...row,
+                          standard: displayStandard,
+                          isCustomStandard: Boolean(isCustom && customStdVal)
+                        });
                       }
                     }}
                     onKeyDown={(e) => {
                       if (onSelectMetric && (e.key === 'Enter' || e.key === ' ')) {
                         e.preventDefault();
-                        onSelectMetric(row);
+                        onSelectMetric({
+                          ...row,
+                          standard: displayStandard,
+                          isCustomStandard: Boolean(isCustom && customStdVal)
+                        });
                       }
                     }}
                     tabIndex={0}
