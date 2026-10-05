@@ -157,7 +157,7 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
   // Scroll to top upon entering a metric deep dive
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
-  }, [currentMetric]);
+  }, [metricName]);
 
   const brdPlan = useMemo(() => getBrdPlan(currentMetric), [currentMetric]);
 
@@ -212,7 +212,7 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
     updateElements();
     const timer = setTimeout(updateElements, 120);
     return () => clearTimeout(timer);
-  }, [currentMetric]);
+  }, [metricName]);
 
   // Rock-solid hysteresis scroll spy that NEVER flickers or jumps backward when scrolling slowly
   useEffect(() => {
@@ -243,16 +243,21 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
 
           // 1. Extreme top: Lock to first section
           if (scrollY < 120) {
-            currentSectionRef.current = renderedSections[0].id;
-            setActiveSection(renderedSections[0].id);
+            const firstId = renderedSections[0].id;
+            if (currentSectionRef.current !== firstId) {
+              currentSectionRef.current = firstId;
+              setActiveSection(firstId);
+            }
             return;
           }
 
           // 2. Extreme bottom: Lock to last section
           if (scrollY + windowHeight >= documentHeight - 60) {
             const lastId = renderedSections[renderedSections.length - 1].id;
-            currentSectionRef.current = lastId;
-            setActiveSection(lastId);
+            if (currentSectionRef.current !== lastId) {
+              currentSectionRef.current = lastId;
+              setActiveSection(lastId);
+            }
             return;
           }
 
@@ -304,7 +309,7 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
 
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
-  }, [currentMetric]);
+  }, [metricName]);
 
   const handleDownloadPDF = useCallback(() => {
     setIsDownloading(true);

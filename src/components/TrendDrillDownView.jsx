@@ -1,8 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { getTrendDrillDownData } from '../utils/trendDrillDownData';
 
 export default function TrendDrillDownView({ metric }) {
-  const trendData = useMemo(() => getTrendDrillDownData(metric), [metric]);
+  const metricName = metric?.metric;
+  const trendData = useMemo(() => getTrendDrillDownData(metric), [metricName]);
 
   const currentYearId = useMemo(() => {
     if (!trendData?.years) return '2026';
@@ -21,12 +22,16 @@ export default function TrendDrillDownView({ metric }) {
   const [selectedYear, setSelectedYear] = useState('2026');
   const [selectedQuarter, setSelectedQuarter] = useState('Q4');
 
-  // Reset to default current year & current quarter when metric changes
-  React.useEffect(() => {
-    setLevel('yearly');
-    setSelectedYear(currentYearId);
-    setSelectedQuarter(currentQuarterId);
-  }, [metric, currentYearId, currentQuarterId]);
+  // Guard metric reset with ref to avoid any re-render loops
+  const prevMetricRef = useRef(metricName);
+  useEffect(() => {
+    if (prevMetricRef.current !== metricName) {
+      prevMetricRef.current = metricName;
+      setLevel('yearly');
+      setSelectedYear(currentYearId);
+      setSelectedQuarter(currentQuarterId);
+    }
+  }, [metricName, currentYearId, currentQuarterId]);
 
   if (!trendData) return null;
 

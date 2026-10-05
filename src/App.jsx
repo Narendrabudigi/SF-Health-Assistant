@@ -5,11 +5,16 @@ import HomeDashboard from './components/HomeDashboard';
 import ModuleAnalysisView from './components/ModuleAnalysisView';
 import ConnectSystemModal from './components/ConnectSystemModal';
 import UploadCustomStandardsModal from './components/UploadCustomStandardsModal';
+import MlPipelineProgressModal from './components/MlPipelineProgressModal';
 import ToastNotification from './components/ToastNotification';
 import { SF_MODULES } from './data/modulesData';
+import { apiService } from './services/apiService';
 import './index.css';
 
 export default function App() {
+  // Modules State - dynamic to support live pipeline refreshes
+  const [modulesData, setModulesData] = useState(SF_MODULES);
+
   // activeModuleId: restore from localStorage if available, or default to 'ec' (Employee Central)
   const [activeModuleId, setActiveModuleId] = useState(() => {
     try {
@@ -37,10 +42,14 @@ export default function App() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [connectedSystemDetails, setConnectedSystemDetails] = useState(null);
 
+  // Architecture ML & LLM Pipeline Execution State
+  const [isPipelineModalOpen, setIsPipelineModalOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
   // Deep Dive State for Auto-Hiding the Sub-Ribbon
   const [isDeepDive, setIsDeepDive] = useState(false);
 
-  const activeModule = SF_MODULES.find((m) => m.id === activeModuleId) || null;
+  const activeModule = modulesData.find((m) => m.id === activeModuleId) || null;
   const hasCustomStandards = Object.keys(customStandardsMap).length > 0;
 
   const handleSelectModule = (moduleId) => {
@@ -101,6 +110,33 @@ export default function App() {
     setConnectedSystemDetails(null);
   };
 
+  const handleTriggerRefreshPipeline = async () => {
+    setIsRefreshing(true);
+    setIsPipelineModalOpen(true);
+    try {
+      await apiService.triggerMlPipeline(activeModuleId, true);
+    } catch (err) {
+      console.warn('ML trigger fallback handled:', err);
+    }
+  };
+
+  const handlePipelineCompleted = async () => {
+    try {
+      const refreshed = await apiService.getModules();
+      if (refreshed && refreshed.length > 0) {
+        setModulesData(refreshed);
+      }
+    } catch (e) {
+      console.warn('Using existing modules after pipeline run:', e);
+    }
+    setIsRefreshing(false);
+    setToast({
+      id: Date.now(),
+      type: 'success',
+      message: 'ML Pipeline execution complete! Refreshed TreeSHAP drivers & LLM action plans.'
+    });
+  };
+
   return (
     <div className="app-container">
       {/* 1. Dark Top Header with YASH Logo & Success Factors Title */}
@@ -108,13 +144,15 @@ export default function App() {
         onGoHome={handleGoHome}
         onOpenConnectSystem={() => setIsModalOpen(true)}
         isConnected={isSystemConnected}
+        onTriggerRefresh={handleTriggerRefreshPipeline}
+        isRefreshing={isRefreshing}
       />
 
       {/* 2. Sub-Ribbon: Shown when inside a module (auto-hides in Deep Dive till hovered) */}
       {activeModule && (
         <div className={`module-ribbon-autohide-container ${isDeepDive ? 'is-autohide' : ''}`}>
           <ModuleRibbon
-            modules={SF_MODULES}
+            modules={modulesData}
             activeModuleId={activeModuleId}
             onSelectModule={handleSelectModule}
             onGoHome={handleGoHome}
@@ -139,7 +177,7 @@ export default function App() {
           />
         ) : (
           <HomeDashboard
-            modules={SF_MODULES}
+            modules={modulesData}
             onSelectModule={handleSelectModule}
           />
         )}
@@ -154,7 +192,18 @@ export default function App() {
         onDisconnect={handleDisconnect}
       />
 
-      {/* 5. Upload Custom Standards CSV Modal */}
+      {/* 5. Architecture ML & LLM Pipeline Progress Modal */}
+      <MlPipelineProgressModal
+        isOpen={isPipelineModalOpen}
+        onClose={() => {
+          setIsPipelineModalOpen(false);
+          setIsRefreshing(false);
+        }}
+        activeModuleName={activeModule?.name}
+        onCompleted={handlePipelineCompleted}
+      />
+
+      {/* 6. Upload Custom Standards CSV Modal */}
       <UploadCustomStandardsModal
         isOpen={isUploadModalOpen}
         onClose={() => setIsUploadModalOpen(false)}
@@ -162,7 +211,7 @@ export default function App() {
         module={activeModule}
       />
 
-      {/* 6. Toast Notification (bottom-right) */}
+      {/* 7. Toast Notification (bottom-right) */}
       <ToastNotification
         toast={toast}
         onClose={() => setToast(null)}

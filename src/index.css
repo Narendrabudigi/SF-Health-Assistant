@@ -4237,6 +4237,7 @@ select.form-control {
 }
 
 @media (max-width: 900px) {
+
   .trend-cards-grid.grid-yearly,
   .trend-cards-grid.grid-quarterly,
   .trend-cards-grid.grid-monthly {
@@ -4245,6 +4246,7 @@ select.form-control {
 }
 
 @media (max-width: 580px) {
+
   .trend-cards-grid.grid-yearly,
   .trend-cards-grid.grid-quarterly,
   .trend-cards-grid.grid-monthly {
@@ -5077,4 +5079,335 @@ select.form-control {
   .milestones-grid-row {
     grid-template-columns: 1fr;
   }
+}
+
+/* ========================================================
+   SINGLE OPTIMIZED ML PIPELINE REFRESH BUTTON & MODAL
+   ======================================================== */
+.btn-pipeline-refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  color: #ffffff;
+  font-size: 0.76rem;
+  font-weight: 700;
+  padding: 6px 13px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  white-space: nowrap;
+}
+
+.btn-pipeline-refresh:hover:not(:disabled) {
+  background: linear-gradient(135deg, #0369a1 0%, #075985 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.4);
+}
+
+.btn-pipeline-refresh:disabled {
+  opacity: 0.85;
+  cursor: wait;
+}
+
+.pipeline-sync-icon.spin-anim {
+  animation: spinPipeline 1s linear infinite;
+}
+
+@keyframes spinPipeline {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ML Pipeline Progress Modal Container */
+.pipeline-progress-modal {
+  max-width: 660px;
+  width: 92vw;
+  background: #ffffff;
+}
+
+.pipeline-icon-badge {
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  color: #ffffff;
+}
+
+.pipeline-modal-body {
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Progress bar banner */
+.pipeline-progress-track-wrap {
+  padding: 12px 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.pipeline-progress-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 8px;
+}
+
+.pipeline-status-text {
+  color: #0284c7;
+}
+
+.pipeline-percent-text {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.pipeline-track {
+  height: 7px;
+  width: 100%;
+  background: #e2e8f0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.pipeline-fill-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #0284c7 0%, #38bdf8 100%);
+  border-radius: 4px;
+  transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.pipeline-fill-bar.is-complete {
+  background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+}
+
+/* Stepper items list */
+.pipeline-stepper-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pipeline-step-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.step-icon-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.step-node-bubble {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.70rem;
+  font-weight: 800;
+  transition: all 0.25s ease;
+}
+
+.step-pending .step-node-bubble {
+  background: #f1f5f9;
+  color: #94a3b8;
+  border: 1px solid #cbd5e1;
+}
+
+.step-active .step-node-bubble {
+  background: #e0f2fe;
+  color: #0284c7;
+  border: 2px solid #0284c7;
+  box-shadow: 0 0 10px rgba(2, 132, 199, 0.35);
+}
+
+.step-passed .step-node-bubble {
+  background: #10b981;
+  color: #ffffff;
+}
+
+.step-spinning-indicator {
+  width: 12px;
+  height: 12px;
+  border: 2px solid #0284c7;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spinPipeline 0.8s linear infinite;
+}
+
+.step-connector-line {
+  width: 2px;
+  height: 20px;
+  background: #e2e8f0;
+  margin-top: 3px;
+  transition: background 0.3s ease;
+}
+
+.step-connector-line.connector-passed {
+  background: #10b981;
+}
+
+.step-content-col {
+  flex: 1;
+  padding-top: 2px;
+}
+
+.step-top-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.step-name {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.step-active .step-name {
+  color: #0284c7;
+}
+
+.step-tech-badge {
+  font-size: 0.64rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+
+.step-sub {
+  font-size: 0.72rem;
+  color: #64748b;
+  margin: 2px 0 0 0;
+  line-height: 1.35;
+}
+
+/* Console telemetry trace box */
+.pipeline-console-box {
+  background: #0f172a;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 0.70rem;
+  color: #38bdf8;
+  max-height: 110px;
+  overflow-y: auto;
+  border: 1px solid #1e293b;
+}
+
+.console-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #1e293b;
+  margin-bottom: 6px;
+}
+
+.console-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.dot-red {
+  background: #ef4444;
+}
+
+.dot-yellow {
+  background: #f59e0b;
+}
+
+.dot-green {
+  background: #10b981;
+}
+
+.console-title {
+  font-size: 0.64rem;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-left: 4px;
+}
+
+.console-logs-content {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.console-line {
+  line-height: 1.45;
+  color: #cbd5e1;
+}
+
+.line-cursor {
+  color: #38bdf8;
+}
+
+.console-prompt {
+  color: #10b981;
+  font-weight: 800;
+}
+
+.pipeline-waiting-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.76rem;
+  color: #475569;
+  font-weight: 600;
+}
+
+.pipeline-pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #0284c7;
+  animation: pulseIndicator 1.2s infinite ease-in-out;
+}
+
+@keyframes pulseIndicator {
+  0%, 100% {
+    transform: scale(0.8);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 1;
+  }
+}
+
+.btn-pipeline-finish {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #059669;
+  border-color: #059669;
+  padding: 8px 16px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.btn-pipeline-finish:hover {
+  background: #047857;
 }
