@@ -36,6 +36,32 @@ export const SF_MODULES = [
               { period: 'Q4 (Current)', value: '91.4%' }
             ]
           },
+          missingConfigurations: [
+            {
+              id: 'CFG-E01',
+              component: 'Manage Business Configuration (BCUI)',
+              title: 'Mandatory Checksum & Regex Validation Rule on National ID',
+              status: 'Inactive Rule Binding',
+              severity: 'Critical',
+              setting: 'BCUI > nationalIdCard > onChange: rule_validate_national_id (Hard stop on format mismatch)'
+            },
+            {
+              id: 'CFG-E02',
+              component: 'Picklist Center & MDF Object Definition',
+              title: 'Strict Picklist Constraint Binding on Custom MDF Objects',
+              status: 'Unconstrained Free-Text',
+              severity: 'High',
+              setting: 'Configure Object Definitions > cust_emergency_contact > Field Data Type: Picklist (ID: ec_rel_picklist)'
+            },
+            {
+              id: 'CFG-E03',
+              component: 'Integration Center CSV Data Ingestion Pipelines',
+              title: 'Real-Time Integration Center Error Hook & Alerting',
+              status: 'Silent Failure Logging',
+              severity: 'Medium',
+              setting: 'Integration Center > Edit Definition > Schedule & Notifications > Alert HR Master Data Steward on schema fault'
+            }
+          ],
           howItEffects: 'Generates downstream payroll exceptions, causes healthcare enrollment data rejections with benefit providers, and creates audit non-compliance during annual workforce regulatory filings.',
           howToOvercome: [
             'Configure strict Picklist validation rules on all personal and biographical data entities.',
@@ -231,28 +257,61 @@ export const SF_MODULES = [
       {
         metric: 'Time to hire',
         category: 'Cycle Turnaround',
-        company: '34.2 days',
-        standard: '20 days',
-        status: 'Critical',
-        variance: '+14.2 (+71.0%)',
+        company: '25.6 days',
+        standard: '≤ 20.0 days',
+        status: 'At Risk',
+        moduleOverview: {
+          affectedArea: 'The breach appears in the application-to-interview stage, the requisition-to-application stage, and Data Engineer roles.',
+          rootCause: 'The application-to-interview stage accounts for 43.9% of the breach, the requisition-to-application stage accounts for 31.6%, and Data Engineer roles account for 24.5%.',
+          suggestions: [
+            'Configure automated interview scheduling reminders in SuccessFactors to shorten candidate response times.',
+            'Review requisition templates and candidate sourcing workflows to reduce requisition-to-application duration.',
+            'Evaluate tailored recruitment workflows and candidate pooling for Data Engineer roles.'
+          ]
+        },
         detailedAnalysis: {
-          whereItHappens: 'Recruiter screening stages, hiring manager interview scorecard submission queues, and panel coordination workflows.',
-          whyItHappens: 'Time to Hire is 71.0% above the industry standard and has risen every year. Company Time to Hire averages 34.2 days against an industry standard of 20 days, a variance of +14.2 days. The trend is up year over year, from 27.9 to 31.3 to 34.2 days. The interview-to-offer-release stage accounts for 41% of the breach, followed by screening-to-interview at 27% and offer-release-to-acceptance at 19%. Engineering (41.3 days), Agency-sourced hires (39.0 days) and grade G7 (42.6 days) run well above the company average.',
+          whereItHappens: 'The breach appears in the application-to-interview stage, the requisition-to-application stage, and Data Engineer roles.',
+          whyItHappens: 'The application-to-interview stage accounts for 43.9% of the breach, the requisition-to-application stage accounts for 31.6%, and Data Engineer roles account for 24.5%.',
           trendAnalysis: {
-            summary: 'Average per period, last 3 years including current year. Trend direction: up.',
+            summary: 'Average per period, comparing Q1 and Q2 from 2025 to 2026 with forecast trajectory remaining at-risk.',
             points: [
-              { period: '2024', value: '27.9 days' },
-              { period: '2025', value: '31.3 days' },
-              { period: '2026 (Current)', value: '34.2 days' }
+              { period: 'Q1 2025', value: '24.1 days' },
+              { period: 'Q1 2026', value: '24.6 days' },
+              { period: 'Q2 2025', value: '26.1 days' },
+              { period: 'Q2 2026 (Current)', value: '25.6 days' }
             ]
           },
-          howItEffects: 'Slow hiring keeps critical roles vacant, pushes strong candidates toward competing offers and increases dependence on costly sourcing channels.',
+          missingConfigurations: [
+            {
+              id: 'CFG-R01',
+              component: 'Recruiting Business Rules (BCUI / ISC)',
+              title: 'Automated 24-Hour Interview Scorecard SLA Escalation Rule',
+              status: 'Inactive / Not Deployed',
+              severity: 'Critical',
+              setting: 'Manage Business Configuration > JobApplication > rule_escalate_pending_scorecard (Trigger escalation at 24h & auto-reassign after 48h)'
+            },
+            {
+              id: 'CFG-R02',
+              component: 'Job Requisition Template & Screening Engine',
+              title: 'Mandatory Role-Specific Pre-Screening Knockout Questions',
+              status: 'Disabled on Active Requisitions',
+              severity: 'High',
+              setting: 'Requisition Form Settings > enableKnockoutScore=true (Auto-filter unqualified applicants before recruiter triage queue)'
+            },
+            {
+              id: 'CFG-R03',
+              component: 'Offer Approval Governance Matrix',
+              title: 'Conditional Salary-Band Approval Bypass Rules',
+              status: 'Unbounded Multi-Tier Hierarchy',
+              severity: 'High',
+              setting: 'Manage Recruiting Settings > Offer Approval Template (Auto-bypass VP sign-off when proposed compa-ratio is within standard 0.90-1.10 band)'
+            }
+          ],
+          howItEffects: 'Time to Hire is 5.6 days longer than the industry benchmark, indicating slower hiring cycles and delaying critical department ramp-up.',
           howToOvercome: [
-            'Introduce stage-aging SLAs with recruiter and hiring-manager escalation for the interview-to-offer-release stage.',
-            'Configure offer approval routing so senior-grade offers are approved in parallel, not in sequence.',
-            'Configure interview scheduling reminders and panel-availability rules, prioritising Engineering requisitions.',
-            'Set up candidate follow-up reminders and pre-approved offer ranges to shorten offer acceptance.',
-            'Review Agency source SLAs and introduce pipeline targets to reduce requisition-to-application time.'
+            'Configure automated interview scheduling reminders in SuccessFactors to shorten candidate response times.',
+            'Review requisition templates and candidate sourcing workflows to reduce requisition-to-application duration.',
+            'Evaluate tailored recruitment workflows and candidate pooling for Data Engineer roles.'
           ]
         }
       },

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import ModuleRibbon from './components/ModuleRibbon';
 import HomeDashboard from './components/HomeDashboard';
@@ -12,8 +12,39 @@ import { apiService } from './services/apiService';
 import './index.css';
 
 export default function App() {
-  // Modules State - dynamic to support live pipeline refreshes
+  // Modules State - dynamic to support live pipeline refreshes & Supabase data
   const [modulesData, setModulesData] = useState(SF_MODULES);
+
+  // Backend & Supabase Live Telemetry Status
+  const [backendStatus, setBackendStatus] = useState({
+    isConnected: false,
+    supabaseConnected: false,
+    bucketFiles: 0,
+    bucketName: 'ml-insights',
+    folder: 'insights'
+  });
+
+  // Fetch live modules and verify backend + Supabase storage connection on mount
+  useEffect(() => {
+    let isMounted = true;
+    async function loadLiveBackendData() {
+      try {
+        const status = await apiService.checkHealthWithSupabase();
+        if (isMounted) {
+          setBackendStatus(status);
+        }
+
+        const liveModules = await apiService.getModules();
+        if (isMounted && liveModules && liveModules.length > 0) {
+          setModulesData(liveModules);
+        }
+      } catch (err) {
+        console.warn('Backend sync failed, using default cached modules:', err);
+      }
+    }
+    loadLiveBackendData();
+    return () => { isMounted = false; };
+  }, []);
 
   // activeModuleId: restore from localStorage if available, or default to 'ec' (Employee Central)
   const [activeModuleId, setActiveModuleId] = useState(() => {
@@ -144,6 +175,7 @@ export default function App() {
         onGoHome={handleGoHome}
         onOpenConnectSystem={() => setIsModalOpen(true)}
         isConnected={isSystemConnected}
+        backendStatus={backendStatus}
         onTriggerRefresh={handleTriggerRefreshPipeline}
         isRefreshing={isRefreshing}
       />

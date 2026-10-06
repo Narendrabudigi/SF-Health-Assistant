@@ -4,9 +4,16 @@ export default function GenAIReport({ module }) {
   const { benchmarks = [] } = module || {};
 
   // Filter Critical and At Risk metrics that require diagnostic attention
-  const issueMetrics = benchmarks.filter(
-    (b) => (b.status === 'Critical' || b.status === 'At Risk') && b.detailedAnalysis
-  );
+  const issueMetrics = benchmarks.filter((b) => {
+    const s = String(b.status || '').toLowerCase().trim();
+    const v = String(b.variance || '').toLowerCase().trim();
+    const hasBreach = (v.includes('+') || v.includes('-')) && !v.includes('on target');
+    if (s.includes('crit') || s.includes('risk') || s.includes('warn') || hasBreach) {
+      return true;
+    }
+    const isHealthy = s.includes('health') || (v.includes('on target') && !hasBreach);
+    return !isHealthy;
+  });
 
   // Manage accordion state: collapsed by default
   const [expandedIndex, setExpandedIndex] = useState(null);
@@ -52,9 +59,19 @@ export default function GenAIReport({ module }) {
       ) : (
         <div className="ai-accordion-list" role="region" aria-label="Diagnostic Issue Details">
           {issueMetrics.map((metricRow, idx) => {
-            const isCritical = metricRow.status === 'Critical';
+            const isCritical = String(metricRow.status || '').toLowerCase().includes('crit');
             const isExpanded = expandedIndex === idx;
-            const actions = metricRow.detailedAnalysis?.howToOvercome || [];
+            const whereText = metricRow.moduleOverview?.affectedArea || metricRow.detailedAnalysis?.whereItHappens || `${metricRow.category} processes within ${module?.name || 'the system'}.`;
+            const whyText = metricRow.moduleOverview?.rootCause || metricRow.detailedAnalysis?.whyItHappens || 'Diagnostic variance detected against benchmark standard.';
+
+            const rawActions = (
+              (metricRow.moduleOverview?.suggestions && metricRow.moduleOverview.suggestions.length > 0 ? metricRow.moduleOverview.suggestions : null) ||
+              (metricRow.detailedAnalysis?.howToOvercome && metricRow.detailedAnalysis.howToOvercome.length > 0 ? metricRow.detailedAnalysis.howToOvercome : null) ||
+              metricRow.suggestions ||
+              []
+            );
+            const actions = Array.isArray(rawActions) ? rawActions : (typeof rawActions === 'string' ? [rawActions] : (rawActions ? [rawActions] : []));
+
             const indexStr = String(idx + 1).padStart(2, '0');
 
             return (
@@ -80,7 +97,7 @@ export default function GenAIReport({ module }) {
 
                   {/* Locus Description / Where it happens */}
                   <p className="accordion-summary-locus">
-                    {metricRow.detailedAnalysis?.whereItHappens || `${metricRow.category} processes within ${module?.name || 'the system'}.`}
+                    {whereText}
                   </p>
 
                   {/* Dropdown Toggle: Why it is happening & Suggestions to improve */}
@@ -111,7 +128,7 @@ export default function GenAIReport({ module }) {
                         <h5 className="sub-section-title">Why It is Happening (Root Cause)</h5>
                       </div>
                       <p className="sub-section-text">
-                        {metricRow.detailedAnalysis?.whyItHappens}
+                        {whyText}
                       </p>
                     </div>
 

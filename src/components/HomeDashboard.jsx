@@ -1,5 +1,13 @@
 import React from 'react';
 
+const CANONICAL_MODULE_NAMES = {
+  ec: 'Employee Central',
+  rcm: 'Recruitment',
+  onb: 'Onboarding',
+  ofb: 'Offboarding',
+  ecp: 'Employee Central Payroll'
+};
+
 // Icon mapping helper matching the screenshot's rounded colored icon squares
 function ModuleIcon({ type }) {
   switch (type) {
@@ -98,7 +106,7 @@ export default function HomeDashboard({ modules, onSelectModule }) {
             >
               {/* Card Header: Module Title on Left, Icon on Right */}
               <div className="card-top-meta">
-                <h3 className="card-module-title">{mod.name}</h3>
+                <h3 className="card-module-title">{CANONICAL_MODULE_NAMES[mod.id?.toLowerCase()] || mod.name}</h3>
                 <div 
                   className={`card-icon-box card-icon-${mod.id}`} 
                 >

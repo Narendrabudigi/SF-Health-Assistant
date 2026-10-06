@@ -1,5 +1,24 @@
 import React, { useState, useMemo } from 'react';
 
+const normalizeStatus = (status, variance = '') => {
+  const s = String(status || '').toLowerCase().trim();
+  const v = String(variance || '').toLowerCase().trim();
+  
+  if (s.includes('crit')) return 'Critical';
+  if (s.includes('risk') || s.includes('warn') || s.includes('succeed')) return 'At Risk';
+  
+  // A metric is only Healthy if it explicitly contains 'on target' or variance is 0, AND not marked with a breach +/-
+  const hasBreach = (v.includes('+') || v.includes('-')) && !v.includes('on target');
+  if (hasBreach) {
+    return 'At Risk';
+  }
+  
+  if (s.includes('health') || v.includes('on target') || v === '0%' || v === '0') {
+    return 'Healthy';
+  }
+  return 'At Risk';
+};
+
 const getBadgeClass = (status) => {
   if (status === 'Critical') return 'badge-critical';
   if (status === 'At Risk') return 'badge-at-risk';
@@ -19,27 +38,28 @@ export default function ComparisonTable({
   const isCustom = standardMode === 'custom';
 
   // Single-pass count computation memoized against benchmarks array
-  const { criticalCount, atRiskCount, healthyCount } = useMemo(() => {
+  const { criticalCount, atRiskCount, healthyCount, processedBenchmarks } = useMemo(() => {
     let crit = 0;
     let atRisk = 0;
     let healthy = 0;
-    for (let i = 0; i < benchmarks.length; i++) {
-      const st = benchmarks[i].status;
+    const processed = benchmarks.map(row => {
+      const st = normalizeStatus(row.status, row.variance);
       if (st === 'Critical') crit++;
       else if (st === 'At Risk') atRisk++;
       else if (st === 'Healthy') healthy++;
-    }
-    return { criticalCount: crit, atRiskCount: atRisk, healthyCount: healthy };
+      return { ...row, normalizedStatus: st };
+    });
+    return { criticalCount: crit, atRiskCount: atRisk, healthyCount: healthy, processedBenchmarks: processed };
   }, [benchmarks]);
 
   // Memoize filtered benchmarks to prevent re-filtering on unrelated parent re-renders
   const filteredBenchmarks = useMemo(() => {
-    if (filterMode === 'all') return benchmarks;
-    if (filterMode === 'critical') return benchmarks.filter(row => row.status === 'Critical');
-    if (filterMode === 'at-risk') return benchmarks.filter(row => row.status === 'At Risk');
-    if (filterMode === 'healthy') return benchmarks.filter(row => row.status === 'Healthy');
-    return benchmarks;
-  }, [benchmarks, filterMode]);
+    if (filterMode === 'all') return processedBenchmarks;
+    if (filterMode === 'critical') return processedBenchmarks.filter(row => row.normalizedStatus === 'Critical');
+    if (filterMode === 'at-risk') return processedBenchmarks.filter(row => row.normalizedStatus === 'At Risk');
+    if (filterMode === 'healthy') return processedBenchmarks.filter(row => row.normalizedStatus === 'Healthy');
+    return processedBenchmarks;
+  }, [processedBenchmarks, filterMode]);
 
   return (
     <div className="white-panel comparison-panel">
@@ -116,7 +136,16 @@ export default function ComparisonTable({
               </tr>
             ) : (
               filteredBenchmarks.map((row, idx) => {
-                const hasDetailedAnalysis = (row.status === 'Critical' || row.status === 'At Risk') && row.detailedAnalysis;
+                const currentStatus = row.normalizedStatus || normalizeStatus(row.status, row.variance);
+                const hasVarianceBreach = Boolean(
+                  row.variance &&
+                  !row.variance.toLowerCase().includes('on target') &&
+                  row.variance.trim() !== '0%' &&
+                  row.variance.trim() !== '0' &&
+                  (row.variance.includes('+') || row.variance.includes('-'))
+                );
+                const isHealthy = currentStatus === 'Healthy' && !hasVarianceBreach;
+                const isIssue = currentStatus === 'Critical' || currentStatus === 'At Risk' || hasVarianceBreach || !isHealthy;
                 const customStdVal = customStandardsMap[row.metric.toLowerCase().trim()];
                 const displayStandard = (isCustom && customStdVal) ? customStdVal : row.standard;
 
@@ -128,6 +157,7 @@ export default function ComparisonTable({
                       if (onSelectMetric) {
                         onSelectMetric({
                           ...row,
+                          status: currentStatus,
                           standard: displayStandard,
                           isCustomStandard: Boolean(isCustom && customStdVal)
                         });
@@ -138,6 +168,7 @@ export default function ComparisonTable({
                         e.preventDefault();
                         onSelectMetric({
                           ...row,
+                          status: currentStatus,
                           standard: displayStandard,
                           isCustomStandard: Boolean(isCustom && customStdVal)
                         });
@@ -149,7 +180,19 @@ export default function ComparisonTable({
                   >
                     {/* METRIC */}
                     <td className="td-metric">
-                      <div className="metric-primary-name">{row.metric}</div>
+                      <div className="metric-title-cell-wrap">
+                        <span className="metric-primary-name">{row.metric}</span>
+                        {(row.isSupabaseLive || row._source === 'supabase_storage_metric_folder' || row._source === 'supabase_llm_reports_table' || row._source === 'supabase') ? (
+                          <span className="source-chip source-chip-live" title="Live ML metric synthesized from Supabase">
+                            <span className="source-chip-dot"></span>
+                            Supabase Live
+                          </span>
+                        ) : (
+                          <span className="source-chip source-chip-static" title="Data not yet fetched from Supabase — showing standard enterprise baseline">
+                            Baseline
+                          </span>
+                        )}
+                      </div>
                       <div className="metric-category-subtext">{row.category}</div>
                     </td>
 
@@ -168,25 +211,24 @@ export default function ComparisonTable({
                       </div>
                     </td>
 
-
                     {/* HEALTHY STATE */}
                     <td className="td-status text-center">
-                      <span className={`pill-badge ${getBadgeClass(row.status)}`}>
+                      <span className={`pill-badge ${getBadgeClass(currentStatus)}`}>
                         <span className="badge-dot" aria-hidden="true"></span>
-                        <span>{row.status}</span>
+                        <span>{currentStatus}</span>
                       </span>
                     </td>
 
                     {/* VARIANCE */}
                     <td className="td-variance text-right">
-                      <span className={`variance-tag variance-${row.status.toLowerCase().replace(/\s+/g, '-')}`}>
+                      <span className={`variance-tag variance-${currentStatus.toLowerCase().replace(/\s+/g, '-')}`}>
                         {row.variance}
                       </span>
                     </td>
 
                     {/* ACTION / DEEP DIVE */}
                     <td className="td-action text-right">
-                      {hasDetailedAnalysis ? (
+                      {isIssue ? (
                         <span className="metric-deepdive-tag">
                           Deep Dive <span className="deepdive-arrow">→</span>
                         </span>

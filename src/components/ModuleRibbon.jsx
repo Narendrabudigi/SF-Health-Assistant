@@ -1,5 +1,13 @@
 import React, { useState } from 'react';
 
+const CANONICAL_MODULE_NAMES = {
+  ec: 'Employee Central',
+  rcm: 'Recruitment',
+  onb: 'Onboarding',
+  ofb: 'Offboarding',
+  ecp: 'Employee Central Payroll'
+};
+
 export default function ModuleRibbon({
   modules,
   activeModuleId,
@@ -66,6 +74,7 @@ export default function ModuleRibbon({
         <div className="ribbon-tabs-list">
           {modules.map((mod) => {
             const isActive = mod.id === activeModuleId;
+            const displayName = CANONICAL_MODULE_NAMES[mod.id?.toLowerCase()] || mod.name;
             return (
               <button
                 key={mod.id}
@@ -73,7 +82,7 @@ export default function ModuleRibbon({
                 className={`ribbon-tab-btn ${isActive ? 'active' : ''}`}
                 aria-pressed={isActive}
               >
-                {mod.name}
+                {displayName}
               </button>
             );
           })}

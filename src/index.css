@@ -1692,6 +1692,45 @@ body {
   transition: color 0.18s;
 }
 
+.metric-title-cell-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.source-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.65rem;
+  font-weight: 650;
+  padding: 1.5px 7px;
+  border-radius: 999px;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+}
+
+.source-chip-live {
+  background-color: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+}
+
+.source-chip-live .source-chip-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background-color: #10b981;
+  display: inline-block;
+}
+
+.source-chip-static {
+  background-color: #f8fafc;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+}
+
 .metric-category-subtext {
   font-size: 0.70rem;
   font-weight: 500;
@@ -2508,7 +2547,99 @@ body {
   line-height: 1.4;
 }
 
-/* Sub-headings for 8. Success Criteria and 9. Assumptions */
+/* ==========================================================================
+   Section 3: Missing Configurations Styling
+   ========================================================================== */
+.cfg-summary-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-left: 4px solid #f59e0b;
+  border-radius: 6px;
+  padding: 14px 16px;
+  margin-bottom: 8px;
+}
+
+.cfg-banner-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.cfg-banner-icon {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.cfg-banner-title {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #92400e;
+  margin-bottom: 2px;
+}
+
+.cfg-banner-desc {
+  font-size: 0.80rem;
+  color: #78350f;
+  line-height: 1.45;
+}
+
+.cfg-banner-stats {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.cfg-stat-pill {
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  white-space: nowrap;
+}
+
+.cfg-stat-pill.pill-critical {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.cfg-stat-pill.pill-high {
+  background: #ffedd5;
+  color: #9a3412;
+  border: 1px solid #fed7aa;
+}
+
+.cfg-stat-pill.pill-medium {
+  background: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+}
+
+.cfg-setting-code {
+  display: inline-block;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.74rem;
+  background: #f8fafc;
+  color: #0f172a;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid #e2e8f0;
+  word-break: break-word;
+  line-height: 1.4;
+}
+
+@media (max-width: 768px) {
+  .cfg-summary-banner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/* Sub-headings for 8. Success Criteria and Assumptions */
 .brd-section-subheading {
   font-size: 0.96rem;
   font-weight: 700;
@@ -2633,6 +2764,44 @@ body {
 .dark-theme .brd-spec-footnote {
   color: #94a3b8;
   border-top-color: #334155;
+}
+
+.dark-theme .cfg-summary-banner {
+  background: rgba(245, 158, 11, 0.08);
+  border-color: rgba(245, 158, 11, 0.3);
+  border-left-color: #f59e0b;
+}
+
+.dark-theme .cfg-banner-title {
+  color: #fde68a;
+}
+
+.dark-theme .cfg-banner-desc {
+  color: #fef3c7;
+}
+
+.dark-theme .cfg-stat-pill.pill-critical {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+.dark-theme .cfg-stat-pill.pill-high {
+  background: rgba(249, 115, 22, 0.2);
+  color: #fdba74;
+  border-color: rgba(249, 115, 22, 0.4);
+}
+
+.dark-theme .cfg-stat-pill.pill-medium {
+  background: rgba(14, 165, 233, 0.2);
+  color: #7dd3fc;
+  border-color: rgba(14, 165, 233, 0.4);
+}
+
+.dark-theme .cfg-setting-code {
+  background: rgba(15, 23, 42, 0.6);
+  color: #e2e8f0;
+  border-color: #334155;
 }
 
 @media (max-width: 768px) {

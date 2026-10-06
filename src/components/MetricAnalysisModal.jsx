@@ -4,7 +4,6 @@ import { generateMetricBrdPdf } from '../utils/pdfGenerator';
 
 export default function MetricAnalysisModal({ metric, onClose }) {
   const [isDownloading, setIsDownloading] = useState(false);
-  const [downloadSuccess, setDownloadSuccess] = useState(false);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -33,19 +32,18 @@ export default function MetricAnalysisModal({ metric, onClose }) {
   const isCritical = status === 'Critical';
   const badgeClass = isCritical ? 'badge-critical' : status === 'Healthy' ? 'badge-healthy' : 'badge-at-risk';
 
-  const handleDownloadPDF = () => {
+  const handleDownloadPDF = async () => {
     setIsDownloading(true);
-    setTimeout(() => {
-      try {
-        generateMetricBrdPdf(metric, { brdPlan });
-        setIsDownloading(false);
-        setDownloadSuccess(true);
-        setTimeout(() => setDownloadSuccess(false), 3000);
-      } catch (err) {
-        console.error('PDF Generation Error:', err);
-        setIsDownloading(false);
-      }
-    }, 350);
+    try {
+      await generateMetricBrdPdf(metric, {
+        brdPlan,
+        missingConfigs: detailedAnalysis?.missingConfigurations || []
+      });
+    } catch (err) {
+      console.error('PDF Generation Error:', err);
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   return (
@@ -265,7 +263,7 @@ export default function MetricAnalysisModal({ metric, onClose }) {
           </span>
           <button 
             type="button" 
-            className={`btn-primary btn-download-pdf ${downloadSuccess ? 'btn-download-success' : ''}`}
+            className="btn-primary btn-download-pdf"
             onClick={handleDownloadPDF}
             disabled={isDownloading}
             title="Download complete BRD Action Plan and diagnostic report as a PDF document"
@@ -276,11 +274,7 @@ export default function MetricAnalysisModal({ metric, onClose }) {
               <line x1="12" y1="15" x2="12" y2="3"></line>
             </svg>
             <span>
-              {downloadSuccess 
-                ? 'Downloaded (PDF) ✓' 
-                : isDownloading 
-                  ? 'Generating PDF...' 
-                  : 'Download BRD Plan (PDF)'}
+              Download BRD Plan (PDF)
             </span>
           </button>
         </div>

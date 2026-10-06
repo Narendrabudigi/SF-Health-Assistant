@@ -45,7 +45,7 @@ export const METRIC_BRD_PLANS = {
       'Automated Weekly Exception Monitoring Report in Integration Center',
       'End-User Data Entry Field Mask Guide'
     ],
-    footnote: 'Sections 1, 3 and 4 are rendered directly from the ML insight JSON. Sections 2 and 5-9 are written by the LLM under the system prompt; effort and staffing are indicative estimates.'
+    footnote: 'Sections 1, 2, 3 and 4 are rendered directly from telemetry, trend analysis, and configuration audit scans. Sections 5–8 are generated under the system prompt; effort and staffing are indicative estimates.'
   },
 
   'Time to hire': {
@@ -249,7 +249,7 @@ export const METRIC_BRD_PLANS = {
       { driver: 'Source: Agency', avgDays: '39.0', vsCompany: '+4.8', id: 'A2' },
       { driver: 'Grade: G7', avgDays: '42.6', vsCompany: '+8.4', id: 'A3' }
     ],
-    footnote: 'Sections 1, 3 and 4 are rendered directly from the ML insight JSON. Sections 2 and 5-9 are written by the LLM under the system prompt; effort and staffing are indicative estimates.'
+    footnote: 'Sections 1, 2, 3 and 4 are rendered directly from telemetry, trend analysis, and configuration audit scans. Sections 5–8 are generated under the system prompt; effort and staffing are indicative estimates.'
   },
 
   'New Hire Early Attrition Rate (90-day)': {
@@ -295,7 +295,7 @@ export const METRIC_BRD_PLANS = {
       'Early Warning Attrition Predictive Dashboard',
       'Manager Onboarding Check-in Playbook'
     ],
-    footnote: 'Sections 1, 3 and 4 are rendered directly from the ML insight JSON. Sections 2 and 5-9 are written by the LLM under the system prompt; effort and staffing are indicative estimates.'
+    footnote: 'Sections 1, 2, 3 and 4 are rendered directly from telemetry, trend analysis, and configuration audit scans. Sections 5–8 are generated under the system prompt; effort and staffing are indicative estimates.'
   },
 
   'Workflow Approval Cycle Time': {
@@ -339,7 +339,7 @@ export const METRIC_BRD_PLANS = {
       'One-Click Mobile Approval Configuration in SAP Mobile Cards',
       'Tier-1 Shared Services SLA Tracking Report'
     ],
-    footnote: 'Sections 1, 3 and 4 are rendered directly from the ML insight JSON. Sections 2 and 5-9 are written by the LLM under the system prompt; effort and staffing are indicative estimates.'
+    footnote: 'Sections 1, 2, 3 and 4 are rendered directly from telemetry, trend analysis, and configuration audit scans. Sections 5–8 are generated under the system prompt; effort and staffing are indicative estimates.'
   },
 
   'Retroactive Transaction Volume': {
@@ -371,7 +371,7 @@ export const METRIC_BRD_PLANS = {
       { driver: 'Department: Field Sales & Services', avgDays: '26.4%', vsCompany: '+7.9%', id: 'A1' },
       { driver: 'Action: Off-Cycle Promotion', avgDays: '22.1%', vsCompany: '+3.6%', id: 'A2' }
     ],
-    footnote: 'Sections 1, 3 and 4 are rendered directly from the ML insight JSON. Sections 2 and 5-9 are written by the LLM under the system prompt; effort and staffing are indicative estimates.'
+    footnote: 'Sections 1, 2, 3 and 4 are rendered directly from telemetry, trend analysis, and configuration audit scans. Sections 5–8 are generated under the system prompt; effort and staffing are indicative estimates.'
   }
 };
 
@@ -586,7 +586,7 @@ function formatBrdPlan(plan, metric) {
   ];
 
   const footnote = plan.footnote ||
-    'Sections 1, 3 and 4 are rendered directly from the ML insight JSON. Sections 2 and 5-9 are written by the LLM under the system prompt; effort and staffing are indicative estimates.';
+    'Sections 1, 2, 3 and 4 are rendered directly from telemetry, trend analysis, and configuration audit scans. Sections 5–8 are generated under the system prompt; effort and staffing are indicative estimates.';
 
   return {
     ...plan,

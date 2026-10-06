@@ -69,13 +69,28 @@ export default function ModuleAnalysisView({
 
   if (!module) return null;
 
+  const CANONICAL_MODULE_NAMES = {
+    ec: 'Employee Central',
+    rcm: 'Recruitment',
+    onb: 'Onboarding',
+    ofb: 'Offboarding',
+    ecp: 'Employee Central Payroll'
+  };
+
+  const displayName = CANONICAL_MODULE_NAMES[module.id?.toLowerCase()] || module.name;
   const benchmarks = module.benchmarks || [];
-  const criticalCount = benchmarks.filter(b => b.status === 'Critical').length;
-  const atRiskCount = benchmarks.filter(b => b.status === 'At Risk').length;
-  const healthyCount = benchmarks.filter(b => b.status === 'Healthy').length;
+  const criticalCount = module.criticalCount !== undefined 
+    ? module.criticalCount 
+    : benchmarks.filter(b => String(b.status || '').toLowerCase().includes('crit')).length;
+  const atRiskCount = module.atRiskCount !== undefined 
+    ? module.atRiskCount 
+    : benchmarks.filter(b => String(b.status || '').toLowerCase().includes('risk') || String(b.status || '').toLowerCase().includes('warn')).length;
+  const healthyCount = module.healthyCount !== undefined 
+    ? module.healthyCount 
+    : benchmarks.filter(b => String(b.status || '').toLowerCase().includes('health')).length;
 
   const executiveSummary = module.aiReport?.summary ||
-    `${module.name} turnaround is critically bottlenecked with key metric variances against benchmark targets. Immediate remediation and process optimization are top priorities.`;
+    `${displayName} turnaround is critically bottlenecked with key metric variances against benchmark targets. Immediate remediation and process optimization are top priorities.`;
 
   return (
     <div className="analysis-page-wrapper">

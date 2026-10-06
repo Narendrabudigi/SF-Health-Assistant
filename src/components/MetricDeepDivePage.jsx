@@ -3,10 +3,12 @@ import { createPortal } from 'react-dom';
 import { getBrdPlan } from '../utils/brdPlanData';
 import { generateMetricBrdPdf } from '../utils/pdfGenerator';
 import TrendDrillDownView from './TrendDrillDownView';
+import { apiService } from '../services/apiService';
 
 const CATALOG_SECTIONS = [
   { id: 'sec-diagnosis', label: 'Diagnosis', icon: 'help', desc: 'LLM diagnostic synthesis & touchpoints' },
   { id: 'sec-trend', label: 'Trend Analysis', icon: 'trend', desc: 'Yearly, quarterly & monthly drill-down' },
+  { id: 'sec-missing-configs', label: 'Missing Configurations', icon: 'settings', desc: 'Identified configuration gaps & rule deficits' },
   { id: 'sec-rca', label: 'Root Cause Analysis', icon: 'search', desc: 'Stage & segment breach drivers' },
   { id: 'sec-impact', label: 'Business Impact', icon: 'alert', desc: 'Downstream SLA & financial risk' },
   { id: 'sec-brd', label: 'BRD Plan of Action', icon: 'clipboard', desc: 'Workforce, hours & milestones' },
@@ -14,8 +16,10 @@ const CATALOG_SECTIONS = [
   { id: 'sec-criteria', label: 'Success Criteria & Risks', icon: 'target', desc: 'Monitoring targets & mitigations' }
 ];
 
-// Module-specific technical mapping for Architecture Touchpoints & RCA Failure Modes
-function getModuleMapping(moduleId, metricName) {
+// Module-specific technical mapping for Architecture Touchpoints, RCA Failure Modes & Missing Configurations
+function getModuleMapping(moduleId, metricName = '') {
+  const normName = (metricName || '').toLowerCase();
+
   switch (moduleId) {
     case 'rcm': // Recruitment
       return {
@@ -24,6 +28,57 @@ function getModuleMapping(moduleId, metricName) {
           { label: 'Candidate Workbench & Requisitions', type: 'config' },
           { label: 'Interview Central & Self-Scheduling', type: 'workflow' },
           { label: 'Offer Approval & DocuSign e-Signature', type: 'integration' }
+        ],
+        missingConfigs: normName.includes('time') ? [
+          {
+            id: 'CFG-R01',
+            component: 'Recruiting Business Rules (BCUI / ISC)',
+            title: 'Automated 24-Hour Interview Scorecard SLA Escalation Rule',
+            status: 'Inactive / Not Deployed',
+            severity: 'Critical',
+            setting: 'Manage Business Configuration > JobApplication > rule_escalate_pending_scorecard (Trigger escalation at 24h & auto-reassign after 48h)'
+          },
+          {
+            id: 'CFG-R02',
+            component: 'Job Requisition Template & Screening Engine',
+            title: 'Mandatory Role-Specific Pre-Screening Knockout Questions',
+            status: 'Disabled on Active Requisitions',
+            severity: 'High',
+            setting: 'Requisition Form Settings > enableKnockoutScore=true (Auto-filter unqualified applicants before recruiter triage queue)'
+          },
+          {
+            id: 'CFG-R03',
+            component: 'Offer Approval Governance Matrix',
+            title: 'Conditional Salary-Band Approval Bypass Rules',
+            status: 'Unbounded Multi-Tier Hierarchy',
+            severity: 'High',
+            setting: 'Manage Recruiting Settings > Offer Approval Template (Auto-bypass VP sign-off when proposed compa-ratio is within standard 0.90-1.10 band)'
+          }
+        ] : [
+          {
+            id: 'CFG-R01',
+            component: 'Career Site Builder (CSB)',
+            title: 'Mobile-Optimized Candidate Quick-Apply Gateway',
+            status: 'Not Activated',
+            severity: 'Critical',
+            setting: 'CSB Settings > Mobile Application Flow > Enable one-click resume parsing & LinkedIn profile import'
+          },
+          {
+            id: 'CFG-R02',
+            component: 'Integration Center / DocuSign API',
+            title: 'Event-Driven Real-Time e-Signature Offer Dispatch',
+            status: 'Manual Document Dispatch',
+            severity: 'High',
+            setting: 'Integration Center > Outbound Webhook > Event: OfferApproved > Instant envelope trigger'
+          },
+          {
+            id: 'CFG-R03',
+            component: 'Interview Central Scheduling Engine',
+            title: 'Candidate Self-Scheduling Microsoft 365 Calendar Sync',
+            status: 'Manual Coordination',
+            severity: 'Medium',
+            setting: 'Admin Center > Set Up Interview Scheduling > Exchange Online OAuth2 Integration'
+          }
         ],
         rca: [
           {
@@ -52,6 +107,32 @@ function getModuleMapping(moduleId, metricName) {
           { label: 'IT Asset & Facilities Task Queues', type: 'workflow' },
           { label: 'SAP Work Zone & I-9 / E-Verify', type: 'integration' }
         ],
+        missingConfigs: [
+          {
+            id: 'CFG-O01',
+            component: 'Identity Authentication Service (IAS)',
+            title: 'Pre-Day 1 Mobile Magic Link Authentication Gateway',
+            status: 'Restricted to Domain SSO',
+            severity: 'Critical',
+            setting: 'IAS Admin Console > Applications > SF ONB2 > Allow External Magic-Link Authentication'
+          },
+          {
+            id: 'CFG-O02',
+            component: 'SAP BTP Event Mesh (IAM Webhook)',
+            title: 'Event-Driven IT Hardware & Workspace Provisioning Hook',
+            status: 'Disconnected / Manual Queue',
+            severity: 'High',
+            setting: 'BTP Cockpit > Event Mesh > Queue: ONB_ASSET_DISPATCH (Real-time webhook to IT inventory)'
+          },
+          {
+            id: 'CFG-O03',
+            component: 'Continuous Performance Management (CPM)',
+            title: 'Automated 30/60/90-Day New Hire Review Milestones',
+            status: 'Unassigned Schedule',
+            severity: 'High',
+            setting: 'CPM Admin > Onboarding Activity Template > Auto-generate 30/60/90-day manager pulse milestones'
+          }
+        ],
         rca: [
           {
             title: 'Pre-Day-1 Portal Authentication & Mobile Friction',
@@ -79,6 +160,32 @@ function getModuleMapping(moduleId, metricName) {
           { label: 'Separation Clearance Workflows', type: 'workflow' },
           { label: 'Asset Recovery & Exit Portals', type: 'core' }
         ],
+        missingConfigs: [
+          {
+            id: 'CFG-X01',
+            component: 'SAP BTP Event Mesh / IAM Identity Gateway',
+            title: 'Real-Time IAM Okta/AD Termination Revocation Hook',
+            status: 'Batch-Dependent (24h Delay)',
+            severity: 'Critical',
+            setting: 'BTP Event Mesh > Topic: /sf/ofb/separation_immediate > Instant revoke webhook to Okta'
+          },
+          {
+            id: 'CFG-X02',
+            component: 'Offboarding 2.0 Clearance Process Engine',
+            title: 'Concurrent Parallel Department Task Routing',
+            status: 'Sequential Waterfall (Blocking)',
+            severity: 'High',
+            setting: 'Process Configuration > OFB Separation > Switch clearance stages from Sequential to Concurrent Parallel'
+          },
+          {
+            id: 'CFG-X03',
+            component: 'Knowledge Handover Verification Checklist',
+            title: 'Mandatory Digital Knowledge Transfer Repository Sign-off',
+            status: 'Optional / Free-Text',
+            severity: 'Medium',
+            setting: 'Offboarding Task Definition > Knowledge Transfer > Mandate SharePoint/Wiki repository URL validation'
+          }
+        ],
         rca: [
           {
             title: 'Event-Triggered IAM De-provisioning Disconnect',
@@ -100,6 +207,108 @@ function getModuleMapping(moduleId, metricName) {
 
     case 'ec': // Employee Central
     default:
+      const ecMissing = normName.includes('accuracy') ? [
+        {
+          id: 'CFG-E01',
+          component: 'Manage Business Configuration (BCUI)',
+          title: 'Mandatory Checksum & Regex Validation Rule on National ID',
+          status: 'Inactive Rule Binding',
+          severity: 'Critical',
+          setting: 'BCUI > nationalIdCard > onChange: rule_validate_national_id (Hard stop on format mismatch)'
+        },
+        {
+          id: 'CFG-E02',
+          component: 'Picklist Center & MDF Object Definition',
+          title: 'Strict Picklist Constraint Binding on Custom MDF Objects',
+          status: 'Unconstrained Free-Text',
+          severity: 'High',
+          setting: 'Configure Object Definitions > cust_emergency_contact > Field Data Type: Picklist (ID: ec_rel_picklist)'
+        },
+        {
+          id: 'CFG-E03',
+          component: 'Integration Center CSV Data Ingestion Pipelines',
+          title: 'Real-Time Integration Center Error Hook & Alerting',
+          status: 'Silent Failure Logging',
+          severity: 'Medium',
+          setting: 'Integration Center > Edit Definition > Schedule & Notifications > Alert HR Master Data Steward on schema fault'
+        }
+      ] : normName.includes('workflow') || normName.includes('approval') ? [
+        {
+          id: 'CFG-E01',
+          component: 'Intelligent Services Center (ISC)',
+          title: '48-Hour Workflow Stagnation Escalation Event Rule',
+          status: 'Inactive / Not Configured',
+          severity: 'Critical',
+          setting: 'Intelligent Services Center > Event: Workflow Stagnant > Auto-reassign to higher supervisor after 48h'
+        },
+        {
+          id: 'CFG-E02',
+          component: 'Workflow Configuration (wfConfig)',
+          title: 'Conditional Rule-Based Skip for Non-Compensation Changes',
+          status: 'Rigid Multi-Tier VP Routing',
+          severity: 'High',
+          setting: 'Manage Organization, Pay and Job Structures > wfConfig > Condition: If change != compensation, skip VP'
+        },
+        {
+          id: 'CFG-E03',
+          component: 'SAP Mobile Services & Work Zone Cards',
+          title: 'Executive Mobile One-Click Workflow Approval Cards',
+          status: 'Push Disabled',
+          severity: 'Medium',
+          setting: 'Mobile Settings > Enable SAP Mobile Cards for HRIS Workflow Approvals with push notifications'
+        }
+      ] : normName.includes('retroactive') ? [
+        {
+          id: 'CFG-E01',
+          component: 'Employee Central Business Rules Engine',
+          title: 'Effective Date Retro-Window Constraint Rule (≤ 14 Days)',
+          status: 'Unrestricted Past Dates',
+          severity: 'Critical',
+          setting: 'Job Information > onSave: rule_block_retro_dates_over_14d (Requires VP HR approval for retroactive overrides)'
+        },
+        {
+          id: 'CFG-E02',
+          component: 'Alert & Notification Center',
+          title: 'Proactive 30-Day Contract & Milestone Expiration Alerts',
+          status: 'Missing Event Schedule',
+          severity: 'High',
+          setting: 'Alert Engine > Batch Job: daily_contract_expiry_scan > Send reminder email 30 days prior to contract end'
+        },
+        {
+          id: 'CFG-E03',
+          component: 'Payroll Control Center (PCC) Cutoff Lock',
+          title: 'Manager Self-Service (MSS) Edit Freeze During Payroll Window',
+          status: 'Open Unlocked Portlets',
+          severity: 'High',
+          setting: 'Role-Based Permissions (RBP) > Time-based restriction on Job & Compensation changes during payroll cycle'
+        }
+      ] : [
+        {
+          id: 'CFG-E01',
+          component: 'Manage Business Configuration (BCUI)',
+          title: 'Mandatory Field Validations & Document Attachment Verification',
+          status: 'Inactive Rules',
+          severity: 'Critical',
+          setting: 'BCUI > Configure Business Rules > Set mandatory attachment verification for key HRIS entities'
+        },
+        {
+          id: 'CFG-E02',
+          component: 'Intelligent Services Center (ISC)',
+          title: 'Event-Driven Operational Alert Triggers',
+          status: 'Unassigned Events',
+          severity: 'High',
+          setting: 'ISC > Connect employee lifecycle events to automated supervisor email notifications'
+        },
+        {
+          id: 'CFG-E03',
+          component: 'Picklist Center & MDF Governance',
+          title: 'Standardized Enterprise Picklist Value Normalization',
+          status: 'Unlinked Legacy Picklists',
+          severity: 'Medium',
+          setting: 'Picklist Center > Map all custom portlet fields to standardized enterprise picklists'
+        }
+      ];
+
       return {
         touchpoints: [
           { label: 'Custom MDF Objects & Extension Portals', type: 'core' },
@@ -107,6 +316,7 @@ function getModuleMapping(moduleId, metricName) {
           { label: 'Integration Center CSV Ingestion Pipelines', type: 'integration' },
           { label: 'Employee Central Business Rules Engine', type: 'workflow' }
         ],
+        missingConfigs: ecMissing,
         rca: [
           {
             title: 'Unstructured Custom MDF Data Entry Gaps',
@@ -132,20 +342,52 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
   const currentMetric = metric || initialMetric;
   const [activeSection, setActiveSection] = useState('sec-diagnosis');
   const [isDownloading, setIsDownloading] = useState(false);
-  const [downloadSuccess, setDownloadSuccess] = useState(false);
   const isManualScrollRef = useRef(false);
 
   if (!currentMetric) return null;
 
   const {
-    detailedAnalysis,
+    detailedAnalysis: baseDetailedAnalysis,
     metric: metricName,
     category,
-    company,
-    standard,
-    status,
-    variance
+    company: baseCompany,
+    standard: baseStandard,
+    status: baseStatus,
+    variance: baseVariance
   } = currentMetric;
+
+  // Live ML Insight fetched from Supabase Storage bucket via FastAPI
+  const [liveInsight, setLiveInsight] = useState(null);
+
+  useEffect(() => {
+    let active = true;
+    const metricCode = currentMetric.code || currentMetric.metric;
+    if (metricCode) {
+      apiService.getMetricDeepDive(metricCode, currentMetric.metric, module?.id)
+        .then((data) => {
+          if (active && data) {
+            setLiveInsight(data);
+          }
+        })
+        .catch(() => { });
+    }
+    return () => { active = false; };
+  }, [currentMetric.code, currentMetric.metric, module?.id]);
+
+  // Real-time overrides: Whatever is present in the Supabase metric folder reflects directly!
+  const company = liveInsight?.metric?.company || baseCompany;
+  const standard = liveInsight?.metric?.standard || baseStandard;
+  const status = liveInsight?.metric?.status || baseStatus;
+  const variance = liveInsight?.metric?.variance || baseVariance;
+  const detailedAnalysis = liveInsight?.metric?.detailedAnalysis || baseDetailedAnalysis;
+
+  const overviewData = liveInsight?.moduleOverview || liveInsight?.metric?.moduleOverview || currentMetric?.moduleOverview || {};
+
+  const whyItHappensText = overviewData.rootCause || detailedAnalysis?.whyItHappens;
+  const whereItHappensText = overviewData.affectedArea || detailedAnalysis?.whereItHappens;
+
+  const rawOvercome = (overviewData.suggestions && overviewData.suggestions.length > 0) ? overviewData.suggestions : detailedAnalysis?.howToOvercome;
+  const howToOvercomeList = Array.isArray(rawOvercome) ? rawOvercome : (typeof rawOvercome === 'string' ? [rawOvercome] : (rawOvercome ? [rawOvercome] : []));
 
   const isCritical = status === 'Critical';
   const badgeClass = isCritical
@@ -159,12 +401,85 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
     window.scrollTo({ top: 0, behavior: 'instant' });
   }, [metricName]);
 
-  const brdPlan = useMemo(() => getBrdPlan(currentMetric), [currentMetric]);
+  const brdPlan = useMemo(() => {
+    const base = getBrdPlan(currentMetric);
+    if (!liveInsight) return base;
+
+    const liveBrd = liveInsight.brdPlan || {};
+
+    const specialistManpower = (Array.isArray(liveBrd.specialistManpower) && liveBrd.specialistManpower.length > 0)
+      ? liveBrd.specialistManpower
+      : base.specialistManpower;
+
+    const phasedActivities = (Array.isArray(liveBrd.phasedActivities) && liveBrd.phasedActivities.length > 0)
+      ? liveBrd.phasedActivities
+      : base.phasedActivities;
+
+    const executionWorkstreams = (Array.isArray(liveBrd.executionWorkstreams) && liveBrd.executionWorkstreams.length > 0)
+      ? liveBrd.executionWorkstreams
+      : base.executionWorkstreams;
+
+    const stageDrivers = (Array.isArray(liveInsight.stageDrivers) && liveInsight.stageDrivers.length > 0)
+      ? liveInsight.stageDrivers.map((sd, i) => ({
+          id: sd.id || `S${i + 1}`,
+          driver: sd.stage || sd.driver || sd.name || `Stage ${i + 1}`,
+          avgDays: sd.avgDays || sd.days || (sd.breachContribution ? `${sd.breachContribution}%` : '-'),
+          share: sd.share || (sd.breachContribution ? `${sd.breachContribution}%` : '-')
+        }))
+      : base.stageDrivers;
+
+    const segmentDrivers = (Array.isArray(liveInsight.segmentDrivers) && liveInsight.segmentDrivers.length > 0)
+      ? liveInsight.segmentDrivers.map((seg, i) => ({
+          id: seg.id || `A${i + 1}`,
+          driver: seg.segment || seg.driver || seg.name || `Segment ${i + 1}`,
+          avgDays: seg.actual || seg.avgDays || '-',
+          vsCompany: seg.vsCompany || seg.gap || (seg.target ? `Target: ${seg.target}` : '-')
+        }))
+      : base.segmentDrivers;
+
+    const assumptionsAndRisks = (Array.isArray(liveBrd.assumptionsAndRisks) && liveBrd.assumptionsAndRisks.length > 0)
+      ? liveBrd.assumptionsAndRisks
+      : (Array.isArray(liveInsight.assumptionsAndRisks) && liveInsight.assumptionsAndRisks.length > 0)
+        ? liveInsight.assumptionsAndRisks
+        : (base.assumptionsAndRisks || []);
+
+    const successCriteria = (Array.isArray(liveBrd.successCriteria) && liveBrd.successCriteria.length > 0)
+      ? liveBrd.successCriteria
+      : (Array.isArray(liveInsight.successCriteria) && liveInsight.successCriteria.length > 0)
+        ? liveInsight.successCriteria
+        : (base.successCriteria || []);
+
+    const targetOutcome = liveBrd.targetOutcome || liveInsight.targetOutcome || whyItHappensText || base.targetOutcome;
+    const timeline = liveBrd.timeline || liveBrd.timelineAndEffort?.timeline || base.timeline;
+    const totalEffortHours = liveBrd.totalEffortHours || base.totalEffortHours;
+    const totalEffortsDisplay = liveBrd.totalEffortsDisplay || `${totalEffortHours} Total Hours`;
+    const timelineAndEffort = liveBrd.timelineAndEffort || { timeline, totalEffort: totalEffortsDisplay };
+
+    return {
+      ...base,
+      ...liveBrd,
+      specialistManpower,
+      phasedActivities,
+      executionWorkstreams,
+      stageDrivers,
+      segmentDrivers,
+      assumptionsAndRisks,
+      successCriteria,
+      timeline,
+      totalEffortHours,
+      totalEffortsDisplay,
+      timelineAndEffort,
+      targetOutcome
+    };
+  }, [currentMetric, liveInsight, whyItHappensText]);
 
   // Dynamic module mapping for architecture touchpoints & RCA failure modes
   const moduleMapping = useMemo(() => getModuleMapping(module?.id, metricName), [module?.id, metricName]);
   const systemTouchpoints = moduleMapping.touchpoints;
   const rcaFailureModes = moduleMapping.rca;
+  const missingConfigs = (liveInsight?.missingConfigurations && liveInsight.missingConfigurations.length > 0)
+    ? liveInsight.missingConfigurations
+    : (detailedAnalysis?.missingConfigurations || moduleMapping.missingConfigs || []);
 
   const rcaPriorityLabels = useMemo(() => [
     'P1 • Critical Architecture Gap',
@@ -311,20 +626,40 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
     return () => window.removeEventListener('scroll', onScroll);
   }, [metricName]);
 
-  const handleDownloadPDF = useCallback(() => {
+  const handleDownloadPDF = useCallback(async () => {
     setIsDownloading(true);
-    setTimeout(() => {
-      try {
-        generateMetricBrdPdf(currentMetric, { brdPlan });
-        setIsDownloading(false);
-        setDownloadSuccess(true);
-        setTimeout(() => setDownloadSuccess(false), 3000);
-      } catch (err) {
-        console.error('PDF Generation Error:', err);
-        setIsDownloading(false);
-      }
-    }, 350);
-  }, [currentMetric, brdPlan]);
+    try {
+      const liveMetric = {
+        ...currentMetric,
+        company,
+        standard,
+        status,
+        variance,
+        moduleOverview: overviewData,
+        detailedAnalysis: {
+          ...(detailedAnalysis || {}),
+          whyItHappens: whyItHappensText,
+          whereItHappens: whereItHappensText,
+          howToOvercome: howToOvercomeList
+        }
+      };
+
+      await generateMetricBrdPdf(liveMetric, {
+        brdPlan,
+        missingConfigs,
+        systemTouchpoints,
+        rcaFailureModes,
+        moduleName: module?.name,
+        whyItHappensText,
+        whereItHappensText,
+        howToOvercomeList
+      });
+    } catch (err) {
+      console.error('PDF Generation Error:', err);
+    } finally {
+      setIsDownloading(false);
+    }
+  }, [currentMetric, company, standard, status, variance, overviewData, detailedAnalysis, whyItHappensText, whereItHappensText, howToOvercomeList, brdPlan, missingConfigs, systemTouchpoints, rcaFailureModes, module?.name]);
 
   return (
     <div className="deepdive-page-container">
@@ -383,7 +718,19 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                 <span className={`pill-badge ${badgeClass}`}>{status}</span>
               </div>
               <div className="catalog-metric-heading">{metricName}</div>
-              <span className="catalog-sub">{category} • {module?.name || 'Module'}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginTop: '4px' }}>
+                <span className="catalog-sub">{category} • {module?.name || 'Module'}</span>
+                {(liveInsight?.source === 'supabase_storage_metric_folder' || liveInsight?.storagePath || currentMetric.isSupabaseLive || currentMetric._source === 'supabase_storage_metric_folder') ? (
+                  <span className="source-chip source-chip-live" title="Live ML metric synthesized from Supabase Storage (reports/latest)">
+                    <span className="source-chip-dot"></span>
+                    Supabase Live
+                  </span>
+                ) : (
+                  <span className="source-chip source-chip-static" title="Data not yet fetched from Supabase — showing standard enterprise baseline">
+                    Baseline Data
+                  </span>
+                )}
+              </div>
 
               {/* Step Progress Tracker */}
               <div className="catalog-progress-box">
@@ -441,7 +788,27 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                 <h1 className="deepdive-hero-title">{metricName}</h1>
               </div>
 
-              <div className="deepdive-hero-badge-wrap">
+              <div className="deepdive-hero-badge-wrap" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {(liveInsight?.storageFolder || liveInsight?.storagePath) && (
+                  <span
+                    className="supabase-source-badge"
+                    title={`Live Diagnostic loaded from Supabase Folder: ${liveInsight.storageFolder || liveInsight.storagePath}${liveInsight.filesLoaded?.length ? ` (${liveInsight.filesLoaded.join(', ')})` : ''}`}
+                    style={{
+                      fontSize: '11px',
+                      padding: '4px 10px',
+                      borderRadius: '6px',
+                      background: 'rgba(16, 185, 129, 0.15)',
+                      border: '1px solid rgba(16, 185, 129, 0.35)',
+                      color: '#34d399',
+                      fontWeight: 600,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px'
+                    }}
+                  >
+                    <span>📦 Supabase: {liveInsight.storageFolder || liveInsight.storagePath}</span>
+                  </span>
+                )}
                 <span className={`pill-badge ${badgeClass}`}>{status}</span>
               </div>
             </div>
@@ -484,21 +851,28 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
           {detailedAnalysis ? (
             <div className="deepdive-cards-stack">
 
-              {/* SECTION 02: DIAGNOSIS (MERGED & AUTHORITATIVE - ELIMINATING DUPLICATE WHERE/WHY) */}
+              {/* SECTION 01: DIAGNOSIS (MERGED & AUTHORITATIVE - ELIMINATING DUPLICATE WHERE/WHY) */}
               <div id="sec-diagnosis" className="diagnostic-card deepdive-card">
                 <div className="diagnostic-card-header">
                   <div className="card-header-text">
-                    <h2 className="diagnostic-card-title">2. Diagnosis</h2>
+                    <h2 className="diagnostic-card-title">1. Diagnosis</h2>
                     <span className="diagnostic-card-subtitle">Written by the LLM from the ML insights only</span>
                   </div>
                 </div>
                 <div className="diagnostic-card-content">
-                  <p className="analysis-text-paragraph">{detailedAnalysis.whyItHappens || detailedAnalysis.whereItHappens}</p>
+                  {whyItHappensText && (
+                    <div style={{ marginBottom: '16px' }}>
+                      <div className="footprint-header" style={{ marginBottom: '6px' }}>
+                        <strong>🔍 Why It is Happening (Root Cause):</strong>
+                      </div>
+                      <p className="analysis-text-paragraph">{whyItHappensText}</p>
+                    </div>
+                  )}
 
                   <div className="sf-footprint-box" style={{ marginTop: '16px' }}>
                     <div className="footprint-header">
-                      {detailedAnalysis.whereItHappens ? (
-                        <span><strong>Impacted Architecture Touchpoints:</strong> {detailedAnalysis.whereItHappens}</span>
+                      {whereItHappensText ? (
+                        <span><strong>Impacted Architecture Touchpoints:</strong> {whereItHappensText}</span>
                       ) : (
                         'Impacted Architecture Touchpoints:'
                       )}
@@ -513,14 +887,30 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                       </div>
                     )}
                   </div>
+
+                  {howToOvercomeList && howToOvercomeList.length > 0 && (
+                    <div className="sf-footprint-box" style={{ marginTop: '16px' }}>
+                      <div className="footprint-header">
+                        <strong>💡 Suggestions to Improve:</strong>
+                      </div>
+                      <ol className="accordion-suggestions-list" style={{ marginTop: '8px', paddingLeft: 0, listStyle: 'none' }}>
+                        {howToOvercomeList.map((sug, sIdx) => (
+                          <li key={sIdx} className="accordion-suggestion-item" style={{ marginBottom: '6px' }}>
+                            <span className="accordion-step-counter">{sIdx + 1}</span>
+                            <span className="accordion-step-text">{sug}</span>
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* SECTION 03: TREND ANALYSIS (ALIGNED WITH BRD ORDER) */}
+              {/* SECTION 02: TREND ANALYSIS (ALIGNED WITH BRD ORDER) */}
               <div id="sec-trend" className="diagnostic-card deepdive-card">
                 <div className="diagnostic-card-header">
                   <div className="card-header-text">
-                    <h2 className="diagnostic-card-title">3. Trend Analysis</h2>
+                    <h2 className="diagnostic-card-title">2. Trend Analysis</h2>
                     <span className="diagnostic-card-subtitle">
                       Hierarchical Drill-Down Trajectory Tracking (Yearly › Quarterly › Monthly)
                     </span>
@@ -528,6 +918,82 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                 </div>
                 <div className="diagnostic-card-content">
                   <TrendDrillDownView metric={currentMetric} />
+                </div>
+              </div>
+
+              {/* SECTION 03: MISSING CONFIGURATIONS */}
+              <div id="sec-missing-configs" className="diagnostic-card deepdive-card">
+                <div className="diagnostic-card-header">
+                  <div className="card-header-text">
+                    <h2 className="diagnostic-card-title">3. Missing Configurations</h2>
+                    <span className="diagnostic-card-subtitle">
+                      System Configuration Gaps, Missing Rules &amp; Governance Inactive Controls
+                    </span>
+                  </div>
+                </div>
+                <div className="diagnostic-card-content">
+                  {/* Summary Banner */}
+                  <div className="cfg-summary-banner">
+                    <div className="cfg-banner-info">
+                      <span className="cfg-banner-icon" aria-hidden="true">⚠️</span>
+                      <div>
+                        <div className="cfg-banner-title">
+                          {missingConfigs.length} Identified Configuration Gaps
+                        </div>
+                        <div className="cfg-banner-desc">
+                          Technical audit diagnosed the following missing validation rules, unassigned picklists, and workflow escalation deficits directly driving the variance gap.
+                        </div>
+                      </div>
+                    </div>
+                    <div className="cfg-banner-stats">
+                      <span className="cfg-stat-pill pill-critical">
+                        {missingConfigs.filter(c => c.severity === 'Critical').length} Critical
+                      </span>
+                      <span className="cfg-stat-pill pill-high">
+                        {missingConfigs.filter(c => c.severity === 'High').length} High
+                      </span>
+                      <span className="cfg-stat-pill pill-medium">
+                        {missingConfigs.filter(c => c.severity === 'Medium').length} Medium
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Specification Table */}
+                  <div className="brd-spec-table-container" style={{ marginTop: '16px' }}>
+                    <table className="brd-spec-table">
+                      <thead>
+                        <tr>
+                          <th style={{ width: '9%' }}>ID</th>
+                          <th style={{ width: '23%' }}>Configuration Component</th>
+                          <th style={{ width: '30%' }}>Missing Configuration / Deficit</th>
+                          <th style={{ width: '13%' }}>Severity</th>
+                          <th style={{ width: '25%' }}>Recommended Target Configuration</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {missingConfigs.map((cfg, cIdx) => (
+                          <tr key={cIdx}>
+                            <td><span className="workstream-id-badge">{cfg.id}</span></td>
+                            <td><strong>{cfg.component}</strong></td>
+                            <td>
+                              <div style={{ fontWeight: 600, color: '#0f172a' }}>{cfg.title}</div>
+                              <div style={{ fontSize: '0.76rem', color: '#64748b', marginTop: '3px' }}>
+                                Current Status: <span style={{ color: '#b91c1c', fontWeight: 600 }}>{cfg.status}</span>
+                              </div>
+                            </td>
+                            <td>
+                              <span className={`pill-badge ${cfg.severity === 'Critical' ? 'badge-critical' : cfg.severity === 'High' ? 'badge-at-risk' : 'badge-healthy'}`}>
+                                {cfg.severity}
+                              </span>
+                            </td>
+                            <td>
+                              <code className="cfg-setting-code">{cfg.setting}</code>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
 
@@ -783,12 +1249,12 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                 </div>
               )}
 
-              {/* SECTIONS 08 & 09: SUCCESS CRITERIA & RISKS */}
+              {/* SECTION 08: SUCCESS CRITERIA, ASSUMPTIONS & RISKS */}
               {brdPlan && (
                 <div id="sec-criteria" className="diagnostic-card deepdive-card">
                   <div className="diagnostic-card-header">
                     <div className="card-header-text">
-                      <h2 className="diagnostic-card-title">8. Success Criteria &amp; 9. Assumptions &amp; Risks</h2>
+                      <h2 className="diagnostic-card-title">8. Success Criteria, Assumptions &amp; Risks</h2>
                       <span className="diagnostic-card-subtitle">
                         Measurable verification targets, implementation dependencies, and risk mitigations
                       </span>
@@ -797,19 +1263,18 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
 
                   <div className="diagnostic-card-content">
                     <div className="criteria-risks-split-grid">
-                      {/* 8. Success Criteria & Monitoring */}
+                      {/* Success Criteria & Monitoring */}
                       {brdPlan.successCriteria && brdPlan.successCriteria.length > 0 && (
                         <div className="criteria-col">
                           <div className="brd-section-subheading" style={{ marginTop: '0px' }}>
-                            <span>8. Success Criteria &amp; Monitoring</span>
+                            <span>Success Criteria &amp; Monitoring</span>
                           </div>
                           <div className="brd-spec-table-container">
                             <table className="brd-spec-table">
                               <thead>
                                 <tr>
-                                  <th style={{ width: '25%' }}>Criterion</th>
-                                  <th style={{ width: '45%' }}>Target</th>
-                                  <th style={{ width: '30%' }}>Verified by</th>
+                                  <th style={{ width: '35%' }}>Criterion</th>
+                                  <th style={{ width: '65%' }}>Target</th>
                                 </tr>
                               </thead>
                               <tbody>
@@ -817,7 +1282,6 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                                   <tr key={scIdx}>
                                     <td><strong>{sc.criterion}</strong></td>
                                     <td>{sc.target}</td>
-                                    <td>{sc.verifiedBy}</td>
                                   </tr>
                                 ))}
                               </tbody>
@@ -826,11 +1290,11 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                         </div>
                       )}
 
-                      {/* 9. Assumptions & Risks */}
+                      {/* Assumptions & Risks */}
                       {brdPlan.assumptionsAndRisks && brdPlan.assumptionsAndRisks.length > 0 && (
                         <div className="risks-col">
                           <div className="brd-section-subheading" style={{ marginTop: '0px' }}>
-                            <span>9. Assumptions &amp; Risks</span>
+                            <span>Assumptions &amp; Risks</span>
                           </div>
                           <div className="brd-spec-table-container">
                             <table className="brd-spec-table">
@@ -861,11 +1325,11 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                     </div>
 
                     {/* Footnote */}
-                    {brdPlan.footnote && (
-                      <div className="brd-spec-footnote">
-                        {brdPlan.footnote}
-                      </div>
-                    )}
+                    <div className="brd-spec-footnote">
+                      {brdPlan.footnote
+                        ? brdPlan.footnote.replace('Sections 1, 3 and 4', 'Sections 1, 2, 3 and 4').replace('Sections 2 and 5-9', 'Sections 5–8')
+                        : 'Sections 1, 2, 3 and 4 are rendered directly from telemetry, trend analysis, and configuration audit scans. Sections 5–8 are generated under the system prompt; effort and staffing are indicative estimates.'}
+                    </div>
                   </div>
                 </div>
               )}
@@ -890,35 +1354,21 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
         <div className="fab-download-container">
           <button
             type="button"
-            className={`fab-download-btn ${downloadSuccess ? 'fab-download-success' : ''}`}
+            className="fab-download-btn"
             onClick={handleDownloadPDF}
             disabled={isDownloading}
             aria-label="Download BRD Plan (PDF)"
             title="Download BRD Plan (PDF)"
           >
             <span className="fab-icon-box" aria-hidden="true">
-              {downloadSuccess ? (
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="20 6 9 17 4 12"></polyline>
-                </svg>
-              ) : isDownloading ? (
-                <svg className="fab-spinner" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12"></circle>
-                </svg>
-              ) : (
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                  <polyline points="7 10 12 15 17 10"></polyline>
-                  <line x1="12" y1="15" x2="12" y2="3"></line>
-                </svg>
-              )}
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
             </span>
             <span className="fab-label-text">
-              {downloadSuccess
-                ? 'Downloaded (PDF) ✓'
-                : isDownloading
-                  ? 'Generating PDF...'
-                  : 'Download BRD Plan (PDF)'}
+              Download BRD Plan (PDF)
             </span>
           </button>
         </div>,
@@ -927,3 +1377,4 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
     </div>
   );
 }
+
