@@ -51,7 +51,13 @@ def extract_metric_fields(override: Dict[str, Any], default_b: Optional[Dict[str
     """
     rep = override.get("report") if isinstance(override.get("report"), dict) else override
     diag = rep.get("diagnosis") if isinstance(rep.get("diagnosis"), dict) else {}
-    narrative = diag.get("narrative", "") or rep.get("diagnosis_narrative", "")
+    narrative = str(diag.get("narrative", "") or rep.get("diagnosis_narrative", "") or "")
+    headline = str(diag.get("headline", "") or "")
+    biz_impact = rep.get("businessImpact") if isinstance(rep.get("businessImpact"), dict) else {}
+    impact_overview = str(biz_impact.get("overview", "") or "")
+
+    # Combine text sources for pattern extraction
+    full_context_text = f"{headline} {narrative} {impact_overview}".strip()
 
     # Explicit extraction of moduleOverview fields from Supabase JSON
     overview = (
@@ -79,6 +85,12 @@ def extract_metric_fields(override: Dict[str, Any], default_b: Optional[Dict[str
 
     if not root_cause:
         root_cause = find_nested_val(override, "whyItHappens", "why_it_happens")
+    if not root_cause and isinstance(overview, dict):
+        raw_summary = overview.get("summary")
+        if isinstance(raw_summary, list) and len(raw_summary) > 0:
+            root_cause = " ".join(str(s) for s in raw_summary)
+        elif isinstance(raw_summary, str) and raw_summary.strip():
+            root_cause = raw_summary.strip()
     if not affected_area:
         affected_area = find_nested_val(override, "whereItHappens", "where_it_happens")
     if not suggestions_val:
@@ -96,70 +108,145 @@ def extract_metric_fields(override: Dict[str, Any], default_b: Optional[Dict[str
         raw_status = None
 
     status_candidate = str(health_raw or raw_status or "").lower()
+    if not status_candidate and full_context_text:
+        # Check text if health state was not directly in key
+        if re.search(r'\bcritical\b', full_context_text, re.IGNORECASE):
+            status_candidate = "critical"
+        elif re.search(r'\b(?:at-risk|at_risk|at risk|warning)\b', full_context_text, re.IGNORECASE):
+            status_candidate = "at-risk"
+        elif re.search(r'\b(?:healthy|on-track|on track)\b', full_context_text, re.IGNORECASE):
+            status_candidate = "healthy"
+
     if "crit" in status_candidate:
         status_val = "Critical"
-    elif "risk" in status_candidate or "warn" in status_candidate:
+    elif "risk" in status_candidate or "warn" in status_candidate or "breach" in status_candidate:
         status_val = "At Risk"
-    elif "health" in status_candidate or "target" in status_candidate:
+    elif "health" in status_candidate or "target" in status_candidate or "good" in status_candidate:
         status_val = "Healthy"
-    elif default_b and default_b.get("status"):
-        status_val = default_b["status"]
+    elif override.get("_source") == "static_baseline":
+        status_val = "Not yet fetched"
     else:
         status_val = "At Risk"
 
+    def clean_val(v: Any) -> Optional[str]:
+        if v is None:
+            return None
+        if isinstance(v, dict):
+            val = v.get("value")
+            pct = v.get("percentage")
+            if val is not None and pct is not None:
+                sign = "+" if float(val) > 0 else ""
+                return f"{sign}{val} ({sign}{pct}%)"
+            elif val is not None:
+                sign = "+" if float(val) > 0 else ""
+                return f"{sign}{val}"
+            return None
+        s = str(v).strip()
+        if s.lower() in ("not yet fetched", "data not yet fetched from supabase", "--", "-", "none", "null", ""):
+            return None
+        return s
+
     # 2. Company Actual Value
-    company_val = (
+    raw_company = (
         override.get("company_actual") or
         override.get("company") or
         override.get("company_value") or
         override.get("actual") or
+        override.get("actual_value") or
+        override.get("current_value") or
+        override.get("actual_days") or
+        override.get("current_days") or
         rep.get("company_actual") or
         rep.get("company") or
+        rep.get("actual") or
+        rep.get("current_value") or
+        diag.get("current_value") or
+        diag.get("actual") or
         find_nested_val(override, "company_actual", "company", "actual", "company_value")
     )
-    if not company_val and narrative:
-        m = re.search(r'Current\s+(?:[A-Za-z\s]+)\s+is\s+([0-9.]+(?:\s*(?:days|hours|%))?)', narrative, re.IGNORECASE)
-        if m:
-            company_val = m.group(1).strip()
-
-    if not company_val and default_b:
-        company_val = default_b.get("company", "0%")
+    company_val = clean_val(raw_company)
+    if not company_val and full_context_text:
+        # Pattern A: "stands at 25.6 days", "reaching 25.6 days", "reaches 25.6 days"
+        m1 = re.search(r'(?:stands\s+at|is\s+currently|currently\s+stands\s+at|actual\s+is|is\s+at|reaching|reaches)\s+([0-9.]+\s*(?:days|hours|weeks|months|%|\$|k)?)', full_context_text, re.IGNORECASE)
+        if m1:
+            company_val = m1.group(1).strip()
+        else:
+            # Pattern B: "Current Time to Hire is 34.2 days", "current Time to Hire stands at 25.6 days"
+            m2 = re.search(r'current\s+[a-zA-Z\s_-]+?\s+(?:is|stands\s+at|at)\s+([0-9.]+\s*(?:days|hours|weeks|months|%|\$|k)?)', full_context_text, re.IGNORECASE)
+            if m2:
+                company_val = m2.group(1).strip()
 
     # 3. Benchmark Standard Target
-    target_val = (
+    raw_target = (
         override.get("benchmark_target") or
         override.get("standard") or
         override.get("standard_value") or
         override.get("target") or
         rep.get("benchmark_target") or
         rep.get("standard") or
+        rep.get("target") or
+        diag.get("standard") or
+        diag.get("target") or
         find_nested_val(override, "benchmark_target", "standard", "standard_value", "target")
     )
-    if not target_val and narrative:
-        m = re.search(r'industry\s+standard\s+of\s+([0-9.]+(?:\s*(?:days|hours|%))?)', narrative, re.IGNORECASE)
-        if m:
-            target_val = f"≤ {m.group(1).strip()}"
-
-    if not target_val and default_b:
-        target_val = default_b.get("standard", "≥ 90.0%")
+    target_val = clean_val(raw_target)
+    if not target_val and full_context_text:
+        m_t = re.search(r'(?:industry\s+standard|standard|benchmark|target)\s*(?:of|is|at|≤|≥)?\s*([≤≥<>~]?\s*[0-9.]+\s*(?:days|hours|weeks|months|%|\$|k)?)', full_context_text, re.IGNORECASE)
+        if m_t:
+            raw_target_str = m_t.group(1).strip()
+            if not raw_target_str.startswith(('≤', '≥', '<', '>', '~')):
+                # Infer operator based on unit: days/hours/latency/attrition -> <= ; rates/accuracy -> >=
+                if any(u in raw_target_str.lower() for u in ['day', 'hour', 'week', 'month', 'turnaround', 'latency', 'attrition']):
+                    target_val = f"≤ {raw_target_str}"
+                else:
+                    target_val = f"≥ {raw_target_str}"
+            else:
+                target_val = raw_target_str
 
     # 4. Variance Gap
-    variance_val = (
+    raw_var = (
         override.get("actual_variance") or
         override.get("variance") or
         override.get("variance_percentage") or
+        override.get("gap") or
         rep.get("actual_variance") or
         rep.get("variance") or
+        diag.get("gap") or
         find_nested_val(override, "actual_variance", "variance", "variance_percentage")
     )
-    if not variance_val and narrative:
-        m = re.search(r'which\s+is\s+([0-9.]+\s*(?:days|hours|%)?\s*\([0-9.]+%\)\s*(?:above|below))', narrative, re.IGNORECASE)
-        if m:
-            direction = "+" if "above" in m.group(1) else "-"
-            variance_val = f"{direction}{m.group(1).replace('above', '').replace('below', '').strip()}"
+    variance_val = clean_val(raw_var)
+    if not variance_val and full_context_text:
+        # Pattern A: "which is 5.6 days (or 28.0%) above the industry standard"
+        m_v1 = re.search(r'which\s+is\s+([0-9.]+\s*(?:days|hours|weeks|%)?)(?:\s*\((?:or\s*)?([0-9.]+%)\))?\s*(above|below)', full_context_text, re.IGNORECASE)
+        if m_v1:
+            diff_num = m_v1.group(1).strip()
+            pct_val = m_v1.group(2)
+            direction = "+" if m_v1.group(3).lower() == "above" else "-"
+            if pct_val:
+                variance_val = f"{direction}{diff_num} ({direction}{pct_val})"
+            else:
+                variance_val = f"{direction}{diff_num}"
+        else:
+            # Pattern B: "exceeding the industry standard of 20.0 days by 5.6 days"
+            m_v2 = re.search(r'(?:exceeding|exceeds|above|below)\s+[^,.]*?\s+by\s+([0-9.]+\s*(?:days|hours|weeks|%)?)', full_context_text, re.IGNORECASE)
+            if m_v2:
+                variance_val = f"+{m_v2.group(1).strip()}"
 
-    if not variance_val and default_b:
-        variance_val = default_b.get("variance", "0%")
+    # Calculate variance mathematically if company and target numbers exist and variance still missing
+    if not variance_val and company_val and target_val:
+        m_c_num = re.search(r'([0-9.]+)', str(company_val))
+        m_t_num = re.search(r'([0-9.]+)', str(target_val))
+        if m_c_num and m_t_num:
+            try:
+                c_f = float(m_c_num.group(1))
+                t_f = float(m_t_num.group(1))
+                diff = c_f - t_f
+                unit = " days" if "day" in str(company_val).lower() else ("%" if "%" in str(company_val) else "")
+                pct_diff = (diff / t_f * 100) if t_f != 0 else 0
+                sign = "+" if diff > 0 else "-"
+                variance_val = f"{sign}{abs(diff):.1f}{unit} ({sign}{abs(pct_diff):.1f}%)"
+            except Exception:
+                pass
 
     # Ensure formatted strings
     if isinstance(company_val, (int, float)):
@@ -169,38 +256,39 @@ def extract_metric_fields(override: Dict[str, Any], default_b: Optional[Dict[str
     if isinstance(variance_val, (int, float)):
         variance_val = f"{variance_val}%"
 
+    # Default fallbacks if not found
+    final_company = str(company_val) if company_val else "Not yet fetched"
+    final_target = str(target_val) if target_val else "Not yet fetched"
+    final_variance = str(variance_val) if variance_val else "Not yet fetched"
+
     # 5. Word-to-word Detailed Analysis & moduleOverview Structure
     why_happens = (
         root_cause or
-        (default_b.get("detailedAnalysis", {}).get("whyItHappens") if default_b else None) or
         narrative or
         override.get("diagnosis_narrative") or
-        "Diagnosed from Supabase ML insights."
+        "Data not yet fetched from Supabase"
     )
     where_happens = (
         affected_area or
-        (default_b.get("detailedAnalysis", {}).get("whereItHappens") if default_b else None) or
-        "SuccessFactors workflow portlets"
+        "Data not yet fetched from Supabase"
     )
     if suggestions_val:
         suggestions_list = suggestions_val if isinstance(suggestions_val, list) else [suggestions_val]
-    elif default_b and default_b.get("detailedAnalysis", {}).get("howToOvercome"):
-        suggestions_list = default_b["detailedAnalysis"]["howToOvercome"]
     else:
         suggestions_list = []
 
     trend = (
         rep.get("trendAnalysis") or
         override.get("trendAnalysis") or
-        (default_b.get("detailedAnalysis", {}).get("trendAnalysis") if default_b else {})
+        {"summary": "Data not yet fetched from Supabase", "points": []}
     )
     missing_cfg = (
         override.get("missingConfigurations") or
-        (default_b.get("detailedAnalysis", {}).get("missingConfigurations") if default_b else [])
+        []
     )
     how_effects = (
         rep.get("businessImpact", {}).get("overview") if isinstance(rep.get("businessImpact"), dict) else (
-            override.get("howItEffects") or (default_b.get("detailedAnalysis", {}).get("howItEffects") if default_b else "")
+            override.get("howItEffects") or "Data not yet fetched from Supabase"
         )
     )
 
@@ -211,10 +299,10 @@ def extract_metric_fields(override: Dict[str, Any], default_b: Optional[Dict[str
     }
 
     return {
-        "company": str(company_val or "0%"),
-        "standard": str(target_val or "≥ 90.0%"),
+        "company": final_company,
+        "standard": final_target,
         "status": status_val,
-        "variance": str(variance_val or "0%"),
+        "variance": final_variance,
         "moduleOverview": module_overview,
         "detailedAnalysis": {
             "whyItHappens": root_cause or why_happens,
@@ -308,6 +396,23 @@ def apply_module_metric_overrides(
             b_copy["_storage_path"] = storage_path
             b_copy["isSupabaseLive"] = True
         else:
+            b_copy["company"] = "Not yet fetched"
+            b_copy["standard"] = "Not yet fetched"
+            b_copy["status"] = "Not yet fetched"
+            b_copy["variance"] = "Not yet fetched"
+            b_copy["moduleOverview"] = {
+                "rootCause": "Data not yet fetched from Supabase",
+                "affectedArea": "Data not yet fetched from Supabase",
+                "suggestions": []
+            }
+            b_copy["detailedAnalysis"] = {
+                "whyItHappens": "Data not yet fetched from Supabase",
+                "whereItHappens": "Data not yet fetched from Supabase",
+                "trendAnalysis": {"summary": "Data not yet fetched from Supabase", "points": []},
+                "missingConfigurations": [],
+                "howItEffects": "Data not yet fetched from Supabase",
+                "howToOvercome": []
+            }
             b_copy["_source"] = "static_baseline"
             b_copy["isSupabaseLive"] = False
 
@@ -345,8 +450,9 @@ def apply_module_metric_overrides(
             "standard": extracted["standard"],
             "status": extracted["status"],
             "variance": extracted["variance"],
-            "_source": "supabase_storage_metric_folder",
+            "_source": override.get("_source", "supabase_storage_metric_folder"),
             "_storage_path": storage_path,
+            "isSupabaseLive": True,
             "moduleOverview": extracted["moduleOverview"],
             "detailedAnalysis": extracted["detailedAnalysis"]
         }
@@ -356,13 +462,13 @@ def apply_module_metric_overrides(
 
 
 @router.get("", response_model=List[Dict[str, Any]])
-def get_all_modules(refresh: bool = Query(False)):
+def get_all_modules(refresh: bool = Query(True)):
     """
     Returns modules overview with real-time values from Supabase Storage:
     report/latest/{module}/{metric}/
-    Cached in-memory for instant < 5ms response times.
+    Always fresh so live pipeline updates reflect instantly.
     """
-    module_overrides_map = supabase_storage.get_all_module_metric_overrides(force_refresh=refresh)
+    module_overrides_map = supabase_storage.get_all_module_metric_overrides(force_refresh=True)
 
     enriched = []
     for mod in DEFAULT_MODULES:
@@ -375,19 +481,38 @@ def get_all_modules(refresh: bool = Query(False)):
         risk_count = sum(1 for b in benchmarks if b.get("status") == "At Risk")
         healthy_count = sum(1 for b in benchmarks if b.get("status") == "Healthy")
 
-        if crit_count > 0:
-            mod_status = "Critical"
-        elif risk_count > 0:
-            mod_status = "At Risk"
-        else:
-            mod_status = "Healthy"
-
         clean_name = ENTERPRISE_MODULE_NAMES.get(mod_id.lower(), mod.get("name", "Recruitment"))
+
+        has_live = any(b.get("isSupabaseLive") for b in benchmarks)
+        if not has_live:
+            mod_status = "Not yet fetched"
+            mod_ai_report = {"summary": "Data not yet fetched from Supabase."}
+        else:
+            if crit_count > 0:
+                mod_status = "Critical"
+            elif risk_count > 0:
+                mod_status = "At Risk"
+            else:
+                mod_status = "Healthy"
+            live_b = next((b for b in benchmarks if b.get("isSupabaseLive")), None)
+            if live_b:
+                root_c = live_b.get("moduleOverview", {}).get("rootCause", "")
+                if live_b.get("company") != "Not yet fetched":
+                    mod_ai_report = {
+                        "summary": f"{clean_name} performance is at {live_b['company']} (standard {live_b['standard']}) with {live_b['variance']} variance gap. {root_c}".strip()
+                    }
+                else:
+                    mod_ai_report = {
+                        "summary": f"{clean_name} status is {mod_status}. {root_c}".strip()
+                    }
+            else:
+                mod_ai_report = {"summary": "Data not yet fetched from Supabase."}
 
         enriched.append({
             **mod,
             "name": clean_name,
             "status": mod_status,
+            "aiReport": mod_ai_report,
             "benchmarks": benchmarks,
             "benchmarksCount": len(benchmarks),
             "criticalCount": crit_count,

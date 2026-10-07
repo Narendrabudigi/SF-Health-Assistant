@@ -68,13 +68,26 @@ def get_metric_deep_dive(
         variance_val = extracted["variance"]
         detailed_analysis = extracted["detailedAnalysis"]
         module_overview = extracted.get("moduleOverview", {})
+        is_live_supabase = True
     else:
-        company_val = metric_obj.get("company", "0%") if metric_obj else "0%"
-        standard_val = metric_obj.get("standard", "≥ 90.0%") if metric_obj else "≥ 90.0%"
-        status_val = metric_obj.get("status", "At Risk") if metric_obj else "At Risk"
-        variance_val = metric_obj.get("variance", "0%") if metric_obj else "0%"
-        detailed_analysis = metric_obj.get("detailedAnalysis", {}) if metric_obj else {}
-        module_overview = metric_obj.get("moduleOverview", {}) if metric_obj else {}
+        company_val = "Not yet fetched"
+        standard_val = "Not yet fetched"
+        status_val = "Not yet fetched"
+        variance_val = "Not yet fetched"
+        detailed_analysis = {
+            "whyItHappens": "Data not yet fetched from Supabase",
+            "whereItHappens": "Data not yet fetched from Supabase",
+            "trendAnalysis": {"summary": "Data not yet fetched from Supabase", "points": []},
+            "missingConfigurations": [],
+            "howItEffects": "Data not yet fetched from Supabase",
+            "howToOvercome": []
+        }
+        module_overview = {
+            "rootCause": "Data not yet fetched from Supabase",
+            "affectedArea": "Data not yet fetched from Supabase",
+            "suggestions": []
+        }
+        is_live_supabase = False
 
     # Extract TreeSHAP factors and execution workstreams from Supabase JSON if available
     rep = supabase_data.get("report") if isinstance(supabase_data.get("report"), dict) else supabase_data
@@ -142,19 +155,23 @@ def get_metric_deep_dive(
     raw_roles = raw_plan.get("roles") or raw_plan.get("specialistManpower") or []
     specialist_manpower = []
     for r in raw_roles:
-        h = r.get("hours") or r.get("effort") or 40
+        h = r.get("hours") or r.get("effort") or 0
         specialist_manpower.append({
             "role": r.get("role") or "Specialist Consultant",
             "headcount": r.get("headcount") or r.get("count") or 1,
             "effort": f"{h} Person-Hours" if isinstance(h, (int, float)) or "Hour" not in str(h) else str(h)
         })
 
-    tot_hours = raw_plan.get("totalHours") or raw_plan.get("totalEffortHours") or (
-        sum(r.get("hours", 0) for r in raw_roles if isinstance(r.get("hours"), (int, float))) or 60
-    )
-    dur_weeks = raw_plan.get("durationWeeks") or raw_plan.get("timeline") or 5
-    timeline_str = f"{dur_weeks} Weeks" if isinstance(dur_weeks, (int, float)) or "Week" not in str(dur_weeks) else str(dur_weeks)
-    effort_str = f"{tot_hours} Total Hours" if isinstance(tot_hours, (int, float)) or "Hour" not in str(tot_hours) else str(tot_hours)
+    tot_hours = raw_plan.get("totalHours") or raw_plan.get("totalEffortHours")
+    if not tot_hours and raw_roles:
+        calculated_hours = sum(r.get("hours", 0) for r in raw_roles if isinstance(r.get("hours"), (int, float)))
+        if calculated_hours > 0:
+            tot_hours = calculated_hours
+
+    dur_weeks = raw_plan.get("durationWeeks") or raw_plan.get("timeline")
+
+    timeline_str = f"{dur_weeks} Weeks" if (isinstance(dur_weeks, (int, float)) and dur_weeks > 0) else (str(dur_weeks) if dur_weeks else "Not yet fetched")
+    effort_str = f"{tot_hours} Total Hours" if (isinstance(tot_hours, (int, float)) and tot_hours > 0) else (str(tot_hours) if tot_hours else "Not yet fetched")
 
     # 3. Execution workstreams
     raw_ws = rep.get("workstreams") or supabase_data.get("workstreams") or raw_plan.get("executionWorkstreams") or []
@@ -169,7 +186,7 @@ def get_metric_deep_dive(
                 "remediationStep": ws.get("step") or ws.get("remediationStep") or "",
                 "fixesDrivers": str(fixes)
             })
-    else:
+    elif is_live_supabase:
         for p in raw_phases:
             for a in p.get("activities", []):
                 ws_id = a.get("workstream")
@@ -197,8 +214,9 @@ def get_metric_deep_dive(
     )
     target_outcome = (
         raw_plan.get("targetOutcome") or
-        (module_overview.get("rootCause") if isinstance(module_overview, dict) else "") or
-        (rep.get("diagnosis", {}).get("headline") if isinstance(rep.get("diagnosis"), dict) else "")
+        (module_overview.get("rootCause") if isinstance(module_overview, dict) and module_overview.get("rootCause") != "Data not yet fetched from Supabase" else "") or
+        (rep.get("diagnosis", {}).get("headline") if isinstance(rep.get("diagnosis"), dict) else "") or
+        ("Data not yet fetched from Supabase" if not is_live_supabase else "Achieve standard compliance across all process stages.")
     )
 
     formatted_stage_drivers = [

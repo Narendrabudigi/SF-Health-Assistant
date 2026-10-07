@@ -102,38 +102,26 @@ function sanitizeAndMergeModules(rawModules) {
       const metricName = defaultB?.metric || b.metric || b.code;
       const category = b.category || defaultB?.category || 'Operational KPI';
 
-      let companyVal = b.company;
-      if (!companyVal || companyVal === '0%') {
-        companyVal = defaultB?.company || b.company || '0%';
-      }
-
-      let standardVal = b.standard;
-      if (!standardVal || standardVal === '≥ 90.0%') {
-        standardVal = defaultB?.standard || b.standard || '≥ 90.0%';
-      }
-
-      let varianceVal = b.variance;
-      if (!varianceVal || varianceVal === '0%') {
-        varianceVal = defaultB?.variance || b.variance || '0%';
-      }
-
-      let statusVal = normalizeStatus(b.status, varianceVal);
-      if (b.status && (b.status.toLowerCase() === 'succeeded' || b.status.toLowerCase() === 'completed')) {
-        if (defaultB && defaultB.status) {
-          statusVal = defaultB.status;
-        } else {
-          statusVal = normalizeStatus(null, varianceVal);
-        }
-      }
-
       // Check if this metric is live from Supabase Storage or Table
       const isFromSupabase = Boolean(
         b._source === 'supabase_storage_metric_folder' ||
         b._source === 'supabase_llm_reports_table' ||
+        b._source === 'supabase_ml_notebook_insights_table' ||
+        b._source === 'supabase_table' ||
         b._source === 'supabase' ||
         b._storage_path ||
-        b.isSupabaseLive
+        b.isSupabaseLive ||
+        (b.company && !['not yet fetched', 'data not yet fetched from supabase', '--', '-'].includes(String(b.company).toLowerCase().trim()))
       );
+
+      let companyVal = isFromSupabase ? (b.company || 'Not yet fetched') : 'Not yet fetched';
+      let standardVal = isFromSupabase ? (b.standard || 'Not yet fetched') : 'Not yet fetched';
+      let varianceVal = isFromSupabase ? (b.variance || 'Not yet fetched') : 'Not yet fetched';
+
+      let statusVal = isFromSupabase ? (b.status || 'At Risk') : 'Not yet fetched';
+      if (statusVal === 'succeeded' || statusVal === 'completed') {
+        statusVal = normalizeStatus(null, varianceVal);
+      }
 
       // Direct extraction of moduleOverview if provided in Supabase JSON
       const overview = (
@@ -145,13 +133,13 @@ function sanitizeAndMergeModules(rawModules) {
       const liveRootCause = (
         extractSectionValue(overview, 'rootCause', 'root_cause') ||
         extractSectionValue(b, 'rootCause', 'root_cause') ||
-        b.whyItHappens
+        (isFromSupabase ? b.whyItHappens : null)
       );
 
       const liveAffectedArea = (
         extractSectionValue(overview, 'affectedArea', 'affected_area') ||
         extractSectionValue(b, 'affectedArea', 'affected_area') ||
-        b.whereItHappens
+        (isFromSupabase ? b.whereItHappens : null)
       );
 
       const rawLiveSuggestions = (
@@ -165,9 +153,9 @@ function sanitizeAndMergeModules(rawModules) {
         ? rawLiveSuggestions
         : (typeof rawLiveSuggestions === 'string' ? [rawLiveSuggestions] : (rawLiveSuggestions ? [rawLiveSuggestions] : null));
 
-      const finalWhyItHappens = liveRootCause || defaultB?.detailedAnalysis?.whyItHappens || 'Diagnostic variance detected against benchmark standard.';
-      const finalWhereItHappens = liveAffectedArea || defaultB?.detailedAnalysis?.whereItHappens || `${category} processes within ${modName}.`;
-      const finalSuggestions = liveSuggestions !== null ? liveSuggestions : (defaultB?.detailedAnalysis?.howToOvercome || []);
+      const finalWhyItHappens = liveRootCause || (isFromSupabase ? b.whyItHappens : null) || 'Data not yet fetched from Supabase';
+      const finalWhereItHappens = liveAffectedArea || (isFromSupabase ? b.whereItHappens : null) || 'Data not yet fetched from Supabase';
+      const finalSuggestions = liveSuggestions !== null ? liveSuggestions : (isFromSupabase ? [] : []);
 
       const finalModuleOverview = {
         rootCause: liveRootCause || finalWhyItHappens,
@@ -193,7 +181,7 @@ function sanitizeAndMergeModules(rawModules) {
         standard: standardVal,
         status: statusVal,
         variance: varianceVal,
-        _source: isFromSupabase ? 'supabase_storage_metric_folder' : 'static_baseline',
+        _source: isFromSupabase ? (b._source || 'supabase_table') : 'static_baseline',
         isSupabaseLive: isFromSupabase,
         moduleOverview: finalModuleOverview,
         detailedAnalysis
@@ -207,6 +195,23 @@ function sanitizeAndMergeModules(rawModules) {
           seenAlphaKeys.add(defKey);
           mergedBenchmarks.push({
             ...defB,
+            company: 'Not yet fetched',
+            standard: 'Not yet fetched',
+            status: 'Not yet fetched',
+            variance: 'Not yet fetched',
+            moduleOverview: {
+              rootCause: 'Data not yet fetched from Supabase',
+              affectedArea: 'Data not yet fetched from Supabase',
+              suggestions: []
+            },
+            detailedAnalysis: {
+              whyItHappens: 'Data not yet fetched from Supabase',
+              whereItHappens: 'Data not yet fetched from Supabase',
+              trendAnalysis: { summary: 'Data not yet fetched from Supabase', points: [] },
+              missingConfigurations: [],
+              howItEffects: 'Data not yet fetched from Supabase',
+              howToOvercome: []
+            },
             _source: 'static_baseline',
             isSupabaseLive: false
           });
@@ -217,10 +222,18 @@ function sanitizeAndMergeModules(rawModules) {
     const critCount = mergedBenchmarks.filter(b => b.status === 'Critical').length;
     const atRiskCount = mergedBenchmarks.filter(b => b.status === 'At Risk').length;
     const healthyCount = mergedBenchmarks.filter(b => b.status === 'Healthy').length;
+    const hasLive = mergedBenchmarks.some(b => b.isSupabaseLive);
 
-    let computedModuleStatus = 'Healthy';
-    if (critCount > 0) computedModuleStatus = 'Critical';
-    else if (atRiskCount > 0) computedModuleStatus = 'At Risk';
+    let computedModuleStatus = 'Not yet fetched';
+    if (hasLive) {
+      if (critCount > 0) computedModuleStatus = 'Critical';
+      else if (atRiskCount > 0) computedModuleStatus = 'At Risk';
+      else computedModuleStatus = 'Healthy';
+    }
+
+    const computedAiReport = hasLive
+      ? (rawMod.aiReport || { summary: `${modName} health status is ${computedModuleStatus}.` })
+      : { summary: 'Data not yet fetched from Supabase.' };
 
     return {
       ...defaultMod,
@@ -228,6 +241,7 @@ function sanitizeAndMergeModules(rawModules) {
       id: modId,
       name: modName,
       status: computedModuleStatus,
+      aiReport: computedAiReport,
       benchmarks: mergedBenchmarks,
       benchmarksCount: mergedBenchmarks.length,
       criticalCount: critCount,
@@ -275,9 +289,9 @@ async function fetchDirectSupabaseStorageMetric(moduleFolder = 'rcm', metricName
 
   const modClean = String(moduleFolder).toLowerCase().trim();
   const folders = Array.from(new Set([moduleFolder, modClean, modClean.toUpperCase()])).filter(Boolean);
-  const prefixes = ['report/latest', 'reports/latest', 'latest'];
+  const prefixes = ['reports/latest', 'report/latest', 'latest', 'reports', 'report'];
 
-  const rawName = String(metricName || '').replace('.json', '').trim();
+  const rawName = String(metricName || '').replace(/\.json$/i, '').trim();
   const alphaName = normalizeAlphaKey(rawName);
   const snakeName = rawName.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
   const pascalName = rawName.replace(/(?:^\w|[A-Z]|\b\w)/g, (letter) => letter.toUpperCase()).replace(/[\s_-]+/g, '');
@@ -288,10 +302,9 @@ async function fetchDirectSupabaseStorageMetric(moduleFolder = 'rcm', metricName
   for (const p of prefixes) {
     for (const f of folders) {
       for (const m of metricAliases) {
+        candidateUrls.push(`${APP_CONFIG.supabaseUrl}/storage/v1/object/${encodeURIComponent(bucket)}/${p}/${f}/${m}.json`);
+        candidateUrls.push(`${APP_CONFIG.supabaseUrl}/storage/v1/object/public/${encodeURIComponent(bucket)}/${p}/${f}/${m}.json`);
         candidateUrls.push(`${APP_CONFIG.supabaseUrl}/storage/v1/object/authenticated/${encodeURIComponent(bucket)}/${p}/${f}/${m}.json`);
-        candidateUrls.push(`${APP_CONFIG.supabaseUrl}/storage/v1/object/authenticated/${encodeURIComponent(bucket)}/${p}/${f}/${m}/report.json`);
-        candidateUrls.push(`${APP_CONFIG.supabaseUrl}/storage/v1/object/authenticated/${encodeURIComponent(bucket)}/${p}/${f}/${m}/data.json`);
-        candidateUrls.push(`${APP_CONFIG.supabaseUrl}/storage/v1/object/authenticated/${encodeURIComponent(bucket)}/${p}/${f}/${m}/${m}.json`);
       }
     }
   }
@@ -387,10 +400,101 @@ function normalizeSupabaseInsightPayload(rawData, metricCode, metricName = null)
     suggestions: suggestionsList
   };
 
-  const companyVal = rawData.company || rep.company || rawData.company_actual || rep.company_actual || '0%';
-  const standardVal = rawData.standard || rep.standard || rawData.benchmark_target || rep.benchmark_target || '≥ 90.0%';
-  const statusVal = normalizeStatus(rawData.status || rep.healthState || 'At Risk', String(rawData.variance || ''));
-  const varianceVal = rawData.variance || rep.actual_variance || rawData.variance_percentage || '0%';
+  const diagObj = rep.diagnosis && typeof rep.diagnosis === 'object' ? rep.diagnosis : {};
+  const headlineText = String(diagObj.headline || '');
+  const narrativeText = String(diagObj.narrative || '');
+  const impactText = String(rep.businessImpact?.overview || rawData.businessImpact?.overview || '');
+  const fullText = `${headlineText} ${narrativeText} ${impactText}`.trim();
+
+  const cleanStr = (v) => {
+    if (!v) return null;
+    const s = String(v).trim();
+    if (['not yet fetched', 'data not yet fetched from supabase', '--', '-', 'none', 'null', ''].includes(s.toLowerCase())) {
+      return null;
+    }
+    return s;
+  };
+
+  let companyVal = cleanStr(
+    rawData.company || rep.company || rawData.company_actual || rep.company_actual ||
+    rawData.current_value || rep.current_value || diagObj.current_value || diagObj.actual
+  );
+  if (!companyVal && fullText) {
+    const m1 = fullText.match(/(?:stands\s+at|actual\s+is|is\s+at|reaching|reaches)\s+([0-9.]+\s*(?:days|hours|weeks|months|%|\$|k)?)/i);
+    if (m1) {
+      companyVal = m1[1].trim();
+    } else {
+      const m2 = fullText.match(/(?:current\s+[a-zA-Z\s_-]+?\s+(?:stands\s+at|is|at))\s+([0-9.]+\s*(?:days|hours|weeks|months|%|\$|k)?)/i);
+      if (m2) {
+        companyVal = m2[1].trim();
+      } else {
+        const m3 = fullText.match(/(?:stands\s+at|at)\s+([0-9.]+\s*(?:days|hours|weeks|months|%|\$|k)?)/i);
+        if (m3) companyVal = m3[1].trim();
+      }
+    }
+  }
+
+  let standardVal = cleanStr(
+    rawData.standard || rep.standard || rawData.benchmark_target || rep.benchmark_target ||
+    diagObj.standard || diagObj.target
+  );
+  if (!standardVal && fullText) {
+    const mT = fullText.match(/(?:industry\s+standard|standard|benchmark|target)\s*(?:of|is|at|≤|≥)?\s*([≤≥<>~]?\s*[0-9.]+\s*(?:days|hours|weeks|months|%|\$|k)?)/i);
+    if (mT) {
+      const rawT = mT[1].trim();
+      if (!/^[≤≥<>~]/.test(rawT)) {
+        standardVal = /(?:day|hour|week|month|turnaround|latency|attrition)/i.test(rawT) ? `≤ ${rawT}` : `≥ ${rawT}`;
+      } else {
+        standardVal = rawT;
+      }
+    }
+  }
+
+  let varianceVal = cleanStr(
+    rawData.variance || rep.actual_variance || rawData.variance_percentage || rawData.gap ||
+    rep.gap || diagObj.gap
+  );
+  if (!varianceVal && fullText) {
+    const mV1 = fullText.match(/([0-9.]+\s*(?:days|hours|weeks|%)?)(?:\s*\((?:or\s*)?([0-9.]+%)\))?\s*(above|below)/i);
+    if (mV1) {
+      const diffNum = mV1[1].trim();
+      const pct = mV1[2];
+      const dir = mV1[3].toLowerCase() === 'above' ? '+' : '-';
+      varianceVal = pct ? `${dir}${diffNum} (${dir}${pct})` : `${dir}${diffNum}`;
+    } else {
+      const mV2 = fullText.match(/(?:exceeding|above|below)\s+[^,.]*?\s+by\s+([0-9.]+\s*(?:days|hours|weeks|%)?)/i);
+      if (mV2) varianceVal = `+${mV2[1].trim()}`;
+    }
+  }
+
+  if (!varianceVal && companyVal && standardVal && companyVal !== 'Not yet fetched' && standardVal !== 'Not yet fetched') {
+    const cNum = String(companyVal).match(/([0-9.]+)/);
+    const tNum = String(standardVal).match(/([0-9.]+)/);
+    if (cNum && tNum) {
+      const cF = parseFloat(cNum[1]);
+      const tF = parseFloat(tNum[1]);
+      const diff = cF - tF;
+      const unit = /day/i.test(companyVal) ? ' days' : (/%/.test(companyVal) ? '%' : '');
+      const pctDiff = tF !== 0 ? Math.abs((diff / tF) * 100).toFixed(1) : '0';
+      const sign = diff > 0 ? '+' : '-';
+      varianceVal = `${sign}${Math.abs(diff).toFixed(1)}${unit} (${sign}${pctDiff}%)`;
+    }
+  }
+
+  const statusCandidate = String(rawData.status || rep.healthState || rep.health_state || '').toLowerCase();
+  let statusVal = 'At Risk';
+  if (statusCandidate.includes('crit')) statusVal = 'Critical';
+  else if (statusCandidate.includes('risk') || statusCandidate.includes('warn') || statusCandidate.includes('breach')) statusVal = 'At Risk';
+  else if (statusCandidate.includes('health') || statusCandidate.includes('target') || statusCandidate.includes('good')) statusVal = 'Healthy';
+  else if (fullText) {
+    if (/\bcritical\b/i.test(fullText)) statusVal = 'Critical';
+    else if (/\b(?:at-risk|at_risk|at risk|warning)\b/i.test(fullText)) statusVal = 'At Risk';
+    else if (/\b(?:healthy|on-track|on track)\b/i.test(fullText)) statusVal = 'Healthy';
+  }
+
+  companyVal = companyVal || 'Not yet fetched';
+  standardVal = standardVal || 'Not yet fetched';
+  varianceVal = varianceVal || 'Not yet fetched';
 
   // 1. Factors / Drivers extraction
   const factorsRaw = rep.factors || rawData.factors || [];
@@ -656,131 +760,22 @@ export const apiService = {
   },
 
   /**
-   * Fetch all modules directly with benchmarks populated from Backend and Supabase
+   * Fetch all modules dynamically from FastAPI backend.
+   * Backend queries Supabase (Storage + LLM_Reports) and populates live data or 'Not yet fetched'.
    */
   async getModules() {
     try {
-      // 1. Fetch live LLM_Reports table rows directly from Supabase
-      const tableRows = await fetchDirectSupabaseTable('LLM_Reports');
-
-      // 2. Also fetch direct storage metric for RCM/TimeToHire
-      const liveRcmData = await fetchDirectSupabaseStorageMetric('RCM', 'TimeToHire');
-
-      // 3. Query backend /modules endpoint
-      const res = await fetchWithTimeout(`${BASE_URL}/modules?refresh=true`, { method: 'GET' }, 10000);
-      let rawModules = SF_MODULES;
+      const res = await fetchWithTimeout(`${BASE_URL}/modules?refresh=true`, { method: 'GET' }, 8000);
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data) && data.length > 0) {
-          rawModules = data;
+          return data;
         }
       }
-
-      // Merge direct Supabase table rows into rawModules benchmarks!
-      if (Array.isArray(tableRows) && tableRows.length > 0) {
-        for (const row of tableRows) {
-          const modKey = (row.module || '').toLowerCase().trim();
-          const targetMod = rawModules.find(m => m.id === modKey || normalizeAlphaKey(m.name) === normalizeAlphaKey(row.module));
-          if (targetMod && Array.isArray(targetMod.benchmarks)) {
-            const b = targetMod.benchmarks.find(item => 
-              normalizeAlphaKey(item.metric) === normalizeAlphaKey(row.metric_name) ||
-              normalizeAlphaKey(item.code) === normalizeAlphaKey(row.metric_name)
-            );
-            if (b) {
-              const rep = row.report || row;
-              const ov = row.moduleOverview || row.module_overview || rep.moduleOverview || rep.module_overview || {};
-              const rc = ov.rootCause || ov.root_cause || row.rootCause;
-              const aa = ov.affectedArea || ov.affected_area || row.affectedArea;
-              const sug = ov.suggestions || row.suggestions;
-              const sugList = Array.isArray(sug) ? sug : (typeof sug === 'string' ? [sug] : (sug ? [sug] : []));
-
-              if (rc) {
-                b.whyItHappens = rc;
-                if (b.detailedAnalysis) b.detailedAnalysis.whyItHappens = rc;
-              }
-              if (aa) {
-                b.whereItHappens = aa;
-                if (b.detailedAnalysis) b.detailedAnalysis.whereItHappens = aa;
-              }
-              if (sugList.length > 0) {
-                b.howToOvercome = sugList;
-                if (b.detailedAnalysis) b.detailedAnalysis.howToOvercome = sugList;
-              }
-
-              b.moduleOverview = {
-                rootCause: rc || b.whyItHappens,
-                affectedArea: aa || b.whereItHappens,
-                suggestions: sugList.length > 0 ? sugList : (b.howToOvercome || [])
-              };
-
-              if (row.company || rep.company) b.company = String(row.company || rep.company);
-              if (row.standard || rep.standard) b.standard = String(row.standard || rep.standard);
-              if (row.status || rep.healthState) b.status = row.status || rep.healthState;
-              if (row.variance || rep.actual_variance) b.variance = String(row.variance || rep.actual_variance);
-
-              b.isSupabaseLive = true;
-              b._source = 'supabase_llm_reports_table';
-            }
-          }
-        }
-      }
-
-      // Merge direct storage data if available
-      if (liveRcmData) {
-        const rcmMod = rawModules.find(m => m.id === 'rcm');
-        if (rcmMod && Array.isArray(rcmMod.benchmarks)) {
-          const tth = rcmMod.benchmarks.find(b => normalizeAlphaKey(b.metric) === 'timetohire' || normalizeAlphaKey(b.code) === 'timetohire');
-          if (tth) {
-            const rep = liveRcmData.report || liveRcmData;
-            const overview = liveRcmData.moduleOverview || liveRcmData.module_overview || rep.moduleOverview || rep.module_overview || {};
-            const rc = overview.rootCause || overview.root_cause || extractSectionValue(liveRcmData, 'rootCause', 'root_cause');
-            const aa = overview.affectedArea || overview.affected_area || extractSectionValue(liveRcmData, 'affectedArea', 'affected_area');
-            const sug = overview.suggestions || extractSectionValue(liveRcmData, 'suggestions');
-            const sugList = Array.isArray(sug) ? sug : (typeof sug === 'string' ? [sug] : (sug ? [sug] : []));
-
-            if (rc) {
-              tth.whyItHappens = rc;
-              if (tth.detailedAnalysis) tth.detailedAnalysis.whyItHappens = rc;
-            }
-            if (aa) {
-              tth.whereItHappens = aa;
-              if (tth.detailedAnalysis) tth.detailedAnalysis.whereItHappens = aa;
-            }
-            if (sugList.length > 0) {
-              tth.howToOvercome = sugList;
-              if (tth.detailedAnalysis) tth.detailedAnalysis.howToOvercome = sugList;
-            }
-
-            tth.moduleOverview = {
-              rootCause: rc || tth.whyItHappens,
-              affectedArea: aa || tth.whereItHappens,
-              suggestions: sugList.length > 0 ? sugList : (tth.howToOvercome || [])
-            };
-
-            if (liveRcmData.company || rep.company || liveRcmData.company_actual || rep.company_actual) {
-              tth.company = String(liveRcmData.company || rep.company || liveRcmData.company_actual || rep.company_actual);
-            }
-            if (liveRcmData.standard || rep.standard || liveRcmData.benchmark_target || rep.benchmark_target) {
-              tth.standard = String(liveRcmData.standard || rep.standard || liveRcmData.benchmark_target || rep.benchmark_target);
-            }
-            if (liveRcmData.status || rep.healthState) {
-              tth.status = liveRcmData.status || rep.healthState;
-            }
-            if (liveRcmData.variance || rep.actual_variance || liveRcmData.variance_percentage) {
-              tth.variance = String(liveRcmData.variance || rep.actual_variance || liveRcmData.variance_percentage);
-            }
-
-            tth.isSupabaseLive = true;
-            tth._source = 'supabase_storage_metric_folder';
-          }
-        }
-      }
-
-      return sanitizeAndMergeModules(rawModules);
     } catch (err) {
-      console.warn('Backend unavailable, falling back to local dataset:', err.message);
-      return SF_MODULES;
+      console.warn('Backend /modules call failed, using default baseline:', err.message);
     }
+    return SF_MODULES;
   },
 
   /**
@@ -788,117 +783,91 @@ export const apiService = {
    */
   async getModuleDetails(moduleId) {
     try {
-      const res = await fetchWithTimeout(`${BASE_URL}/modules/${moduleId}`, { method: 'GET' });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const raw = await res.json();
-      const sanitizedList = sanitizeAndMergeModules([raw]);
-      return sanitizedList[0] || null;
-    } catch (err) {
-      console.warn(`Failed to fetch module ${moduleId} from API:`, err.message);
-      return SF_MODULES.find((m) => m.id === moduleId) || null;
-    }
+      const res = await fetchWithTimeout(`${BASE_URL}/modules/${encodeURIComponent(moduleId)}`, { method: 'GET' }, 8000);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.id) return data;
+      }
+    } catch (_) {}
+    const allMods = await this.getModules();
+    return allMods.find((m) => m.id.toLowerCase() === moduleId.toLowerCase()) || null;
   },
 
   /**
-   * Fetch 9-section BRD deep dive and TreeSHAP insights for a specific metric
+   * Fetch 8-section BRD deep dive and tree insights for a specific metric directly from backend
    */
   async getMetricDeepDive(metricCode, metricName = null, moduleId = null) {
     try {
-      const targetMod = moduleId || 'rcm';
-      const targetMetric = metricName || metricCode;
+      const params = new URLSearchParams();
+      if (metricName) params.append('metric_name', metricName);
+      if (moduleId) params.append('module_id', moduleId);
+      const queryStr = params.toString() ? `?${params.toString()}` : '';
 
-      // 1. Query direct Supabase LLM_Reports table
-      const tableRows = await fetchDirectSupabaseTable('LLM_Reports');
-      let matchedRow = null;
-      if (Array.isArray(tableRows) && tableRows.length > 0) {
-        matchedRow = tableRows.find(r => {
-          const mRow = normalizeAlphaKey(r.metric_name || r.metric || '');
-          const targetAlpha = normalizeAlphaKey(targetMetric);
-          const codeAlpha = normalizeAlphaKey(metricCode);
-          return mRow === targetAlpha || mRow === codeAlpha || (mRow && targetAlpha.includes(mRow));
-        });
-      }
-
-      // 2. Query direct Supabase Storage
-      const directSupaStorage = await fetchDirectSupabaseStorageMetric(targetMod, targetMetric);
-
-      // Combine Supabase table row and storage data (prioritizing moduleOverview)
-      let bestSupabaseData = null;
-      if (directSupaStorage && matchedRow) {
-        const curOverview = directSupaStorage.moduleOverview || directSupaStorage.report?.moduleOverview;
-        bestSupabaseData = { ...matchedRow, ...directSupaStorage };
-        if (curOverview) {
-          bestSupabaseData.moduleOverview = curOverview;
+      const res = await fetchWithTimeout(
+        `${BASE_URL}/metrics/${encodeURIComponent(metricCode)}/deep-dive${queryStr}`,
+        { method: 'GET' },
+        8000
+      );
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.metric) {
+          return data;
         }
-      } else if (directSupaStorage) {
-        bestSupabaseData = directSupaStorage;
-      } else if (matchedRow) {
-        bestSupabaseData = matchedRow;
       }
-
-      // 3. Query backend endpoint
-      let backendData = null;
-      try {
-        const params = new URLSearchParams();
-        if (metricName) params.append('metric_name', metricName);
-        if (moduleId) params.append('module_id', moduleId);
-        const queryStr = params.toString() ? `?${params.toString()}` : '';
-
-        const res = await fetchWithTimeout(
-          `${BASE_URL}/metrics/${encodeURIComponent(metricCode)}/deep-dive${queryStr}`,
-          { method: 'GET' },
-          5000
-        );
-        if (res.ok) {
-          backendData = await res.json();
-        }
-      } catch (err) {
-        console.warn(`Backend deep dive fetch failed:`, err.message);
-      }
-
-      // Normalize direct Supabase data if available
-      const normalizedLive = bestSupabaseData
-        ? normalizeSupabaseInsightPayload(bestSupabaseData, metricCode, targetMetric)
-        : null;
-
-      if (backendData && normalizedLive) {
-        // Merge backend structure enriched with live Supabase text & brdPlan
-        return {
-          ...backendData,
-          ...normalizedLive,
-          metric: {
-            ...backendData.metric,
-            ...normalizedLive.metric,
-            moduleOverview: normalizedLive.moduleOverview || backendData.moduleOverview,
-            detailedAnalysis: {
-              ...backendData.metric?.detailedAnalysis,
-              ...normalizedLive.metric?.detailedAnalysis
-            }
-          },
-          moduleOverview: normalizedLive.moduleOverview || backendData.moduleOverview,
-          stageDrivers: (normalizedLive.stageDrivers && normalizedLive.stageDrivers.length > 0)
-            ? normalizedLive.stageDrivers
-            : backendData.stageDrivers,
-          segmentDrivers: (normalizedLive.segmentDrivers && normalizedLive.segmentDrivers.length > 0)
-            ? normalizedLive.segmentDrivers
-            : backendData.segmentDrivers,
-          shapFactors: (normalizedLive.shapFactors && normalizedLive.shapFactors.length > 0)
-            ? normalizedLive.shapFactors
-            : backendData.shapFactors,
-          brdPlan: {
-            ...backendData.brdPlan,
-            ...normalizedLive.brdPlan
-          }
-        };
-      }
-
-      if (normalizedLive) return normalizedLive;
-      if (backendData) return backendData;
-      return null;
     } catch (err) {
-      console.warn(`Failed to fetch deep dive for ${metricCode}:`, err.message);
-      return null;
+      console.warn(`Failed to fetch deep dive for ${metricCode} from backend:`, err.message);
     }
+
+    // Strict fallback for unfetched metrics: NO mock data!
+    return {
+      metric: {
+        code: metricCode,
+        metric: metricName || metricCode,
+        category: 'Operational KPI',
+        company: 'Not yet fetched',
+        standard: 'Not yet fetched',
+        status: 'Not yet fetched',
+        variance: 'Not yet fetched',
+        isSupabaseLive: false,
+        _source: 'static_baseline',
+        moduleOverview: {
+          rootCause: 'Data not yet fetched from Supabase',
+          affectedArea: 'Data not yet fetched from Supabase',
+          suggestions: []
+        },
+        detailedAnalysis: {
+          whyItHappens: 'Data not yet fetched from Supabase',
+          whereItHappens: 'Data not yet fetched from Supabase',
+          trendAnalysis: { summary: 'Data not yet fetched from Supabase', points: [] },
+          missingConfigurations: [],
+          howItEffects: 'Data not yet fetched from Supabase',
+          howToOvercome: []
+        }
+      },
+      moduleOverview: {
+        rootCause: 'Data not yet fetched from Supabase',
+        affectedArea: 'Data not yet fetched from Supabase',
+        suggestions: []
+      },
+      stageDrivers: [],
+      segmentDrivers: [],
+      shapFactors: [],
+      missingConfigurations: [],
+      brdPlan: {
+        specialistManpower: [],
+        phasedActivities: [],
+        executionWorkstreams: [],
+        stageDrivers: [],
+        segmentDrivers: [],
+        assumptionsAndRisks: [],
+        successCriteria: [],
+        timeline: 'Not yet fetched',
+        totalEffortHours: 0,
+        totalEffortsDisplay: 'Not yet fetched',
+        timelineAndEffort: { timeline: 'Not yet fetched', totalEffort: 'Not yet fetched' },
+        targetOutcome: 'Data not yet fetched from Supabase'
+      }
+    };
   },
 
   /**

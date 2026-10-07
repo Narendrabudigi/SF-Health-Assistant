@@ -49,6 +49,13 @@ function ModuleIcon({ type }) {
   }
 }
 
+const getBadgeClass = (status) => {
+  if (status === 'Critical') return 'badge-critical';
+  if (status === 'At Risk') return 'badge-at-risk';
+  if (status === 'Healthy') return 'badge-healthy';
+  return 'badge-neutral';
+};
+
 export default function HomeDashboard({ modules, onSelectModule }) {
   // Compute executive metrics for Swiss business summary
   const criticalCount = modules.filter(m => m.status === 'Critical').length;
@@ -129,7 +136,7 @@ export default function HomeDashboard({ modules, onSelectModule }) {
 
               {/* Footer: Status Pill on left, View Analysis link on right */}
               <div className="card-bottom-actions">
-                <span className={`pill-badge ${mod.status === 'Critical' ? 'badge-critical' : mod.status === 'Healthy' ? 'badge-healthy' : 'badge-at-risk'}`}>
+                <span className={`pill-badge ${getBadgeClass(mod.status)}`}>
                   <span className="badge-dot" aria-hidden="true"></span>
                   <span>{mod.status}</span>
                 </span>

@@ -612,6 +612,24 @@ function formatBrdPlan(plan, metric) {
 // Fallback generator for custom or unlisted metrics
 export function getBrdPlan(metric) {
   if (!metric) return null;
+
+  if (!metric.isSupabaseLive) {
+    return {
+      specialistManpower: [],
+      phasedActivities: [],
+      executionWorkstreams: [],
+      stageDrivers: [],
+      segmentDrivers: [],
+      assumptionsAndRisks: [],
+      successCriteria: [],
+      timeline: 'Not yet fetched',
+      totalEffortHours: 0,
+      totalEffortsDisplay: 'Not yet fetched',
+      timelineAndEffort: { timeline: 'Not yet fetched', totalEffort: 'Not yet fetched' },
+      targetOutcome: 'Data not yet fetched from Supabase'
+    };
+  }
+
   const name = metric.metric || metric.name || '';
 
   // Case-insensitive lookup in METRIC_BRD_PLANS

@@ -43,7 +43,7 @@ def health_check():
     supabase_info = supabase_storage.check_connection()
     return {
         "status": "HEALTHY",
-        "version": "1.0.2",
+        "version": "1.0.3",
         "environment": settings.ENVIRONMENT,
         "supabase": supabase_info
     }

@@ -3,10 +3,17 @@ import React, { useState } from 'react';
 export default function GenAIReport({ module }) {
   const { benchmarks = [] } = module || {};
 
+  // Check if all metrics are not yet fetched
+  const isModuleNotFetched = benchmarks.length === 0 || benchmarks.every((b) => {
+    const s = String(b.status || '').toLowerCase().trim();
+    return s.includes('not yet') || s === '--' || s === 'pending';
+  });
+
   // Filter Critical and At Risk metrics that require diagnostic attention
   const issueMetrics = benchmarks.filter((b) => {
     const s = String(b.status || '').toLowerCase().trim();
     const v = String(b.variance || '').toLowerCase().trim();
+    if (s.includes('not yet') || s === '--' || s === 'pending') return false;
     const hasBreach = (v.includes('+') || v.includes('-')) && !v.includes('on target');
     if (s.includes('crit') || s.includes('risk') || s.includes('warn') || hasBreach) {
       return true;
@@ -47,15 +54,27 @@ export default function GenAIReport({ module }) {
       </div>
 
       {issueMetrics.length === 0 ? (
-        <div className="healthy-state-report-callout">
-          <div className="healthy-icon-pill">✓</div>
-          <div>
-            <h4 className="healthy-title">All Module Benchmarks Healthy</h4>
-            <p className="healthy-desc">
-              Every tracked metric in this module is operating within established SLA parameters. No active SLA breaches or degradation risks detected.
-            </p>
+        isModuleNotFetched ? (
+          <div className="healthy-state-report-callout" style={{ borderLeftColor: '#64748b' }}>
+            <div className="healthy-icon-pill" style={{ background: '#f1f5f9', color: '#64748b' }}>⏳</div>
+            <div>
+              <h4 className="healthy-title">Data Not Yet Fetched from Supabase</h4>
+              <p className="healthy-desc">
+                No active metrics or diagnostic reports have been ingested from Supabase for this module.
+              </p>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="healthy-state-report-callout">
+            <div className="healthy-icon-pill">✓</div>
+            <div>
+              <h4 className="healthy-title">All Module Benchmarks Healthy</h4>
+              <p className="healthy-desc">
+                Every tracked metric in this module is operating within established SLA parameters. No active SLA breaches or degradation risks detected.
+              </p>
+            </div>
+          </div>
+        )
       ) : (
         <div className="ai-accordion-list" role="region" aria-label="Diagnostic Issue Details">
           {issueMetrics.map((metricRow, idx) => {

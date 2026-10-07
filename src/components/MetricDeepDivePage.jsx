@@ -375,18 +375,53 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
   }, [currentMetric.code, currentMetric.metric, module?.id]);
 
   // Real-time overrides: Whatever is present in the Supabase metric folder reflects directly!
-  const company = liveInsight?.metric?.company || baseCompany;
-  const standard = liveInsight?.metric?.standard || baseStandard;
-  const status = liveInsight?.metric?.status || baseStatus;
-  const variance = liveInsight?.metric?.variance || baseVariance;
+  const rawCompany = liveInsight?.metric?.company || baseCompany;
+  const rawStandard = liveInsight?.metric?.standard || baseStandard;
+  const rawStatus = liveInsight?.metric?.status || baseStatus;
+  const rawVariance = liveInsight?.metric?.variance || baseVariance;
   const detailedAnalysis = liveInsight?.metric?.detailedAnalysis || baseDetailedAnalysis;
 
-  const overviewData = liveInsight?.moduleOverview || liveInsight?.metric?.moduleOverview || currentMetric?.moduleOverview || {};
+  const isMetricLive = Boolean(
+    liveInsight?.source === 'supabase_storage_metric_folder' ||
+    liveInsight?.source === 'supabase_llm_reports_table' ||
+    liveInsight?.source === 'supabase_ml_notebook_insights_table' ||
+    liveInsight?.source === 'supabase_table' ||
+    liveInsight?.source === 'supabase' ||
+    liveInsight?.storagePath ||
+    liveInsight?.metric?.isSupabaseLive ||
+    currentMetric?.isSupabaseLive ||
+    currentMetric?._source === 'supabase_storage_metric_folder' ||
+    currentMetric?._source === 'supabase_llm_reports_table' ||
+    currentMetric?._source === 'supabase_ml_notebook_insights_table' ||
+    currentMetric?._source === 'supabase_table' ||
+    currentMetric?._source === 'supabase'
+  );
+  const isSupabaseLive = isMetricLive;
 
-  const whyItHappensText = overviewData.rootCause || detailedAnalysis?.whyItHappens;
-  const whereItHappensText = overviewData.affectedArea || detailedAnalysis?.whereItHappens;
+  const cleanVal = (val) => {
+    if (!val) return 'Not yet fetched';
+    const s = String(val).trim();
+    if (['not yet fetched', 'data not yet fetched from supabase', '--', '-', 'none', 'null', ''].includes(s.toLowerCase())) {
+      return 'Not yet fetched';
+    }
+    return s;
+  };
 
-  const rawOvercome = (overviewData.suggestions && overviewData.suggestions.length > 0) ? overviewData.suggestions : detailedAnalysis?.howToOvercome;
+  const company = isMetricLive ? cleanVal(rawCompany) : 'Not yet fetched';
+  const standard = isMetricLive ? cleanVal(rawStandard) : 'Not yet fetched';
+  const status = isMetricLive ? (rawStatus && rawStatus !== 'Not yet fetched' ? rawStatus : 'At Risk') : 'Not yet fetched';
+  const variance = isMetricLive ? cleanVal(rawVariance) : 'Not yet fetched';
+
+  const overviewData = isMetricLive
+    ? (liveInsight?.moduleOverview || liveInsight?.metric?.moduleOverview || currentMetric?.moduleOverview || {})
+    : { rootCause: 'Data not yet fetched from Supabase', affectedArea: 'Data not yet fetched from Supabase', suggestions: [] };
+
+  const whyItHappensText = isMetricLive ? (overviewData.rootCause || detailedAnalysis?.whyItHappens || 'Diagnostic variance detected against benchmark standard.') : 'Data not yet fetched from Supabase';
+  const whereItHappensText = isMetricLive ? (overviewData.affectedArea || detailedAnalysis?.whereItHappens || 'SuccessFactors workflow touchpoints') : 'Data not yet fetched from Supabase';
+
+  const rawOvercome = isMetricLive
+    ? ((overviewData.suggestions && overviewData.suggestions.length > 0) ? overviewData.suggestions : detailedAnalysis?.howToOvercome)
+    : [];
   const howToOvercomeList = Array.isArray(rawOvercome) ? rawOvercome : (typeof rawOvercome === 'string' ? [rawOvercome] : (rawOvercome ? [rawOvercome] : []));
 
   const isCritical = status === 'Critical';
@@ -394,7 +429,7 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
     ? 'badge-critical'
     : status === 'Healthy'
       ? 'badge-healthy'
-      : 'badge-at-risk';
+      : (status === 'At Risk' ? 'badge-at-risk' : 'badge-neutral');
 
   // Scroll to top upon entering a metric deep dive
   useEffect(() => {
@@ -402,6 +437,23 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
   }, [metricName]);
 
   const brdPlan = useMemo(() => {
+    if (!isMetricLive && !liveInsight) {
+      return {
+        specialistManpower: [],
+        phasedActivities: [],
+        executionWorkstreams: [],
+        stageDrivers: [],
+        segmentDrivers: [],
+        assumptionsAndRisks: [],
+        successCriteria: [],
+        timeline: 'Not yet fetched',
+        totalEffortHours: 0,
+        totalEffortsDisplay: 'Not yet fetched',
+        timelineAndEffort: { timeline: 'Not yet fetched', totalEffort: 'Not yet fetched' },
+        targetOutcome: 'Data not yet fetched from Supabase'
+      };
+    }
+
     const base = getBrdPlan(currentMetric);
     if (!liveInsight) return base;
 
@@ -409,15 +461,15 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
 
     const specialistManpower = (Array.isArray(liveBrd.specialistManpower) && liveBrd.specialistManpower.length > 0)
       ? liveBrd.specialistManpower
-      : base.specialistManpower;
+      : (isMetricLive ? base.specialistManpower : []);
 
     const phasedActivities = (Array.isArray(liveBrd.phasedActivities) && liveBrd.phasedActivities.length > 0)
       ? liveBrd.phasedActivities
-      : base.phasedActivities;
+      : (isMetricLive ? base.phasedActivities : []);
 
     const executionWorkstreams = (Array.isArray(liveBrd.executionWorkstreams) && liveBrd.executionWorkstreams.length > 0)
       ? liveBrd.executionWorkstreams
-      : base.executionWorkstreams;
+      : (isMetricLive ? base.executionWorkstreams : []);
 
     const stageDrivers = (Array.isArray(liveInsight.stageDrivers) && liveInsight.stageDrivers.length > 0)
       ? liveInsight.stageDrivers.map((sd, i) => ({
@@ -426,7 +478,7 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
           avgDays: sd.avgDays || sd.days || (sd.breachContribution ? `${sd.breachContribution}%` : '-'),
           share: sd.share || (sd.breachContribution ? `${sd.breachContribution}%` : '-')
         }))
-      : base.stageDrivers;
+      : (isMetricLive ? base.stageDrivers : []);
 
     const segmentDrivers = (Array.isArray(liveInsight.segmentDrivers) && liveInsight.segmentDrivers.length > 0)
       ? liveInsight.segmentDrivers.map((seg, i) => ({
@@ -435,24 +487,24 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
           avgDays: seg.actual || seg.avgDays || '-',
           vsCompany: seg.vsCompany || seg.gap || (seg.target ? `Target: ${seg.target}` : '-')
         }))
-      : base.segmentDrivers;
+      : (isMetricLive ? base.segmentDrivers : []);
 
     const assumptionsAndRisks = (Array.isArray(liveBrd.assumptionsAndRisks) && liveBrd.assumptionsAndRisks.length > 0)
       ? liveBrd.assumptionsAndRisks
       : (Array.isArray(liveInsight.assumptionsAndRisks) && liveInsight.assumptionsAndRisks.length > 0)
         ? liveInsight.assumptionsAndRisks
-        : (base.assumptionsAndRisks || []);
+        : (isMetricLive ? base.assumptionsAndRisks || [] : []);
 
     const successCriteria = (Array.isArray(liveBrd.successCriteria) && liveBrd.successCriteria.length > 0)
       ? liveBrd.successCriteria
       : (Array.isArray(liveInsight.successCriteria) && liveInsight.successCriteria.length > 0)
         ? liveInsight.successCriteria
-        : (base.successCriteria || []);
+        : (isMetricLive ? base.successCriteria || [] : []);
 
     const targetOutcome = liveBrd.targetOutcome || liveInsight.targetOutcome || whyItHappensText || base.targetOutcome;
-    const timeline = liveBrd.timeline || liveBrd.timelineAndEffort?.timeline || base.timeline;
-    const totalEffortHours = liveBrd.totalEffortHours || base.totalEffortHours;
-    const totalEffortsDisplay = liveBrd.totalEffortsDisplay || `${totalEffortHours} Total Hours`;
+    const timeline = liveBrd.timeline || liveBrd.timelineAndEffort?.timeline || (isMetricLive ? base.timeline : 'Not yet fetched');
+    const totalEffortHours = liveBrd.totalEffortHours || (isMetricLive ? base.totalEffortHours : 0);
+    const totalEffortsDisplay = liveBrd.totalEffortsDisplay || (isMetricLive ? `${totalEffortHours} Total Hours` : 'Not yet fetched');
     const timelineAndEffort = liveBrd.timelineAndEffort || { timeline, totalEffort: totalEffortsDisplay };
 
     return {
@@ -474,12 +526,14 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
   }, [currentMetric, liveInsight, whyItHappensText]);
 
   // Dynamic module mapping for architecture touchpoints & RCA failure modes
-  const moduleMapping = useMemo(() => getModuleMapping(module?.id, metricName), [module?.id, metricName]);
+  const moduleMapping = useMemo(() => (isMetricLive ? getModuleMapping(module?.id, metricName) : { touchpoints: [], missingConfigs: [], rca: [] }), [module?.id, metricName, isMetricLive]);
   const systemTouchpoints = moduleMapping.touchpoints;
-  const rcaFailureModes = moduleMapping.rca;
+  const rcaFailureModes = isMetricLive ? moduleMapping.rca : [];
   const missingConfigs = (liveInsight?.missingConfigurations && liveInsight.missingConfigurations.length > 0)
     ? liveInsight.missingConfigurations
-    : (detailedAnalysis?.missingConfigurations || moduleMapping.missingConfigs || []);
+    : ((detailedAnalysis?.missingConfigurations && detailedAnalysis.missingConfigurations.length > 0)
+      ? detailedAnalysis.missingConfigurations
+      : (isMetricLive ? moduleMapping.missingConfigs : []));
 
   const rcaPriorityLabels = useMemo(() => [
     'P1 • Critical Architecture Gap',
@@ -720,14 +774,14 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
               <div className="catalog-metric-heading">{metricName}</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginTop: '4px' }}>
                 <span className="catalog-sub">{category} • {module?.name || 'Module'}</span>
-                {(liveInsight?.source === 'supabase_storage_metric_folder' || liveInsight?.storagePath || currentMetric.isSupabaseLive || currentMetric._source === 'supabase_storage_metric_folder') ? (
-                  <span className="source-chip source-chip-live" title="Live ML metric synthesized from Supabase Storage (reports/latest)">
+                {isMetricLive ? (
+                  <span className="source-chip source-chip-live" title="Live ML metric synthesized from Supabase">
                     <span className="source-chip-dot"></span>
                     Supabase Live
                   </span>
                 ) : (
-                  <span className="source-chip source-chip-static" title="Data not yet fetched from Supabase — showing standard enterprise baseline">
-                    Baseline Data
+                  <span className="source-chip source-chip-static" title="Data not yet fetched from Supabase">
+                    Not yet fetched
                   </span>
                 )}
               </div>
@@ -860,48 +914,56 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                   </div>
                 </div>
                 <div className="diagnostic-card-content">
-                  {whyItHappensText && (
-                    <div style={{ marginBottom: '16px' }}>
-                      <div className="footprint-header" style={{ marginBottom: '6px' }}>
-                        <strong>🔍 Why It is Happening (Root Cause):</strong>
-                      </div>
-                      <p className="analysis-text-paragraph">{whyItHappensText}</p>
+                  {!isMetricLive ? (
+                    <div style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>
+                      <p style={{ margin: 0, fontWeight: 500 }}>Data not yet fetched from Supabase.</p>
                     </div>
-                  )}
-
-                  <div className="sf-footprint-box" style={{ marginTop: '16px' }}>
-                    <div className="footprint-header">
-                      {whereItHappensText ? (
-                        <span><strong>Impacted Architecture Touchpoints:</strong> {whereItHappensText}</span>
-                      ) : (
-                        'Impacted Architecture Touchpoints:'
+                  ) : (
+                    <>
+                      {whyItHappensText && (
+                        <div style={{ marginBottom: '16px' }}>
+                          <div className="footprint-header" style={{ marginBottom: '6px' }}>
+                            <strong>🔍 Why It is Happening (Root Cause):</strong>
+                          </div>
+                          <p className="analysis-text-paragraph">{whyItHappensText}</p>
+                        </div>
                       )}
-                    </div>
-                    {systemTouchpoints && systemTouchpoints.length > 0 && (
-                      <div className="footprint-chips" style={{ marginTop: '8px' }}>
-                        {systemTouchpoints.map((tp, idx) => (
-                          <span key={idx} className={`footprint-chip chip-${tp.type}`}>
-                            {tp.label}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
 
-                  {howToOvercomeList && howToOvercomeList.length > 0 && (
-                    <div className="sf-footprint-box" style={{ marginTop: '16px' }}>
-                      <div className="footprint-header">
-                        <strong>💡 Suggestions to Improve:</strong>
+                      <div className="sf-footprint-box" style={{ marginTop: '16px' }}>
+                        <div className="footprint-header">
+                          {whereItHappensText ? (
+                            <span><strong>Impacted Architecture Touchpoints:</strong> {whereItHappensText}</span>
+                          ) : (
+                            'Impacted Architecture Touchpoints:'
+                          )}
+                        </div>
+                        {systemTouchpoints && systemTouchpoints.length > 0 && (
+                          <div className="footprint-chips" style={{ marginTop: '8px' }}>
+                            {systemTouchpoints.map((tp, idx) => (
+                              <span key={idx} className={`footprint-chip chip-${tp.type}`}>
+                                {tp.label}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                      <ol className="accordion-suggestions-list" style={{ marginTop: '8px', paddingLeft: 0, listStyle: 'none' }}>
-                        {howToOvercomeList.map((sug, sIdx) => (
-                          <li key={sIdx} className="accordion-suggestion-item" style={{ marginBottom: '6px' }}>
-                            <span className="accordion-step-counter">{sIdx + 1}</span>
-                            <span className="accordion-step-text">{sug}</span>
-                          </li>
-                        ))}
-                      </ol>
-                    </div>
+
+                      {howToOvercomeList && howToOvercomeList.length > 0 && (
+                        <div className="sf-footprint-box" style={{ marginTop: '16px' }}>
+                          <div className="footprint-header">
+                            <strong>💡 Suggestions to Improve:</strong>
+                          </div>
+                          <ol className="accordion-suggestions-list" style={{ marginTop: '8px', paddingLeft: 0, listStyle: 'none' }}>
+                            {howToOvercomeList.map((sug, sIdx) => (
+                              <li key={sIdx} className="accordion-suggestion-item" style={{ marginBottom: '6px' }}>
+                                <span className="accordion-step-counter">{sIdx + 1}</span>
+                                <span className="accordion-step-text">{sug}</span>
+                              </li>
+                            ))}
+                          </ol>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
@@ -917,7 +979,13 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                   </div>
                 </div>
                 <div className="diagnostic-card-content">
-                  <TrendDrillDownView metric={currentMetric} />
+                  {!isMetricLive ? (
+                    <div style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>
+                      <p style={{ margin: 0, fontWeight: 500 }}>Data not yet fetched from Supabase.</p>
+                    </div>
+                  ) : (
+                    <TrendDrillDownView metric={{ ...currentMetric, company, standard, status, variance, isSupabaseLive }} />
+                  )}
                 </div>
               </div>
 
@@ -932,68 +1000,76 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                   </div>
                 </div>
                 <div className="diagnostic-card-content">
-                  {/* Summary Banner */}
-                  <div className="cfg-summary-banner">
-                    <div className="cfg-banner-info">
-                      <span className="cfg-banner-icon" aria-hidden="true">⚠️</span>
-                      <div>
-                        <div className="cfg-banner-title">
-                          {missingConfigs.length} Identified Configuration Gaps
+                  {!isMetricLive || missingConfigs.length === 0 ? (
+                    <div style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>
+                      <p style={{ margin: 0, fontWeight: 500 }}>Data not yet fetched from Supabase.</p>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Summary Banner */}
+                      <div className="cfg-summary-banner">
+                        <div className="cfg-banner-info">
+                          <span className="cfg-banner-icon" aria-hidden="true">⚠️</span>
+                          <div>
+                            <div className="cfg-banner-title">
+                              {missingConfigs.length} Identified Configuration Gaps
+                            </div>
+                            <div className="cfg-banner-desc">
+                              Technical audit diagnosed the following missing validation rules, unassigned picklists, and workflow escalation deficits directly driving the variance gap.
+                            </div>
+                          </div>
                         </div>
-                        <div className="cfg-banner-desc">
-                          Technical audit diagnosed the following missing validation rules, unassigned picklists, and workflow escalation deficits directly driving the variance gap.
+                        <div className="cfg-banner-stats">
+                          <span className="cfg-stat-pill pill-critical">
+                            {missingConfigs.filter(c => c.severity === 'Critical').length} Critical
+                          </span>
+                          <span className="cfg-stat-pill pill-high">
+                            {missingConfigs.filter(c => c.severity === 'High').length} High
+                          </span>
+                          <span className="cfg-stat-pill pill-medium">
+                            {missingConfigs.filter(c => c.severity === 'Medium').length} Medium
+                          </span>
                         </div>
                       </div>
-                    </div>
-                    <div className="cfg-banner-stats">
-                      <span className="cfg-stat-pill pill-critical">
-                        {missingConfigs.filter(c => c.severity === 'Critical').length} Critical
-                      </span>
-                      <span className="cfg-stat-pill pill-high">
-                        {missingConfigs.filter(c => c.severity === 'High').length} High
-                      </span>
-                      <span className="cfg-stat-pill pill-medium">
-                        {missingConfigs.filter(c => c.severity === 'Medium').length} Medium
-                      </span>
-                    </div>
-                  </div>
 
-                  {/* Specification Table */}
-                  <div className="brd-spec-table-container" style={{ marginTop: '16px' }}>
-                    <table className="brd-spec-table">
-                      <thead>
-                        <tr>
-                          <th style={{ width: '9%' }}>ID</th>
-                          <th style={{ width: '23%' }}>Configuration Component</th>
-                          <th style={{ width: '30%' }}>Missing Configuration / Deficit</th>
-                          <th style={{ width: '13%' }}>Severity</th>
-                          <th style={{ width: '25%' }}>Recommended Target Configuration</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {missingConfigs.map((cfg, cIdx) => (
-                          <tr key={cIdx}>
-                            <td><span className="workstream-id-badge">{cfg.id}</span></td>
-                            <td><strong>{cfg.component}</strong></td>
-                            <td>
-                              <div style={{ fontWeight: 600, color: '#0f172a' }}>{cfg.title}</div>
-                              <div style={{ fontSize: '0.76rem', color: '#64748b', marginTop: '3px' }}>
-                                Current Status: <span style={{ color: '#b91c1c', fontWeight: 600 }}>{cfg.status}</span>
-                              </div>
-                            </td>
-                            <td>
-                              <span className={`pill-badge ${cfg.severity === 'Critical' ? 'badge-critical' : cfg.severity === 'High' ? 'badge-at-risk' : 'badge-healthy'}`}>
-                                {cfg.severity}
-                              </span>
-                            </td>
-                            <td>
-                              <code className="cfg-setting-code">{cfg.setting}</code>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                      {/* Specification Table */}
+                      <div className="brd-spec-table-container" style={{ marginTop: '16px' }}>
+                        <table className="brd-spec-table">
+                          <thead>
+                            <tr>
+                              <th style={{ width: '9%' }}>ID</th>
+                              <th style={{ width: '23%' }}>Configuration Component</th>
+                              <th style={{ width: '30%' }}>Missing Configuration / Deficit</th>
+                              <th style={{ width: '13%' }}>Severity</th>
+                              <th style={{ width: '25%' }}>Recommended Target Configuration</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {missingConfigs.map((cfg, cIdx) => (
+                              <tr key={cIdx}>
+                                <td><span className="workstream-id-badge">{cfg.id}</span></td>
+                                <td><strong>{cfg.component}</strong></td>
+                                <td>
+                                  <div style={{ fontWeight: 600, color: '#0f172a' }}>{cfg.title}</div>
+                                  <div style={{ fontSize: '0.76rem', color: '#64748b', marginTop: '3px' }}>
+                                    Current Status: <span style={{ color: '#b91c1c', fontWeight: 600 }}>{cfg.status}</span>
+                                  </div>
+                                </td>
+                                <td>
+                                  <span className={`pill-badge ${cfg.severity === 'Critical' ? 'badge-critical' : cfg.severity === 'High' ? 'badge-at-risk' : 'badge-healthy'}`}>
+                                    {cfg.severity}
+                                  </span>
+                                </td>
+                                <td>
+                                  <code className="cfg-setting-code">{cfg.setting}</code>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -1008,70 +1084,80 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                   </div>
                 </div>
                 <div className="diagnostic-card-content">
-                  {brdPlan?.stageDrivers && (
-                    <div className="rca-drivers-split-grid">
-                      <div className="brd-spec-table-container">
-                        <table className="brd-spec-table">
-                          <thead>
-                            <tr>
-                              <th style={{ width: '45%' }}>Stage driver</th>
-                              <th style={{ width: '25%' }}>Avg days</th>
-                              <th style={{ width: '20%' }}>Share of breach</th>
-                              <th style={{ width: '10%' }}>ID</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {brdPlan.stageDrivers.map((sd, sIdx) => (
-                              <tr key={sIdx}>
-                                <td><strong>{sd.driver}</strong></td>
-                                <td>{sd.avgDays}</td>
-                                <td>{sd.share}</td>
-                                <td><span className="workstream-id-badge">{sd.id}</span></td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-
-                      {brdPlan?.segmentDrivers && (
-                        <div className="brd-spec-table-container">
-                          <table className="brd-spec-table">
-                            <thead>
-                              <tr>
-                                <th style={{ width: '45%' }}>Segment driver</th>
-                                <th style={{ width: '25%' }}>Avg days</th>
-                                <th style={{ width: '20%' }}>Vs company average</th>
-                                <th style={{ width: '10%' }}>ID</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {brdPlan.segmentDrivers.map((seg, segIdx) => (
-                                <tr key={segIdx}>
-                                  <td><strong>{seg.driver}</strong></td>
-                                  <td>{seg.avgDays}</td>
-                                  <td>{seg.vsCompany}</td>
-                                  <td><span className="workstream-id-badge">{seg.id}</span></td>
+                  {!isMetricLive || (!brdPlan?.stageDrivers?.length && !rcaFailureModes?.length) ? (
+                    <div style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>
+                      <p style={{ margin: 0, fontWeight: 500 }}>Data not yet fetched from Supabase.</p>
+                    </div>
+                  ) : (
+                    <>
+                      {brdPlan?.stageDrivers && brdPlan.stageDrivers.length > 0 && (
+                        <div className="rca-drivers-split-grid">
+                          <div className="brd-spec-table-container">
+                            <table className="brd-spec-table">
+                              <thead>
+                                <tr>
+                                  <th style={{ width: '45%' }}>Stage driver</th>
+                                  <th style={{ width: '25%' }}>Avg days</th>
+                                  <th style={{ width: '20%' }}>Share of breach</th>
+                                  <th style={{ width: '10%' }}>ID</th>
                                 </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                              </thead>
+                              <tbody>
+                                {brdPlan.stageDrivers.map((sd, sIdx) => (
+                                  <tr key={sIdx}>
+                                    <td><strong>{sd.driver}</strong></td>
+                                    <td>{sd.avgDays}</td>
+                                    <td>{sd.share}</td>
+                                    <td><span className="workstream-id-badge">{sd.id}</span></td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+
+                          {brdPlan?.segmentDrivers && brdPlan.segmentDrivers.length > 0 && (
+                            <div className="brd-spec-table-container">
+                              <table className="brd-spec-table">
+                                <thead>
+                                  <tr>
+                                    <th style={{ width: '45%' }}>Segment driver</th>
+                                    <th style={{ width: '25%' }}>Avg days</th>
+                                    <th style={{ width: '20%' }}>Vs company average</th>
+                                    <th style={{ width: '10%' }}>ID</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {brdPlan.segmentDrivers.map((seg, segIdx) => (
+                                    <tr key={segIdx}>
+                                      <td><strong>{seg.driver}</strong></td>
+                                      <td>{seg.avgDays}</td>
+                                      <td>{seg.vsCompany}</td>
+                                      <td><span className="workstream-id-badge">{seg.id}</span></td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
                         </div>
                       )}
-                    </div>
-                  )}
 
-                  <div className="rca-breakdown-grid">
-                    {rcaFailureModes.map((item, rIdx) => (
-                      <div key={rIdx} className="rca-mode-card">
-                        <div className="rca-mode-header">
-                          <span className="rca-step-num">0{rIdx + 1}</span>
-                          <span className="rca-priority-tag">{rcaPriorityLabels[rIdx] || item.category}</span>
+                      {rcaFailureModes && rcaFailureModes.length > 0 && (
+                        <div className="rca-breakdown-grid">
+                          {rcaFailureModes.map((item, rIdx) => (
+                            <div key={rIdx} className="rca-mode-card">
+                              <div className="rca-mode-header">
+                                <span className="rca-step-num">0{rIdx + 1}</span>
+                                <span className="rca-priority-tag">{rcaPriorityLabels[rIdx] || item.category}</span>
+                              </div>
+                              <h3 className="rca-mode-title">{item.title}</h3>
+                              <p className="rca-mode-desc">{item.detail}</p>
+                            </div>
+                          ))}
                         </div>
-                        <h3 className="rca-mode-title">{item.title}</h3>
-                        <p className="rca-mode-desc">{item.detail}</p>
-                      </div>
-                    ))}
-                  </div>
+                      )}
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -1084,138 +1170,156 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                   </div>
                 </div>
                 <div className="diagnostic-card-content">
-                  <p className="analysis-text-paragraph">{detailedAnalysis.howItEffects}</p>
+                  {!isMetricLive || !detailedAnalysis?.howItEffects || detailedAnalysis.howItEffects === 'Data not yet fetched from Supabase' ? (
+                    <div style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>
+                      <p style={{ margin: 0, fontWeight: 500 }}>Data not yet fetched from Supabase.</p>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="analysis-text-paragraph">{detailedAnalysis.howItEffects}</p>
 
-                  <div className="impact-triad-grid">
-                    <div className="impact-triad-card triad-cost">
-                      <div className="triad-icon">💰</div>
-                      <div className="triad-title">Financial Exposure</div>
-                      <div className="triad-desc">Off-cycle adjustments, replacement recruiting fees &amp; lost productivity overhead</div>
-                    </div>
-                    <div className="impact-triad-card triad-sla">
-                      <div className="triad-icon">⏱️</div>
-                      <div className="triad-title">SLA &amp; Turnaround</div>
-                      <div className="triad-desc">Process stagnation, managerial escalation queues &amp; extended cycle delays</div>
-                    </div>
-                    <div className="impact-triad-card triad-gov">
-                      <div className="triad-icon">🛡️</div>
-                      <div className="triad-title">Governance &amp; Audit</div>
-                      <div className="triad-desc">Downstream integration exceptions, compliance findings &amp; security exposure</div>
-                    </div>
-                  </div>
+                      <div className="impact-triad-grid">
+                        <div className="impact-triad-card triad-cost">
+                          <div className="triad-icon">💰</div>
+                          <div className="triad-title">Financial Exposure</div>
+                          <div className="triad-desc">Off-cycle adjustments, replacement recruiting fees &amp; lost productivity overhead</div>
+                        </div>
+                        <div className="impact-triad-card triad-sla">
+                          <div className="triad-icon">⏱️</div>
+                          <div className="triad-title">SLA &amp; Turnaround</div>
+                          <div className="triad-desc">Process stagnation, managerial escalation queues &amp; extended cycle delays</div>
+                        </div>
+                        <div className="impact-triad-card triad-gov">
+                          <div className="triad-icon">🛡️</div>
+                          <div className="triad-title">Governance &amp; Audit</div>
+                          <div className="triad-desc">Downstream integration exceptions, compliance findings &amp; security exposure</div>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
 
               {/* SECTION 06: BRD PLAN OF ACTION */}
-              {brdPlan && (
-                <div id="sec-brd" className="diagnostic-card deepdive-card brd-clean-card">
-                  <div className="diagnostic-card-header">
-                    <div className="card-header-text">
-                      <div className="card-badge-row">
-                        <h2 className="diagnostic-card-title">6. BRD Plan of Action</h2>
-                        <span className="brd-pill-tag">Approved Spec</span>
-                      </div>
-                      <span className="diagnostic-card-subtitle">
-                        Resource allocation, specialist hours and sprint timeline
-                      </span>
+              <div id="sec-brd" className="diagnostic-card deepdive-card brd-clean-card">
+                <div className="diagnostic-card-header">
+                  <div className="card-header-text">
+                    <div className="card-badge-row">
+                      <h2 className="diagnostic-card-title">6. BRD Plan of Action</h2>
+                      <span className="brd-pill-tag">Approved Spec</span>
                     </div>
+                    <span className="diagnostic-card-subtitle">
+                      Resource allocation, specialist hours and sprint timeline
+                    </span>
                   </div>
+                </div>
 
-                  <div className="diagnostic-card-content">
-                    {/* Specialist Manpower Required Table */}
-                    <div className="brd-spec-table-container">
-                      <table className="brd-spec-table">
-                        <thead>
-                          <tr>
-                            <th style={{ width: '56%' }}>Specialist manpower required</th>
-                            <th style={{ width: '22%' }}>Headcount</th>
-                            <th style={{ width: '22%' }}>Effort</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {(brdPlan.specialistManpower || []).map((sp, idx) => (
-                            <tr key={idx}>
-                              <td><strong>{sp.role}</strong></td>
-                              <td>{sp.headcount}</td>
-                              <td>{sp.effort}</td>
-                            </tr>
-                          ))}
-                          <tr className="brd-spec-summary-row">
-                            <td><strong>Timeline &amp; total effort</strong></td>
-                            <td><strong>{brdPlan.timelineAndEffort?.timeline || brdPlan.timeline}</strong></td>
-                            <td><strong>{brdPlan.timelineAndEffort?.totalEffort || `${brdPlan.totalEffortHours} Total Hours`}</strong></td>
-                          </tr>
-                        </tbody>
-                      </table>
+                <div className="diagnostic-card-content">
+                  {!isMetricLive || !brdPlan?.specialistManpower?.length ? (
+                    <div style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>
+                      <p style={{ margin: 0, fontWeight: 500 }}>Data not yet fetched from Supabase.</p>
                     </div>
-
-                    {/* Phased Activities Table */}
-                    {brdPlan.phasedActivities && brdPlan.phasedActivities.length > 0 && (
-                      <div className="brd-spec-table-container" style={{ marginTop: '20px' }}>
+                  ) : (
+                    <>
+                      {/* Specialist Manpower Required Table */}
+                      <div className="brd-spec-table-container">
                         <table className="brd-spec-table">
                           <thead>
                             <tr>
-                              <th style={{ width: '40%' }}>Phase / Activity</th>
-                              <th style={{ width: '38%' }}>Owner</th>
-                              <th style={{ width: '11%' }}>Workstream</th>
-                              <th style={{ width: '11%' }}>Effort</th>
+                              <th style={{ width: '56%' }}>Specialist manpower required</th>
+                              <th style={{ width: '22%' }}>Headcount</th>
+                              <th style={{ width: '22%' }}>Effort</th>
                             </tr>
                           </thead>
                           <tbody>
-                            {brdPlan.phasedActivities.map((phase, pIdx) => (
-                              <React.Fragment key={pIdx}>
-                                <tr className="brd-phase-header-row">
-                                  <td colSpan="4">
-                                    <strong>{phase.phaseName}</strong>
-                                    {phase.milestone && <span> | Milestone: {phase.milestone}</span>}
-                                    {phase.deliverable && <span> | Deliverable: {phase.deliverable}</span>}
-                                  </td>
-                                </tr>
-                                {(phase.activities || []).map((act, aIdx) => (
-                                  <tr key={`${pIdx}-${aIdx}`}>
-                                    <td>{act.activity}</td>
-                                    <td style={{ color: '#334155' }}>{act.owner}</td>
-                                    <td>
-                                      {act.workstream && act.workstream !== '-' ? (
-                                        <span className="workstream-id-badge">{act.workstream}</span>
-                                      ) : (
-                                        <span style={{ color: '#94a3b8' }}>-</span>
-                                      )}
-                                    </td>
-                                    <td style={{ whiteSpace: 'nowrap' }}>{act.effort}</td>
-                                  </tr>
-                                ))}
-                              </React.Fragment>
+                            {(brdPlan.specialistManpower || []).map((sp, idx) => (
+                              <tr key={idx}>
+                                <td><strong>{sp.role}</strong></td>
+                                <td>{sp.headcount}</td>
+                                <td>{sp.effort}</td>
+                              </tr>
                             ))}
                             <tr className="brd-spec-summary-row">
-                              <td colSpan="3"><strong>Total Efforts</strong></td>
-                              <td style={{ whiteSpace: 'nowrap' }}>
-                                <strong>{brdPlan.totalEffortsDisplay || `${brdPlan.totalEffortHours} Hours`}</strong>
-                              </td>
+                              <td><strong>Timeline &amp; total effort</strong></td>
+                              <td><strong>{brdPlan.timelineAndEffort?.timeline || brdPlan.timeline}</strong></td>
+                              <td><strong>{brdPlan.timelineAndEffort?.totalEffort || `${brdPlan.totalEffortHours} Total Hours`}</strong></td>
                             </tr>
                           </tbody>
                         </table>
                       </div>
-                    )}
-                  </div>
+
+                      {/* Phased Activities Table */}
+                      {brdPlan.phasedActivities && brdPlan.phasedActivities.length > 0 && (
+                        <div className="brd-spec-table-container" style={{ marginTop: '20px' }}>
+                          <table className="brd-spec-table">
+                            <thead>
+                              <tr>
+                                <th style={{ width: '40%' }}>Phase / Activity</th>
+                                <th style={{ width: '38%' }}>Owner</th>
+                                <th style={{ width: '11%' }}>Workstream</th>
+                                <th style={{ width: '11%' }}>Effort</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {brdPlan.phasedActivities.map((phase, pIdx) => (
+                                <React.Fragment key={pIdx}>
+                                  <tr className="brd-phase-header-row">
+                                    <td colSpan="4">
+                                      <strong>{phase.phaseName}</strong>
+                                      {phase.milestone && <span> | Milestone: {phase.milestone}</span>}
+                                      {phase.deliverable && <span> | Deliverable: {phase.deliverable}</span>}
+                                    </td>
+                                  </tr>
+                                  {(phase.activities || []).map((act, aIdx) => (
+                                    <tr key={`${pIdx}-${aIdx}`}>
+                                      <td>{act.activity}</td>
+                                      <td style={{ color: '#334155' }}>{act.owner}</td>
+                                      <td>
+                                        {act.workstream && act.workstream !== '-' ? (
+                                          <span className="workstream-id-badge">{act.workstream}</span>
+                                        ) : (
+                                          <span style={{ color: '#94a3b8' }}>-</span>
+                                        )}
+                                      </td>
+                                      <td style={{ whiteSpace: 'nowrap' }}>{act.effort}</td>
+                                    </tr>
+                                  ))}
+                                </React.Fragment>
+                              ))}
+                              <tr className="brd-spec-summary-row">
+                                <td colSpan="3"><strong>Total Efforts</strong></td>
+                                <td style={{ whiteSpace: 'nowrap' }}>
+                                  <strong>{brdPlan.totalEffortsDisplay || `${brdPlan.totalEffortHours} Hours`}</strong>
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
-              )}
+              </div>
 
               {/* SECTION 07: HOW TO OVERCOME - EXECUTION WORKSTREAMS */}
-              {brdPlan && (
-                <div id="sec-overcome" className="diagnostic-card deepdive-card">
-                  <div className="diagnostic-card-header">
-                    <div className="card-header-text">
-                      <h2 className="diagnostic-card-title">7. How to Overcome - Execution Workstreams</h2>
-                      <span className="diagnostic-card-subtitle">
-                        Prescriptive remediation steps, each traced to the root-cause drivers it fixes
-                      </span>
-                    </div>
+              <div id="sec-overcome" className="diagnostic-card deepdive-card">
+                <div className="diagnostic-card-header">
+                  <div className="card-header-text">
+                    <h2 className="diagnostic-card-title">7. How to Overcome - Execution Workstreams</h2>
+                    <span className="diagnostic-card-subtitle">
+                      Prescriptive remediation steps, each traced to the root-cause drivers it fixes
+                    </span>
                   </div>
+                </div>
 
-                  <div className="diagnostic-card-content">
-                    {/* Execution Workstreams Matrix */}
-                    {brdPlan.executionWorkstreams && brdPlan.executionWorkstreams.length > 0 && (
+                <div className="diagnostic-card-content">
+                  {!isMetricLive || !brdPlan?.executionWorkstreams?.length ? (
+                    <div style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>
+                      <p style={{ margin: 0, fontWeight: 500 }}>Data not yet fetched from Supabase.</p>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Execution Workstreams Matrix */}
                       <div className="brd-spec-table-container">
                         <table className="brd-spec-table">
                           <thead>
@@ -1236,103 +1340,109 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                           </tbody>
                         </table>
                       </div>
-                    )}
 
-                    {/* Target Outcome Banner */}
-                    {brdPlan.targetOutcome && (
-                      <div className="brd-target-outcome-banner">
-                        <span className="brd-target-outcome-label">TARGET OUTCOME</span>
-                        <span className="brd-target-outcome-text">{brdPlan.targetOutcome}</span>
-                      </div>
-                    )}
-                  </div>
+                      {/* Target Outcome Banner */}
+                      {brdPlan.targetOutcome && (
+                        <div className="brd-target-outcome-banner">
+                          <span className="brd-target-outcome-label">TARGET OUTCOME</span>
+                          <span className="brd-target-outcome-text">{brdPlan.targetOutcome}</span>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
-              )}
+              </div>
 
               {/* SECTION 08: SUCCESS CRITERIA, ASSUMPTIONS & RISKS */}
-              {brdPlan && (
-                <div id="sec-criteria" className="diagnostic-card deepdive-card">
-                  <div className="diagnostic-card-header">
-                    <div className="card-header-text">
-                      <h2 className="diagnostic-card-title">8. Success Criteria, Assumptions &amp; Risks</h2>
-                      <span className="diagnostic-card-subtitle">
-                        Measurable verification targets, implementation dependencies, and risk mitigations
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="diagnostic-card-content">
-                    <div className="criteria-risks-split-grid">
-                      {/* Success Criteria & Monitoring */}
-                      {brdPlan.successCriteria && brdPlan.successCriteria.length > 0 && (
-                        <div className="criteria-col">
-                          <div className="brd-section-subheading" style={{ marginTop: '0px' }}>
-                            <span>Success Criteria &amp; Monitoring</span>
-                          </div>
-                          <div className="brd-spec-table-container">
-                            <table className="brd-spec-table">
-                              <thead>
-                                <tr>
-                                  <th style={{ width: '35%' }}>Criterion</th>
-                                  <th style={{ width: '65%' }}>Target</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {brdPlan.successCriteria.map((sc, scIdx) => (
-                                  <tr key={scIdx}>
-                                    <td><strong>{sc.criterion}</strong></td>
-                                    <td>{sc.target}</td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Assumptions & Risks */}
-                      {brdPlan.assumptionsAndRisks && brdPlan.assumptionsAndRisks.length > 0 && (
-                        <div className="risks-col">
-                          <div className="brd-section-subheading" style={{ marginTop: '0px' }}>
-                            <span>Assumptions &amp; Risks</span>
-                          </div>
-                          <div className="brd-spec-table-container">
-                            <table className="brd-spec-table">
-                              <thead>
-                                <tr>
-                                  <th style={{ width: '18%' }}>Type</th>
-                                  <th style={{ width: '47%' }}>Description</th>
-                                  <th style={{ width: '35%' }}>Mitigation</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {brdPlan.assumptionsAndRisks.map((ar, arIdx) => (
-                                  <tr key={arIdx}>
-                                    <td>
-                                      <span className={`pill-badge ${ar.type === 'Risk' ? 'badge-at-risk' : 'badge-healthy'}`}>
-                                        {ar.type}
-                                      </span>
-                                    </td>
-                                    <td>{ar.description}</td>
-                                    <td>{ar.mitigation}</td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Footnote */}
-                    <div className="brd-spec-footnote">
-                      {brdPlan.footnote
-                        ? brdPlan.footnote.replace('Sections 1, 3 and 4', 'Sections 1, 2, 3 and 4').replace('Sections 2 and 5-9', 'Sections 5–8')
-                        : 'Sections 1, 2, 3 and 4 are rendered directly from telemetry, trend analysis, and configuration audit scans. Sections 5–8 are generated under the system prompt; effort and staffing are indicative estimates.'}
-                    </div>
+              <div id="sec-criteria" className="diagnostic-card deepdive-card">
+                <div className="diagnostic-card-header">
+                  <div className="card-header-text">
+                    <h2 className="diagnostic-card-title">8. Success Criteria, Assumptions &amp; Risks</h2>
+                    <span className="diagnostic-card-subtitle">
+                      Measurable verification targets, implementation dependencies, and risk mitigations
+                    </span>
                   </div>
                 </div>
-              )}
+
+                <div className="diagnostic-card-content">
+                  {!isMetricLive || (!brdPlan?.assumptionsAndRisks?.length && !brdPlan?.successCriteria?.length) ? (
+                    <div style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>
+                      <p style={{ margin: 0, fontWeight: 500 }}>Data not yet fetched from Supabase.</p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="criteria-risks-split-grid">
+                        {/* Success Criteria & Monitoring */}
+                        {brdPlan.successCriteria && brdPlan.successCriteria.length > 0 && (
+                          <div className="criteria-col">
+                            <div className="brd-section-subheading" style={{ marginTop: '0px' }}>
+                              <span>Success Criteria &amp; Monitoring</span>
+                            </div>
+                            <div className="brd-spec-table-container">
+                              <table className="brd-spec-table">
+                                <thead>
+                                  <tr>
+                                    <th style={{ width: '35%' }}>Criterion</th>
+                                    <th style={{ width: '65%' }}>Target</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {brdPlan.successCriteria.map((sc, scIdx) => (
+                                    <tr key={scIdx}>
+                                      <td><strong>{sc.criterion}</strong></td>
+                                      <td>{sc.target}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Assumptions & Risks */}
+                        {brdPlan.assumptionsAndRisks && brdPlan.assumptionsAndRisks.length > 0 && (
+                          <div className="risks-col">
+                            <div className="brd-section-subheading" style={{ marginTop: '0px' }}>
+                              <span>Assumptions &amp; Risks</span>
+                            </div>
+                            <div className="brd-spec-table-container">
+                              <table className="brd-spec-table">
+                                <thead>
+                                  <tr>
+                                    <th style={{ width: '18%' }}>Type</th>
+                                    <th style={{ width: '47%' }}>Description</th>
+                                    <th style={{ width: '35%' }}>Mitigation</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {brdPlan.assumptionsAndRisks.map((ar, arIdx) => (
+                                    <tr key={arIdx}>
+                                      <td>
+                                        <span className={`pill-badge ${ar.type === 'Risk' ? 'badge-at-risk' : 'badge-healthy'}`}>
+                                          {ar.type}
+                                        </span>
+                                      </td>
+                                      <td>{ar.description}</td>
+                                      <td>{ar.mitigation}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Footnote */}
+                      <div className="brd-spec-footnote">
+                        {brdPlan.footnote
+                          ? brdPlan.footnote.replace('Sections 1, 3 and 4', 'Sections 1, 2, 3 and 4').replace('Sections 2 and 5-9', 'Sections 5–8')
+                          : 'Sections 1, 2, 3 and 4 are rendered directly from telemetry, trend analysis, and configuration audit scans. Sections 5–8 are generated under the system prompt; effort and staffing are indicative estimates.'}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
 
             </div>
           ) : (

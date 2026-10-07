@@ -1057,6 +1057,17 @@ body {
   background-color: var(--healthy-accent, #10b981);
 }
 
+.badge-neutral {
+  background-color: #f1f5f9;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+  font-weight: 600;
+}
+
+.badge-neutral .badge-dot {
+  background-color: #94a3b8;
+}
+
 /* Metadata Category Tag (Improvement 08) */
 .code-tag {
   font-size: 0.68rem;

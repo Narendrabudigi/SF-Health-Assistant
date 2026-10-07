@@ -89,8 +89,22 @@ export default function ModuleAnalysisView({
     ? module.healthyCount 
     : benchmarks.filter(b => String(b.status || '').toLowerCase().includes('health')).length;
 
-  const executiveSummary = module.aiReport?.summary ||
-    `${displayName} turnaround is critically bottlenecked with key metric variances against benchmark targets. Immediate remediation and process optimization are top priorities.`;
+  const hasLiveMetrics = benchmarks.some(b => 
+    b.isSupabaseLive || 
+    b._source === 'supabase' || 
+    b._source === 'supabase_storage_metric_folder' || 
+    b._source === 'supabase_llm_reports_table'
+  );
+
+  const isModuleNotFetched = !hasLiveMetrics || module.status === 'Not yet fetched' || String(module.status || '').toLowerCase().includes('not yet');
+
+  const executiveSummary = isModuleNotFetched
+    ? (module.aiReport?.summary && !module.aiReport.summary.toLowerCase().includes('critically bottlenecked') ? module.aiReport.summary : 'Data not yet fetched from Supabase.')
+    : (module.aiReport?.summary || `${displayName} diagnostic analysis synthesized from Supabase.`);
+
+  const overlineText = isModuleNotFetched
+    ? 'EXECUTIVE SUMMARY • NOT YET FETCHED'
+    : `EXECUTIVE SUMMARY • ${criticalCount} CRITICAL, ${atRiskCount} AT RISK`;
 
   return (
     <div className="analysis-page-wrapper">
@@ -117,7 +131,7 @@ export default function ModuleAnalysisView({
           </div>
           <div className="exec-summary-content">
             <div className="exec-summary-overline">
-              EXECUTIVE SUMMARY • {criticalCount} CRITICAL, {atRiskCount} AT RISK
+              {overlineText}
             </div>
             <p className="exec-summary-text">{executiveSummary}</p>
           </div>

@@ -8,6 +8,13 @@ const CANONICAL_MODULE_NAMES = {
   ecp: 'Employee Central Payroll'
 };
 
+const getBadgeClass = (status) => {
+  if (status === 'Critical') return 'badge-critical';
+  if (status === 'At Risk') return 'badge-at-risk';
+  if (status === 'Healthy') return 'badge-healthy';
+  return 'badge-neutral';
+};
+
 export default function ModuleRibbon({
   modules,
   activeModuleId,
@@ -93,8 +100,9 @@ export default function ModuleRibbon({
           {activeModule && (
             <div className="ribbon-status-area">
               <span className="ribbon-status-label">Status:</span>
-              <span className={`pill-badge ${activeModule.status === 'Critical' ? 'badge-critical' : activeModule.status === 'Healthy' ? 'badge-healthy' : 'badge-at-risk'}`}>
-                {activeModule.status}
+              <span className={`pill-badge ${getBadgeClass(activeModule.status)}`}>
+                <span className="badge-dot" aria-hidden="true"></span>
+                <span>{activeModule.status}</span>
               </span>
             </div>
           )}

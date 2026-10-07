@@ -293,71 +293,267 @@ class SupabaseStorageService:
                     merged_data["_source"] = "supabase_storage_metric_folder"
                     register_metric_data(mod_dict, m_name, merged_data)
 
-        # Also query Supabase LLM_Reports table to catch live pipeline generations!
+        def get_mod_aliases(mod_raw: str) -> List[str]:
+            mod_k = str(mod_raw or "").lower().strip()
+            k_clean = alphanumeric_key(mod_k)
+            if k_clean in {"rcm", "recruitment", "recruiting"}:
+                return ["rcm", "recruitment", "recruiting"]
+            elif k_clean in {"ec", "employeecentral", "employee_central", "hr"}:
+                return ["ec", "employeecentral", "employee_central", "hr"]
+            elif k_clean in {"onb", "onb2", "onboarding"}:
+                return ["onb", "onb2", "onboarding"]
+            elif k_clean in {"ofb", "ofb2", "offboarding"}:
+                return ["ofb", "ofb2", "offboarding"]
+            elif k_clean in {"ecp", "payroll"}:
+                return ["ecp", "payroll"]
+            return [mod_k, normalize_slug(mod_k), alphanumeric_key(mod_k)]
+
+        def get_mod_dict(mod_raw: str) -> dict:
+            aliases = get_mod_aliases(mod_raw)
+            primary = aliases[0]
+            if primary not in all_overrides:
+                new_dict = {}
+                for a in aliases:
+                    all_overrides[a] = new_dict
+                return new_dict
+            mod_dict = all_overrides[primary]
+            for a in aliases:
+                all_overrides[a] = mod_dict
+            return mod_dict
+
+        # 1. Query ML_Notebook_Insights (with fallback to ml_insights)
         if supabase_client:
-            try:
-                llm_res = supabase_client.table("LLM_Reports").select("*").order("generated_at", desc=True).limit(50).execute()
-                llm_rows = llm_res.data or []
-                for row in llm_rows:
-                    mod_raw = row.get("module") or "rcm"
-                    m_name_raw = row.get("metric_name") or ""
-                    rep_payload = row.get("report") if isinstance(row.get("report"), dict) else {}
-                    
-                    # Merge row metadata with report payload
-                    combined = {**row, **rep_payload}
-                    combined["_source"] = "supabase_llm_reports_table"
-                    combined["_table"] = "LLM_Reports"
-                    
-                    mod_k = mod_raw.lower().strip()
-                    k_clean = alphanumeric_key(mod_k)
-                    if k_clean in {"rcm", "recruitment", "recruiting"}:
-                        mod_aliases = ["rcm", "recruitment", "recruiting"]
-                    elif k_clean in {"ec", "employeecentral", "employee_central"}:
-                        mod_aliases = ["ec", "employeecentral", "employee_central"]
-                    elif k_clean in {"onb", "onb2", "onboarding"}:
-                        mod_aliases = ["onb", "onb2", "onboarding"]
-                    elif k_clean in {"ofb", "ofb2", "offboarding"}:
-                        mod_aliases = ["ofb", "ofb2", "offboarding"]
-                    else:
-                        mod_aliases = [mod_k, normalize_slug(mod_k), alphanumeric_key(mod_k)]
-
-                    mod_dict = all_overrides.get(mod_k, {})
-                    for alias in set(mod_aliases):
-                        if alias:
-                            all_overrides[alias] = mod_dict
-
-                    # Find existing entry (from storage file or earlier row)
-                    current_entry = mod_dict.get(m_name_raw) or mod_dict.get(m_name_raw.lower()) or mod_dict.get(alphanumeric_key(m_name_raw))
-                    if not current_entry:
-                        register_metric_data(mod_dict, m_name_raw, combined)
-                    else:
-                        # CRITICAL: Always preserve and prioritize user-defined moduleOverview!
-                        cur_overview = current_entry.get("moduleOverview") or current_entry.get("module_overview")
-                        comb_overview = combined.get("moduleOverview") or combined.get("module_overview")
+            for tbl_name in ["ML_Notebook_Insights", "ml_insights"]:
+                try:
+                    ml_res = supabase_client.table(tbl_name).select("*").order("created_at", desc=True).limit(50).execute()
+                    ml_rows = ml_res.data or []
+                    if not ml_rows:
+                        continue
+                    logger.info(f"Loaded {len(ml_rows)} rows from Supabase table '{tbl_name}'")
+                    for row in ml_rows:
+                        mod_raw = row.get("Module_Name") or row.get("module") or "EC"
+                        m_name_raw = row.get("Metric_Name") or row.get("metric_name") or ""
+                        if not m_name_raw:
+                            continue
                         
-                        merged_overview = {}
-                        if isinstance(cur_overview, dict):
-                            merged_overview.update(cur_overview)
-                        if isinstance(comb_overview, dict):
+                        jr = row.get("JSON_Result") or row.get("insight_data") or {}
+                        
+                        # Process ML Notebook JSON_Result fields
+                        company_val = jr.get("companyValue")
+                        std_val = jr.get("industryStandardValue")
+                        health_state = jr.get("healthState")
+                        unit_str = str(jr.get("unit") or "").strip()
+                        higher_is_better = jr.get("higherIsBetter", False)
+                        variance_obj = jr.get("variance") or {}
+                        rca_obj = jr.get("rca") or {}
+                        factors_raw = rca_obj.get("factors") or []
+                        data_qual = jr.get("dataQuality") or {}
+                        trend_obj = jr.get("trendAnalysis") or {}
+                        forecast_obj = jr.get("forecast") or {}
+                        missing_cfgs = jr.get("missingConfigurations") or []
+
+                        # Older ml_insights schema fallback (executive_summary)
+                        exec_summ = jr.get("executive_summary") or {}
+                        if company_val is None and exec_summ:
+                            company_val = exec_summ.get("actual_cycle_time") or exec_summ.get("actual_time_to_hire")
+                        if std_val is None and exec_summ:
+                            std_val = exec_summ.get("company_standard") or exec_summ.get("industry_benchmark")
+                        if not health_state and exec_summ:
+                            health_state = exec_summ.get("actual_health_status")
+                        if not variance_obj and exec_summ:
+                            variance_obj = exec_summ.get("prediction_variance")
+
+                        # Format company display value
+                        if company_val is not None:
+                            c_str = str(company_val).strip()
+                            if "%" in unit_str or unit_str.lower() == "percentage":
+                                company_display = f"{c_str}%" if "%" not in c_str else c_str
+                            elif unit_str:
+                                company_display = f"{c_str} {unit_str}" if unit_str not in c_str else c_str
+                            else:
+                                company_display = c_str
+                        else:
+                            company_display = "Not yet fetched"
+
+                        # Format standard display value
+                        if std_val is not None:
+                            s_str = str(std_val).strip()
+                            if "%" in unit_str or unit_str.lower() == "percentage":
+                                std_clean = f"{s_str}%" if "%" not in s_str else s_str
+                            elif unit_str:
+                                std_clean = f"{s_str} {unit_str}" if unit_str not in s_str else s_str
+                            else:
+                                std_clean = s_str
+                            op = "≥" if higher_is_better else "≤"
+                            standard_display = f"{op} {std_clean}" if not std_clean.startswith(('≤', '≥', '<', '>')) else std_clean
+                        else:
+                            standard_display = "Not yet fetched"
+
+                        # Status formatting
+                        h_lower = str(health_state or "").lower()
+                        if "crit" in h_lower:
+                            status_display = "Critical"
+                        elif "risk" in h_lower or "warn" in h_lower or "breach" in h_lower:
+                            status_display = "At Risk"
+                        elif "health" in h_lower or "track" in h_lower or "ok" in h_lower or "good" in h_lower:
+                            status_display = "Healthy"
+                        elif company_val is not None:
+                            status_display = "Healthy"
+                        else:
+                            status_display = "Not yet fetched"
+
+                        # Variance formatting
+                        if isinstance(variance_obj, dict):
+                            v_val = variance_obj.get("value")
+                            v_pct = variance_obj.get("percentage")
+                            if v_val is not None and v_pct is not None:
+                                sign = "+" if float(v_val) > 0 else ""
+                                variance_display = f"{sign}{v_val} ({sign}{v_pct}%)"
+                            elif v_val is not None:
+                                sign = "+" if float(v_val) > 0 else ""
+                                variance_display = f"{sign}{v_val}"
+                            else:
+                                variance_display = "Not yet fetched"
+                        elif variance_obj:
+                            variance_display = str(variance_obj)
+                        else:
+                            variance_display = "Not yet fetched"
+
+                        # Generate root cause and suggestions from factors
+                        factor_summaries = []
+                        suggestions = []
+                        for f in factors_raw:
+                            if isinstance(f, dict):
+                                fname = f.get("factorName") or f.get("name")
+                                fpct = f.get("impactPct")
+                                if fname:
+                                    factor_summaries.append(f"{fname} ({fpct}%)" if fpct else str(fname))
+                                    suggestions.append(f"Remediate and monitor configuration for '{fname}' to reduce diagnostic impact.")
+                        
+                        if factor_summaries:
+                            root_cause_display = f"Primary drivers: {', '.join(factor_summaries[:3])}."
+                        elif exec_summ.get("primary_root_cause"):
+                            root_cause_display = exec_summ.get("primary_root_cause")
+                        elif data_qual.get("recordsAnalysed"):
+                            root_cause_display = f"Evaluated across {data_qual.get('recordsAnalysed')} records (Data Quality: {data_qual.get('overallRating', 'fair')})."
+                        else:
+                            root_cause_display = "Data analyzed from Supabase ML pipeline."
+
+                        trend_summary_text = trend_obj.get("summary") or trend_obj.get("macro_trajectory") or f"Trend direction is {trend_obj.get('direction', 'stable')}."
+                        affected_area_display = f"SuccessFactors {mod_raw} architecture touchpoints ({len(missing_cfgs)} unmapped fields flagged)." if missing_cfgs else f"SuccessFactors {mod_raw} process workflows."
+
+                        parsed_ml_entry = {
+                            **row,
+                            "company": company_display,
+                            "standard": standard_display,
+                            "status": status_display,
+                            "variance": variance_display,
+                            "moduleOverview": {
+                                "rootCause": root_cause_display,
+                                "affectedArea": affected_area_display,
+                                "suggestions": suggestions
+                            },
+                            "detailedAnalysis": {
+                                "whyItHappens": root_cause_display,
+                                "whereItHappens": affected_area_display,
+                                "howToOvercome": suggestions,
+                                "trendAnalysis": {
+                                    "summary": trend_summary_text,
+                                    "points": trend_obj.get("periods") or []
+                                },
+                                "missingConfigurations": missing_cfgs
+                            },
+                            "factors": factors_raw,
+                            "stageDrivers": factors_raw,
+                            "dataQuality": data_qual,
+                            "trendAnalysis": trend_obj,
+                            "forecast": forecast_obj,
+                            "report": {
+                                "metricName": m_name_raw,
+                                "healthState": status_display.lower(),
+                                "factors": factors_raw,
+                                "moduleOverview": {
+                                    "rootCause": root_cause_display,
+                                    "affectedArea": affected_area_display,
+                                    "suggestions": suggestions
+                                },
+                                "diagnosis": {
+                                    "headline": f"{m_name_raw} is {status_display} at {company_display} (Standard: {standard_display}).",
+                                    "narrative": root_cause_display
+                                }
+                            },
+                            "_source": "supabase_ml_notebook_insights_table",
+                            "_table": tbl_name,
+                            "isSupabaseLive": True
+                        }
+
+                        mod_dict = get_mod_dict(mod_raw)
+                        register_metric_data(mod_dict, m_name_raw, parsed_ml_entry)
+                    break
+                except Exception as e:
+                    logger.warning(f"Could not load ML table '{tbl_name}' from Supabase: {e}")
+
+        # 2. Query LLM_Reports_Latest (with fallback to LLM_Reports)
+        if supabase_client:
+            for tbl_name in ["LLM_Reports_Latest", "LLM_Reports"]:
+                try:
+                    llm_res = supabase_client.table(tbl_name).select("*").order("generated_at", desc=True).limit(50).execute()
+                    llm_rows = llm_res.data or []
+                    if not llm_rows:
+                        continue
+                    logger.info(f"Loaded {len(llm_rows)} rows from Supabase table '{tbl_name}'")
+                    for row in llm_rows:
+                        mod_raw = row.get("module") or "rcm"
+                        m_name_raw = row.get("metric_name") or ""
+                        rep_payload = row.get("report") if isinstance(row.get("report"), dict) else {}
+                        
+                        # Merge row metadata with report payload
+                        combined = {**row, **rep_payload}
+                        combined["_source"] = "supabase_llm_reports_table"
+                        combined["_table"] = tbl_name
+                        combined["isSupabaseLive"] = True
+
+                        mod_dict = get_mod_dict(mod_raw)
+
+                        # Find existing entry (from storage file or ML Notebook Insights)
+                        current_entry = mod_dict.get(m_name_raw) or mod_dict.get(m_name_raw.lower()) or mod_dict.get(alphanumeric_key(m_name_raw))
+                        if not current_entry:
+                            register_metric_data(mod_dict, m_name_raw, combined)
+                        else:
+                            # CRITICAL: Intelligently merge LLM plan and ML notebook insights
+                            cur_overview = current_entry.get("moduleOverview") or current_entry.get("module_overview") or {}
+                            comb_overview = combined.get("moduleOverview") or combined.get("module_overview") or {}
+                            
+                            merged_overview = {**cur_overview}
                             for k, v in comb_overview.items():
-                                if v:  # only overwrite if non-empty
+                                if v:
                                     merged_overview[k] = v
 
-                        # Compare timestamps
-                        cur_ts = str(current_entry.get("generated_at") or current_entry.get("updated_at") or "")
-                        new_ts = str(row.get("generated_at") or "")
-                        
-                        if new_ts >= cur_ts:
-                            final_item = {**current_entry, **combined}
-                        else:
-                            final_item = {**combined, **current_entry}
+                            # Compare timestamps
+                            cur_ts = str(current_entry.get("generated_at") or current_entry.get("updated_at") or current_entry.get("created_at") or "")
+                            new_ts = str(row.get("generated_at") or row.get("created_at") or "")
+                            
+                            if new_ts >= cur_ts:
+                                final_item = {**current_entry, **combined}
+                            else:
+                                final_item = {**combined, **current_entry}
 
-                        if merged_overview:
-                            final_item["moduleOverview"] = merged_overview
+                            if merged_overview:
+                                final_item["moduleOverview"] = merged_overview
 
-                        register_metric_data(mod_dict, m_name_raw, final_item)
-            except Exception as e:
-                logger.warning(f"Could not load LLM_Reports from Supabase: {e}")
+                            # Preserve ML factors & data quality if LLM report doesn't contain them
+                            if not final_item.get("factors") and current_entry.get("factors"):
+                                final_item["factors"] = current_entry.get("factors")
+                            if not final_item.get("trendAnalysis") and current_entry.get("trendAnalysis"):
+                                final_item["trendAnalysis"] = current_entry.get("trendAnalysis")
+                            if not final_item.get("dataQuality") and current_entry.get("dataQuality"):
+                                final_item["dataQuality"] = current_entry.get("dataQuality")
+
+                            final_item["isSupabaseLive"] = True
+                            register_metric_data(mod_dict, m_name_raw, final_item)
+                    break
+                except Exception as e:
+                    logger.warning(f"Could not load LLM table '{tbl_name}' from Supabase: {e}")
 
         # Store in cache
         self._set_cache(cache_key, all_overrides)

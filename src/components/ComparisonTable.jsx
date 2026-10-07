@@ -4,10 +4,10 @@ const normalizeStatus = (status, variance = '') => {
   const s = String(status || '').toLowerCase().trim();
   const v = String(variance || '').toLowerCase().trim();
   
+  if (s.includes('not yet') || s === '--' || s === 'pending') return 'Not yet fetched';
   if (s.includes('crit')) return 'Critical';
   if (s.includes('risk') || s.includes('warn') || s.includes('succeed')) return 'At Risk';
   
-  // A metric is only Healthy if it explicitly contains 'on target' or variance is 0, AND not marked with a breach +/-
   const hasBreach = (v.includes('+') || v.includes('-')) && !v.includes('on target');
   if (hasBreach) {
     return 'At Risk';
@@ -16,14 +16,14 @@ const normalizeStatus = (status, variance = '') => {
   if (s.includes('health') || v.includes('on target') || v === '0%' || v === '0') {
     return 'Healthy';
   }
-  return 'At Risk';
+  return 'Not yet fetched';
 };
 
 const getBadgeClass = (status) => {
   if (status === 'Critical') return 'badge-critical';
   if (status === 'At Risk') return 'badge-at-risk';
   if (status === 'Healthy') return 'badge-healthy';
-  return 'badge-at-risk';
+  return 'badge-neutral';
 };
 
 export default function ComparisonTable({ 
@@ -188,8 +188,8 @@ export default function ComparisonTable({
                             Supabase Live
                           </span>
                         ) : (
-                          <span className="source-chip source-chip-static" title="Data not yet fetched from Supabase — showing standard enterprise baseline">
-                            Baseline
+                          <span className="source-chip source-chip-static" title="Data not yet fetched from Supabase">
+                            Not yet fetched
                           </span>
                         )}
                       </div>

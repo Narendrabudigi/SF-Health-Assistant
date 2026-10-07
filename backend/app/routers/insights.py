@@ -4,6 +4,37 @@ from app.db.supabase_client import supabase_storage
 
 router = APIRouter()
 
+
+@router.get("/user-tables")
+def get_user_tables():
+    from app.db.supabase_client import supabase_client
+    if not supabase_client:
+        return {"error": "supabase_client not active"}
+    res = {}
+    for tbl in ["LLM_Reports_Latest", "ML_Notebook_Insights"]:
+        try:
+            q = supabase_client.table(tbl).select("*").order("created_at" if tbl == "ML_Notebook_Insights" else "generated_at", desc=True).limit(50).execute()
+            rows_summary = []
+            for r in (q.data or []):
+                mod = r.get("Module_Name") or r.get("module") or r.get("Module")
+                metric = r.get("Metric_Name") or r.get("metric_name") or r.get("MetricName")
+                jr = r.get("JSON_Result") or r.get("report") or {}
+                rows_summary.append({
+                    "id": r.get("execution_id") or r.get("id"),
+                    "module": mod,
+                    "metric": metric,
+                    "health": jr.get("healthState") or jr.get("health_state") or r.get("status"),
+                    "companyValue": jr.get("companyValue") or jr.get("company_value"),
+                    "standardValue": jr.get("industryStandardValue") or jr.get("standard")
+                })
+            res[tbl] = {
+                "total": len(q.data or []),
+                "summary": rows_summary
+            }
+        except Exception as e:
+            res[tbl] = {"error": str(e)}
+    return res
+
 @router.get("/status")
 def get_supabase_storage_status():
     """
@@ -73,3 +104,90 @@ def preview_metric_supabase_data(
         "module": module,
         "data": data
     }
+
+@router.get("/all-llm-reports")
+def list_all_llm_reports():
+    """
+    List all reports currently stored in the Supabase LLM_Reports table.
+    """
+    from app.db.supabase_client import supabase_client
+    if not supabase_client:
+        return {"error": "Supabase client not initialized", "reports": []}
+    try:
+        res = supabase_client.table("LLM_Reports").select("id,module,metric_name,status,generated_at,report").order("generated_at", desc=True).limit(50).execute()
+        return {"count": len(res.data or []), "reports": res.data or []}
+    except Exception as e:
+        return {"error": str(e), "reports": []}
+
+@router.get("/debug-all")
+def debug_all_supabase():
+    """
+    Explore all buckets, tables, and files in Supabase to see what is currently in Supabase.
+    """
+    from app.db.supabase_client import supabase_client
+    if not supabase_client:
+        return {"error": "Supabase client not initialized"}
+    
+    result = {"buckets": [], "tables": {}}
+    try:
+        buckets = supabase_client.storage.list_buckets()
+        for b in buckets:
+            b_name = b.name if hasattr(b, "name") else (b.get("name") if isinstance(b, dict) else str(b))
+            files = []
+            try:
+                raw_files = supabase_client.storage.from_(b_name).list()
+                files = [f.get("name") for f in raw_files if isinstance(f, dict)]
+            except Exception as fe:
+                files = [f"Error listing: {fe}"]
+            result["buckets"].append({"name": b_name, "files": files})
+    except Exception as be:
+        result["buckets_error"] = str(be)
+
+    # List detailed storage contents for Insights and Reports
+    try:
+        detailed_files = {}
+        for b in ["Insights and Reports", "SF_Health_Raw_Data"]:
+            try:
+                tree = {}
+                root_items = supabase_client.storage.from_(b).list()
+                for item in (root_items or []):
+                    iname = item.get("name") if isinstance(item, dict) else str(item)
+                    if iname and not iname.startswith("."):
+                        try:
+                            sub_items = supabase_client.storage.from_(b).list(iname)
+                            tree[iname] = [s.get("name") for s in (sub_items or []) if isinstance(s, dict)]
+                            # If sub_item has folders, list one more level
+                            for sub in (sub_items or []):
+                                sname = sub.get("name")
+                                if sname and not sname.endswith(".json") and not sname.endswith(".xlsx"):
+                                    try:
+                                        sub2 = supabase_client.storage.from_(b).list(f"{iname}/{sname}")
+                                        tree[f"{iname}/{sname}"] = [s2.get("name") for s2 in (sub2 or []) if isinstance(s2, dict)]
+                                    except Exception:
+                                        pass
+                        except Exception as se:
+                            tree[iname] = str(se)
+                detailed_files[b] = tree
+            except Exception as be:
+                detailed_files[b] = str(be)
+        result["storage_tree"] = detailed_files
+    except Exception as te:
+        result["storage_tree_error"] = str(te)
+
+    # Check tables
+    candidate_tables = [
+        "LLM_Reports_Latest", "llm_reports_latest",
+        "ML_Notebook_Insights", "ml_notebook_insights",
+        "LLM_Reports", "ml_insights", "benchmarks"
+    ]
+    for table_name in candidate_tables:
+        try:
+            res = supabase_client.table(table_name).select("*").limit(10).execute()
+            if res.data:
+                result["tables"][table_name] = res.data
+        except Exception as e:
+            result["tables"][f"{table_name}_error"] = str(e)
+
+    return result
+
+
