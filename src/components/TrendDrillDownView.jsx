@@ -3,6 +3,16 @@ import { getTrendDrillDownData } from '../utils/trendDrillDownData';
 
 export default function TrendDrillDownView({ metric }) {
   const metricName = metric?.metric;
+  const isUnfetched = !metric?.isSupabaseLive || metric?.company === 'Not yet fetched' || metric?.company === 'Data not yet fetched from Supabase';
+
+  if (isUnfetched) {
+    return (
+      <div style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>
+        <p style={{ margin: 0, fontWeight: 500 }}>Data not yet fetched from Supabase.</p>
+      </div>
+    );
+  }
+
   const trendData = useMemo(() => getTrendDrillDownData(metric), [metricName]);
 
   const currentYearId = useMemo(() => {

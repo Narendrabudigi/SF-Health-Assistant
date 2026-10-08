@@ -260,22 +260,24 @@ export async function generateMetricBrdPdf(metric, options = {}) {
           </div>
         </div>
         <div class="diagnostic-card-content">
+          ${(options.diagnosisHeadline || detailedAnalysis.headline) ? `
+            <div style="margin-bottom: 12px; padding: 10px 14px; background: rgba(239, 68, 68, 0.08); border-left: 4px solid #ef4444; border-radius: 6px; font-weight: 600; font-size: 11.5px; color: #1e293b;">
+              🚨 ${options.diagnosisHeadline || detailedAnalysis.headline}
+            </div>
+          ` : ''}
           ${(options.whyItHappensText || detailedAnalysis.whyItHappens) ? `
             <div style="margin-bottom: 12px;">
               <div style="font-weight: 700; color: #1e293b; margin-bottom: 4px;">🔍 Why It is Happening (Root Cause):</div>
-              <p class="analysis-text" style="margin-top: 0;">${options.whyItHappensText || detailedAnalysis.whyItHappens}</p>
+              <p class="analysis-text" style="margin-top: 0; line-height: 1.6;">${options.whyItHappensText || detailedAnalysis.whyItHappens}</p>
             </div>
           ` : ''}
+          ${(options.whereItHappensText && options.whereItHappensText !== 'SuccessFactors workflow touchpoints' && options.whereItHappensText !== options.whyItHappensText && options.whereItHappensText !== 'Data not yet fetched from Supabase') ? `
           <div class="footprint-box">
             <div class="footprint-header">
-              <strong>Impacted Architecture Touchpoints:</strong> ${options.whereItHappensText || detailedAnalysis.whereItHappens || ''}
+              <strong>Impacted Architecture Touchpoints:</strong> ${options.whereItHappensText}
             </div>
-            ${systemTouchpoints && systemTouchpoints.length > 0 ? `
-              <div class="footprint-chips">
-                ${systemTouchpoints.map(tp => `<span class="footprint-chip chip-${tp.type}">${tp.label}</span>`).join('')}
-              </div>
-            ` : ''}
           </div>
+          ` : ''}
           ${((options.howToOvercomeList && options.howToOvercomeList.length > 0) || (detailedAnalysis.howToOvercome && detailedAnalysis.howToOvercome.length > 0)) ? `
             <div class="footprint-box" style="margin-top: 12px;">
               <div class="footprint-header" style="margin-bottom: 6px;">

@@ -90,7 +90,8 @@ def get_metric_deep_dive(
         is_live_supabase = False
 
     # Extract TreeSHAP factors and execution workstreams from Supabase JSON if available
-    rep = supabase_data.get("report") if isinstance(supabase_data.get("report"), dict) else supabase_data
+    rep_nested = supabase_data.get("report") if isinstance(supabase_data.get("report"), dict) else {}
+    rep = {**rep_nested, **supabase_data}
     factors_raw = rep.get("factors") or []
     stage_drivers = []
     segment_drivers = []
@@ -120,13 +121,14 @@ def get_metric_deep_dive(
     if not shap_factors:
         shap_factors = supabase_data.get("shapFactors") or supabase_data.get("shap_factors") or rep.get("shapFactors") or rep.get("shap_factors") or []
 
+    # Prioritize top-level plan (e.g. 114 hours, 6 weeks) from Supabase over nested report plan
     raw_plan = (
-        rep.get("plan") or
-        rep.get("brdPlan") or
-        rep.get("brd_plan") or
         supabase_data.get("plan") or
         supabase_data.get("brdPlan") or
         supabase_data.get("brd_plan") or
+        rep_nested.get("plan") or
+        rep_nested.get("brdPlan") or
+        rep_nested.get("brd_plan") or
         {}
     )
     
@@ -174,18 +176,24 @@ def get_metric_deep_dive(
     effort_str = f"{tot_hours} Total Hours" if (isinstance(tot_hours, (int, float)) and tot_hours > 0) else (str(tot_hours) if tot_hours else "Not yet fetched")
 
     # 3. Execution workstreams
-    raw_ws = rep.get("workstreams") or supabase_data.get("workstreams") or raw_plan.get("executionWorkstreams") or []
+    raw_ws = supabase_data.get("workstreams") or rep.get("workstreams") or raw_plan.get("executionWorkstreams") or []
     execution_workstreams = []
+    ws_steps = []
     if isinstance(raw_ws, list) and raw_ws:
         for i, ws in enumerate(raw_ws):
             fixes = ws.get("fixesFactors") or ws.get("fixesDrivers") or "Governance SLA"
             if isinstance(fixes, list):
                 fixes = ", ".join(fixes) if fixes else "Operational SLA"
+            step_text = ws.get("step") or ws.get("remediationStep") or ws.get("title") or ""
             execution_workstreams.append({
                 "id": ws.get("id") or f"W{i + 1}",
-                "remediationStep": ws.get("step") or ws.get("remediationStep") or "",
+                "remediationStep": step_text,
                 "fixesDrivers": str(fixes)
             })
+            if step_text and ws.get("kind") != "data":
+                ws_steps.append(step_text)
+        if not ws_steps:
+            ws_steps = [ws.get("remediationStep") for ws in execution_workstreams if ws.get("remediationStep")]
     elif is_live_supabase:
         for p in raw_phases:
             for a in p.get("activities", []):
@@ -216,7 +224,7 @@ def get_metric_deep_dive(
         raw_plan.get("targetOutcome") or
         (module_overview.get("rootCause") if isinstance(module_overview, dict) and module_overview.get("rootCause") != "Data not yet fetched from Supabase" else "") or
         (rep.get("diagnosis", {}).get("headline") if isinstance(rep.get("diagnosis"), dict) else "") or
-        ("Data not yet fetched from Supabase" if not is_live_supabase else "Achieve standard compliance across all process stages.")
+        "Data not yet fetched from Supabase"
     )
 
     formatted_stage_drivers = [
@@ -241,8 +249,27 @@ def get_metric_deep_dive(
         for i, seg in enumerate(segment_drivers)
     ]
 
+    biz_impact = (
+        rep.get("businessImpact") or
+        supabase_data.get("businessImpact") or
+        rep.get("business_impact") or
+        supabase_data.get("business_impact") or
+        detailed_analysis.get("businessImpact") or
+        {}
+    )
+    business_impact_obj = {
+        "overview": biz_impact.get("overview") or detailed_analysis.get("howItEffects", ""),
+        "financialExposure": biz_impact.get("financialExposure") or biz_impact.get("financial_exposure", ""),
+        "slaAndTurnaround": biz_impact.get("slaAndTurnaround") or biz_impact.get("sla_and_turnaround", ""),
+        "governanceAndAudit": biz_impact.get("governanceAndAudit") or biz_impact.get("governance_and_audit", "")
+    }
+    detailed_analysis["businessImpact"] = business_impact_obj
+    if business_impact_obj.get("overview"):
+        detailed_analysis["howItEffects"] = business_impact_obj["overview"]
+
     normalized_brd = {
         **raw_plan,
+        "phases": raw_phases,
         "specialistManpower": specialist_manpower,
         "phasedActivities": phased_activities,
         "executionWorkstreams": execution_workstreams,
@@ -260,6 +287,30 @@ def get_metric_deep_dive(
         "targetOutcome": target_outcome
     }
 
+    raw_diag = rep.get("diagnosis") or supabase_data.get("diagnosis") or {}
+    diagnosis_obj = {
+        "headline": raw_diag.get("headline", ""),
+        "narrative": raw_diag.get("narrative", "")
+    } if isinstance(raw_diag, dict) else {}
+
+    if diagnosis_obj.get("narrative"):
+        detailed_analysis["whyItHappens"] = diagnosis_obj["narrative"]
+    if diagnosis_obj.get("headline"):
+        detailed_analysis["headline"] = diagnosis_obj["headline"]
+
+    raw_suggestions = (
+        (ws_steps if ws_steps and len(ws_steps) > 0 else None) or
+        (supabase_data.get("suggestions") if isinstance(supabase_data.get("suggestions"), list) and len(supabase_data["suggestions"]) > 0 else None) or
+        (rep_nested.get("suggestions") if isinstance(rep_nested.get("suggestions"), list) and len(rep_nested["suggestions"]) > 0 else None) or
+        (raw_diag.get("suggestions") if isinstance(raw_diag.get("suggestions"), list) and len(raw_diag["suggestions"]) > 0 else None) or
+        module_overview.get("suggestions") or
+        detailed_analysis.get("howToOvercome") or
+        []
+    )
+    if raw_suggestions:
+        module_overview["suggestions"] = raw_suggestions
+        detailed_analysis["howToOvercome"] = raw_suggestions
+
     return {
         "metric": {
             "metric": metric_title,
@@ -270,9 +321,15 @@ def get_metric_deep_dive(
             "status": status_val,
             "variance": str(variance_val),
             "moduleOverview": module_overview,
-            "detailedAnalysis": detailed_analysis
+            "detailedAnalysis": detailed_analysis,
+            "diagnosis": diagnosis_obj,
+            "suggestions": raw_suggestions,
+            "businessImpact": business_impact_obj
         },
+        "diagnosis": diagnosis_obj,
+        "suggestions": raw_suggestions,
         "moduleOverview": module_overview,
+        "businessImpact": business_impact_obj,
         "stageDrivers": formatted_stage_drivers,
         "segmentDrivers": formatted_segment_drivers,
         "shapFactors": shap_factors,
@@ -283,4 +340,5 @@ def get_metric_deep_dive(
         "module": supabase_data.get("_module", target_module),
         "filesLoaded": supabase_data.get("_files_loaded", [])
     }
+
 

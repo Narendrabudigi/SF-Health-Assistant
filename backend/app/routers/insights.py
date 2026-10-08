@@ -1,3 +1,4 @@
+import json
 from fastapi import APIRouter, HTTPException, Query
 from typing import Dict, Any, Optional
 from app.db.supabase_client import supabase_storage
@@ -29,11 +30,16 @@ def get_user_tables():
                 })
             res[tbl] = {
                 "total": len(q.data or []),
+                "keys": list((q.data[0] if q.data else {}).keys()),
+                "first_row_sample": {k: (v if k != "report" and k != "JSON_Result" else list((v or {}).keys())) for k, v in (q.data[0] if q.data else {}).items()},
                 "summary": rows_summary
             }
         except Exception as e:
             res[tbl] = {"error": str(e)}
     return res
+
+
+
 
 @router.get("/status")
 def get_supabase_storage_status():

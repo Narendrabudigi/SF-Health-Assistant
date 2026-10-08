@@ -18,6 +18,9 @@ const CATALOG_SECTIONS = [
 
 // Module-specific technical mapping for Architecture Touchpoints, RCA Failure Modes & Missing Configurations
 function getModuleMapping(moduleId, metricName = '') {
+  return { touchpoints: [], missingConfigs: [], rca: [] };
+}
+function _unused_old_getModuleMapping(moduleId, metricName = '') {
   const normName = (metricName || '').toLowerCase();
 
   switch (moduleId) {
@@ -361,6 +364,7 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
 
   useEffect(() => {
     let active = true;
+    setLiveInsight(null);
     const metricCode = currentMetric.code || currentMetric.metric;
     if (metricCode) {
       apiService.getMetricDeepDive(metricCode, currentMetric.metric, module?.id)
@@ -382,14 +386,19 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
   const detailedAnalysis = liveInsight?.metric?.detailedAnalysis || baseDetailedAnalysis;
 
   const isMetricLive = Boolean(
+    liveInsight?.source === 'supabase_storage' ||
     liveInsight?.source === 'supabase_storage_metric_folder' ||
     liveInsight?.source === 'supabase_llm_reports_table' ||
     liveInsight?.source === 'supabase_ml_notebook_insights_table' ||
     liveInsight?.source === 'supabase_table' ||
     liveInsight?.source === 'supabase' ||
+    liveInsight?.source?.startsWith?.('supabase') ||
     liveInsight?.storagePath ||
     liveInsight?.metric?.isSupabaseLive ||
+    Boolean(liveInsight?.diagnosis?.narrative) ||
+    Boolean(liveInsight?.metric?.diagnosis?.narrative) ||
     currentMetric?.isSupabaseLive ||
+    currentMetric?._source === 'supabase_storage' ||
     currentMetric?._source === 'supabase_storage_metric_folder' ||
     currentMetric?._source === 'supabase_llm_reports_table' ||
     currentMetric?._source === 'supabase_ml_notebook_insights_table' ||
@@ -409,18 +418,39 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
 
   const company = isMetricLive ? cleanVal(rawCompany) : 'Not yet fetched';
   const standard = isMetricLive ? cleanVal(rawStandard) : 'Not yet fetched';
-  const status = isMetricLive ? (rawStatus && rawStatus !== 'Not yet fetched' ? rawStatus : 'At Risk') : 'Not yet fetched';
+  const status = isMetricLive ? (rawStatus && rawStatus !== 'Not yet fetched' ? rawStatus : 'Not yet fetched') : 'Not yet fetched';
   const variance = isMetricLive ? cleanVal(rawVariance) : 'Not yet fetched';
 
   const overviewData = isMetricLive
     ? (liveInsight?.moduleOverview || liveInsight?.metric?.moduleOverview || currentMetric?.moduleOverview || {})
     : { rootCause: 'Data not yet fetched from Supabase', affectedArea: 'Data not yet fetched from Supabase', suggestions: [] };
 
-  const whyItHappensText = isMetricLive ? (overviewData.rootCause || detailedAnalysis?.whyItHappens || 'Diagnostic variance detected against benchmark standard.') : 'Data not yet fetched from Supabase';
-  const whereItHappensText = isMetricLive ? (overviewData.affectedArea || detailedAnalysis?.whereItHappens || 'SuccessFactors workflow touchpoints') : 'Data not yet fetched from Supabase';
+  const diagnosisData = isMetricLive
+    ? (liveInsight?.diagnosis || liveInsight?.metric?.diagnosis || currentMetric?.diagnosis || {})
+    : {};
+  const diagnosisHeadline = diagnosisData?.headline || detailedAnalysis?.headline || '';
+  const diagnosisNarrative = diagnosisData?.narrative || (detailedAnalysis?.whyItHappens !== 'Data not yet fetched from Supabase' ? detailedAnalysis?.whyItHappens : '') || (overviewData.rootCause !== 'Data not yet fetched from Supabase' ? overviewData.rootCause : '') || (isMetricLive ? '' : 'Data not yet fetched from Supabase');
+
+  const whyItHappensText = diagnosisNarrative || (isMetricLive ? '' : 'Data not yet fetched from Supabase');
+  const whereItHappensText = (overviewData.affectedArea !== 'Data not yet fetched from Supabase' ? overviewData.affectedArea : '') || (detailedAnalysis?.whereItHappens !== 'Data not yet fetched from Supabase' ? detailedAnalysis?.whereItHappens : '') || (isMetricLive ? '' : 'Data not yet fetched from Supabase');
+
+  const businessImpactData = isMetricLive
+    ? (liveInsight?.businessImpact || liveInsight?.metric?.businessImpact || detailedAnalysis?.businessImpact || currentMetric?.businessImpact || {})
+    : {};
+  const businessImpactOverview = businessImpactData?.overview || detailedAnalysis?.howItEffects || '';
+  const financialExposure = businessImpactData?.financialExposure || '';
+  const slaAndTurnaround = businessImpactData?.slaAndTurnaround || '';
+  const governanceAndAudit = businessImpactData?.governanceAndAudit || '';
 
   const rawOvercome = isMetricLive
-    ? ((overviewData.suggestions && overviewData.suggestions.length > 0) ? overviewData.suggestions : detailedAnalysis?.howToOvercome)
+    ? (
+        (Array.isArray(liveInsight?.suggestions) && liveInsight.suggestions.length > 0 ? liveInsight.suggestions : null) ||
+        (Array.isArray(liveInsight?.metric?.suggestions) && liveInsight.metric.suggestions.length > 0 ? liveInsight.metric.suggestions : null) ||
+        (Array.isArray(diagnosisData?.suggestions) && diagnosisData.suggestions.length > 0 ? diagnosisData.suggestions : null) ||
+        (Array.isArray(detailedAnalysis?.howToOvercome) && detailedAnalysis.howToOvercome.length > 0 ? detailedAnalysis.howToOvercome : null) ||
+        (Array.isArray(overviewData?.suggestions) && overviewData.suggestions.length > 0 ? overviewData.suggestions : null) ||
+        []
+      )
     : [];
   const howToOvercomeList = Array.isArray(rawOvercome) ? rawOvercome : (typeof rawOvercome === 'string' ? [rawOvercome] : (rawOvercome ? [rawOvercome] : []));
 
@@ -440,6 +470,7 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
     if (!isMetricLive && !liveInsight) {
       return {
         specialistManpower: [],
+        workforceRequired: [],
         phasedActivities: [],
         executionWorkstreams: [],
         stageDrivers: [],
@@ -454,61 +485,100 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
       };
     }
 
-    const base = getBrdPlan(currentMetric);
-    if (!liveInsight) return base;
+    const liveBrd = liveInsight?.brdPlan || liveInsight?.plan || currentMetric?.brdPlan || currentMetric?.plan || {};
 
-    const liveBrd = liveInsight.brdPlan || {};
-
-    const specialistManpower = (Array.isArray(liveBrd.specialistManpower) && liveBrd.specialistManpower.length > 0)
-      ? liveBrd.specialistManpower
-      : (isMetricLive ? base.specialistManpower : []);
-
-    const phasedActivities = (Array.isArray(liveBrd.phasedActivities) && liveBrd.phasedActivities.length > 0)
+    // 1. Phased Activities: Map live phases if raw phases exist from Supabase JSON
+    const rawLivePhases = (Array.isArray(liveBrd.phasedActivities) && liveBrd.phasedActivities.length > 0)
       ? liveBrd.phasedActivities
-      : (isMetricLive ? base.phasedActivities : []);
+      : (Array.isArray(liveBrd.phases) && liveBrd.phases.length > 0)
+        ? liveBrd.phases.map((p, idx) => ({
+            phaseName: p.title || p.phaseName || p.phase || `Phase ${idx + 1}`,
+            milestone: p.milestone || '',
+            deliverable: p.deliverable || '',
+            activities: (p.activities || []).map((a) => ({
+              activity: a.activity || a.title || '',
+              owner: a.role || a.owner || 'Specialist',
+              workstream: a.workstream || '-',
+              effort: (typeof a.hours === 'number' || typeof a.effort === 'number')
+                ? `${a.hours || a.effort} Hours`
+                : (a.hours || a.effort || '-')
+            }))
+          }))
+        : [];
+
+    const phasedActivities = rawLivePhases;
+
+    // 2. Specialist Manpower: Map live roles if raw roles exist from Supabase JSON
+    const rawLiveSpecialists = (Array.isArray(liveBrd.specialistManpower) && liveBrd.specialistManpower.length > 0)
+      ? liveBrd.specialistManpower
+      : (Array.isArray(liveBrd.roles) && liveBrd.roles.length > 0)
+        ? liveBrd.roles.map((r) => ({
+            role: r.role || 'Specialist Consultant',
+            headcount: r.headcount || 1,
+            effort: (typeof r.hours === 'number' || typeof r.effort === 'number')
+              ? `${r.hours || r.effort} Person-Hours`
+              : (r.hours || r.effort || 'Not yet fetched')
+          }))
+        : [];
+
+    const specialistManpower = rawLiveSpecialists;
 
     const executionWorkstreams = (Array.isArray(liveBrd.executionWorkstreams) && liveBrd.executionWorkstreams.length > 0)
       ? liveBrd.executionWorkstreams
-      : (isMetricLive ? base.executionWorkstreams : []);
+      : (Array.isArray(liveInsight?.workstreams) && liveInsight.workstreams.length > 0
+        ? liveInsight.workstreams.map((ws, i) => ({
+            id: ws.id || `W${i + 1}`,
+            remediationStep: ws.remediationStep || ws.step || ws.title || '',
+            fixesDrivers: Array.isArray(ws.fixesDrivers) ? ws.fixesDrivers.join(', ') : (ws.fixesDrivers || ws.fixesFactors || '')
+          }))
+        : []);
 
-    const stageDrivers = (Array.isArray(liveInsight.stageDrivers) && liveInsight.stageDrivers.length > 0)
+    const stageDrivers = (Array.isArray(liveInsight?.stageDrivers) && liveInsight.stageDrivers.length > 0)
       ? liveInsight.stageDrivers.map((sd, i) => ({
           id: sd.id || `S${i + 1}`,
           driver: sd.stage || sd.driver || sd.name || `Stage ${i + 1}`,
           avgDays: sd.avgDays || sd.days || (sd.breachContribution ? `${sd.breachContribution}%` : '-'),
           share: sd.share || (sd.breachContribution ? `${sd.breachContribution}%` : '-')
         }))
-      : (isMetricLive ? base.stageDrivers : []);
+      : (Array.isArray(liveBrd.stageDrivers) ? liveBrd.stageDrivers : []);
 
-    const segmentDrivers = (Array.isArray(liveInsight.segmentDrivers) && liveInsight.segmentDrivers.length > 0)
+    const segmentDrivers = (Array.isArray(liveInsight?.segmentDrivers) && liveInsight.segmentDrivers.length > 0)
       ? liveInsight.segmentDrivers.map((seg, i) => ({
           id: seg.id || `A${i + 1}`,
           driver: seg.segment || seg.driver || seg.name || `Segment ${i + 1}`,
           avgDays: seg.actual || seg.avgDays || '-',
           vsCompany: seg.vsCompany || seg.gap || (seg.target ? `Target: ${seg.target}` : '-')
         }))
-      : (isMetricLive ? base.segmentDrivers : []);
+      : (Array.isArray(liveBrd.segmentDrivers) ? liveBrd.segmentDrivers : []);
 
     const assumptionsAndRisks = (Array.isArray(liveBrd.assumptionsAndRisks) && liveBrd.assumptionsAndRisks.length > 0)
       ? liveBrd.assumptionsAndRisks
-      : (Array.isArray(liveInsight.assumptionsAndRisks) && liveInsight.assumptionsAndRisks.length > 0)
+      : (Array.isArray(liveInsight?.assumptionsAndRisks) && liveInsight.assumptionsAndRisks.length > 0
         ? liveInsight.assumptionsAndRisks
-        : (isMetricLive ? base.assumptionsAndRisks || [] : []);
+        : []);
 
     const successCriteria = (Array.isArray(liveBrd.successCriteria) && liveBrd.successCriteria.length > 0)
       ? liveBrd.successCriteria
-      : (Array.isArray(liveInsight.successCriteria) && liveInsight.successCriteria.length > 0)
+      : (Array.isArray(liveInsight?.successCriteria) && liveInsight.successCriteria.length > 0
         ? liveInsight.successCriteria
-        : (isMetricLive ? base.successCriteria || [] : []);
+        : []);
 
-    const targetOutcome = liveBrd.targetOutcome || liveInsight.targetOutcome || whyItHappensText || base.targetOutcome;
-    const timeline = liveBrd.timeline || liveBrd.timelineAndEffort?.timeline || (isMetricLive ? base.timeline : 'Not yet fetched');
-    const totalEffortHours = liveBrd.totalEffortHours || (isMetricLive ? base.totalEffortHours : 0);
-    const totalEffortsDisplay = liveBrd.totalEffortsDisplay || (isMetricLive ? `${totalEffortHours} Total Hours` : 'Not yet fetched');
+    let totalEffortHours = liveBrd.totalEffortHours || liveBrd.totalHours || 0;
+    if (!totalEffortHours && rawLiveSpecialists.length > 0) {
+      const calc = rawLiveSpecialists.reduce((sum, r) => {
+        const h = parseInt(r.effort || 0, 10);
+        return sum + (isNaN(h) ? 0 : h);
+      }, 0);
+      if (calc > 0) totalEffortHours = calc;
+    }
+
+    const durationWeeks = liveBrd.durationWeeks || liveBrd.timelineWeeks;
+    const timeline = liveBrd.timeline || (durationWeeks ? `${durationWeeks} Weeks` : 'Not yet fetched');
+    const totalEffortsDisplay = liveBrd.totalEffortsDisplay || (totalEffortHours ? `${totalEffortHours} Total Hours` : 'Not yet fetched');
     const timelineAndEffort = liveBrd.timelineAndEffort || { timeline, totalEffort: totalEffortsDisplay };
+    const targetOutcome = liveBrd.targetOutcome || liveInsight?.targetOutcome || (isMetricLive && whyItHappensText && whyItHappensText !== 'Data not yet fetched from Supabase' ? whyItHappensText : 'Data not yet fetched from Supabase');
 
     return {
-      ...base,
       ...liveBrd,
       specialistManpower,
       phasedActivities,
@@ -523,23 +593,56 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
       timelineAndEffort,
       targetOutcome
     };
-  }, [currentMetric, liveInsight, whyItHappensText]);
+  }, [currentMetric, liveInsight, whyItHappensText, isMetricLive]);
 
   // Dynamic module mapping for architecture touchpoints & RCA failure modes
   const moduleMapping = useMemo(() => (isMetricLive ? getModuleMapping(module?.id, metricName) : { touchpoints: [], missingConfigs: [], rca: [] }), [module?.id, metricName, isMetricLive]);
-  const systemTouchpoints = moduleMapping.touchpoints;
-  const rcaFailureModes = isMetricLive ? moduleMapping.rca : [];
+  const systemTouchpoints = (liveInsight?.touchpoints && liveInsight.touchpoints.length > 0)
+    ? liveInsight.touchpoints
+    : (liveInsight?.report?.touchpoints || []);
+  const rcaFailureModes = (liveInsight?.rca && liveInsight.rca.length > 0)
+    ? liveInsight.rca
+    : (liveInsight?.report?.rca || []);
   const missingConfigs = (liveInsight?.missingConfigurations && liveInsight.missingConfigurations.length > 0)
     ? liveInsight.missingConfigurations
     : ((detailedAnalysis?.missingConfigurations && detailedAnalysis.missingConfigurations.length > 0)
       ? detailedAnalysis.missingConfigurations
-      : (isMetricLive ? moduleMapping.missingConfigs : []));
+      : []);
 
   const rcaPriorityLabels = useMemo(() => [
     'P1 • Critical Architecture Gap',
     'P2 • Operational Workflow Latency',
     'P3 • Integration & Sync Reliability'
   ], []);
+
+  const unifiedRcaDrivers = useMemo(() => {
+    const list = [];
+    (brdPlan?.stageDrivers || []).forEach((sd, idx) => {
+      list.push({
+        id: sd.id || `S${idx + 1}`,
+        driver: sd.driver || sd.name || `Stage ${idx + 1}`,
+        type: 'Stage Driver',
+        typeBadgeBg: '#eff6ff',
+        typeBadgeColor: '#0369a1',
+        typeBadgeBorder: '#bae6fd',
+        impact: sd.avgDays || '-',
+        share: sd.share || '-'
+      });
+    });
+    (brdPlan?.segmentDrivers || []).forEach((seg, idx) => {
+      list.push({
+        id: seg.id || `A${idx + 1}`,
+        driver: seg.driver || seg.name || `Segment ${idx + 1}`,
+        type: 'Segment Driver',
+        typeBadgeBg: '#f0fdf4',
+        typeBadgeColor: '#166534',
+        typeBadgeBorder: '#bbf7d0',
+        impact: seg.avgDays || '-',
+        share: seg.vsCompany || '-'
+      });
+    });
+    return list;
+  }, [brdPlan?.stageDrivers, brdPlan?.segmentDrivers]);
 
   // Compute active section progress for catalog
   const activeSectionIndex = useMemo(
@@ -553,7 +656,7 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
 
   const currentSectionRef = useRef('sec-diagnosis');
 
-  // Smooth scroll to section when clicked in left catalog using native GPU scrollIntoView
+  // Smooth scroll to section when clicked in left catalog using native GPU scroll with header offset
   const handleScrollToSection = useCallback((sectionId) => {
     isManualScrollRef.current = true;
     currentSectionRef.current = sectionId;
@@ -561,12 +664,13 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
 
     const element = document.getElementById(sectionId);
     if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const topOffset = element.getBoundingClientRect().top + window.pageYOffset - 90;
+      window.scrollTo({ top: topOffset, behavior: 'smooth' });
     }
 
     setTimeout(() => {
       isManualScrollRef.current = false;
-    }, 750);
+    }, 850);
   }, []);
 
   // Cache section DOM elements to avoid document.getElementById queries on every scroll frame
@@ -704,6 +808,7 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
         systemTouchpoints,
         rcaFailureModes,
         moduleName: module?.name,
+        diagnosisHeadline,
         whyItHappensText,
         whereItHappensText,
         howToOvercomeList
@@ -713,7 +818,7 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
     } finally {
       setIsDownloading(false);
     }
-  }, [currentMetric, company, standard, status, variance, overviewData, detailedAnalysis, whyItHappensText, whereItHappensText, howToOvercomeList, brdPlan, missingConfigs, systemTouchpoints, rcaFailureModes, module?.name]);
+  }, [currentMetric, company, standard, status, variance, overviewData, detailedAnalysis, diagnosisHeadline, whyItHappensText, whereItHappensText, howToOvercomeList, brdPlan, missingConfigs, systemTouchpoints, rcaFailureModes, module?.name]);
 
   return (
     <div className="deepdive-page-container">
@@ -920,44 +1025,77 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                     </div>
                   ) : (
                     <>
-                      {whyItHappensText && (
-                        <div style={{ marginBottom: '16px' }}>
-                          <div className="footprint-header" style={{ marginBottom: '6px' }}>
-                            <strong>🔍 Why It is Happening (Root Cause):</strong>
-                          </div>
-                          <p className="analysis-text-paragraph">{whyItHappensText}</p>
+                      {diagnosisHeadline && (
+                        <div
+                          className="diagnosis-headline-box"
+                          style={{
+                            marginBottom: '12px',
+                            padding: '9px 13px',
+                            borderRadius: '6px',
+                            background: status === 'Critical'
+                              ? 'rgba(239, 68, 68, 0.08)'
+                              : status === 'Healthy'
+                                ? 'rgba(16, 185, 129, 0.08)'
+                                : 'rgba(245, 158, 11, 0.08)',
+                            borderLeft: `3px solid ${status === 'Critical' ? '#ef4444' : status === 'Healthy' ? '#10b981' : '#f59e0b'}`,
+                            border: `1px solid ${status === 'Critical' ? 'rgba(239, 68, 68, 0.2)' : status === 'Healthy' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)'}`,
+                            color: '#1e293b',
+                            fontSize: '12.5px',
+                            fontWeight: 600,
+                            lineHeight: 1.45,
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            gap: '8px'
+                          }}
+                        >
+                          <span style={{ fontSize: '13px', lineHeight: 1.2 }}>{status === 'Critical' ? '🚨' : status === 'Healthy' ? '✅' : '⚠️'}</span>
+                          <span>{diagnosisHeadline}</span>
                         </div>
                       )}
 
-                      <div className="sf-footprint-box" style={{ marginTop: '16px' }}>
-                        <div className="footprint-header">
-                          {whereItHappensText ? (
-                            <span><strong>Impacted Architecture Touchpoints:</strong> {whereItHappensText}</span>
-                          ) : (
-                            'Impacted Architecture Touchpoints:'
-                          )}
+                      {whyItHappensText && (
+                        <div style={{ marginBottom: '14px' }}>
+                          <div className="footprint-header" style={{ marginBottom: '5px', fontSize: '11.5px', color: '#475569', fontWeight: 700, letterSpacing: '0.02em' }}>
+                            <span>🔍 WHY IT IS HAPPENING (ROOT CAUSE):</span>
+                          </div>
+                          <p className="analysis-text-paragraph" style={{ lineHeight: '1.55', color: '#334155', fontSize: '12px', margin: 0 }}>
+                            {whyItHappensText}
+                          </p>
                         </div>
-                        {systemTouchpoints && systemTouchpoints.length > 0 && (
-                          <div className="footprint-chips" style={{ marginTop: '8px' }}>
-                            {systemTouchpoints.map((tp, idx) => (
-                              <span key={idx} className={`footprint-chip chip-${tp.type}`}>
-                                {tp.label}
-                              </span>
-                            ))}
+                      )}
+
+                      {whereItHappensText &&
+                        whereItHappensText !== 'SuccessFactors workflow touchpoints' &&
+                        whereItHappensText !== 'Data not yet fetched from Supabase' &&
+                        whereItHappensText !== whyItHappensText &&
+                        whereItHappensText !== diagnosisNarrative && (
+                          <div className="sf-footprint-box" style={{ marginTop: '12px', padding: '10px 12px', borderRadius: '6px' }}>
+                            <div className="footprint-header" style={{ fontSize: '11.5px', color: '#475569' }}>
+                              <span><strong style={{ fontWeight: 700 }}>IMPACTED ARCHITECTURE TOUCHPOINTS:</strong> <span style={{ fontSize: '12px', color: '#334155', fontWeight: 500 }}>{whereItHappensText}</span></span>
+                            </div>
+                            {/* Only show real touchpoint chips if provided from Supabase */}
+                            {liveInsight?.touchpoints && Array.isArray(liveInsight.touchpoints) && liveInsight.touchpoints.length > 0 && (
+                              <div className="footprint-chips" style={{ marginTop: '6px' }}>
+                                {liveInsight.touchpoints.map((tp, idx) => (
+                                  <span key={idx} className="footprint-chip" style={{ fontSize: '11px', padding: '2px 8px' }}>
+                                    {typeof tp === 'string' ? tp : tp.label || tp.name}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         )}
-                      </div>
 
                       {howToOvercomeList && howToOvercomeList.length > 0 && (
-                        <div className="sf-footprint-box" style={{ marginTop: '16px' }}>
-                          <div className="footprint-header">
-                            <strong>💡 Suggestions to Improve:</strong>
+                        <div className="sf-footprint-box" style={{ marginTop: '12px', padding: '10px 12px', borderRadius: '6px' }}>
+                          <div className="footprint-header" style={{ fontSize: '11.5px', marginBottom: '6px', color: '#475569', fontWeight: 700, letterSpacing: '0.02em' }}>
+                            <span>💡 SUGGESTIONS TO IMPROVE:</span>
                           </div>
-                          <ol className="accordion-suggestions-list" style={{ marginTop: '8px', paddingLeft: 0, listStyle: 'none' }}>
+                          <ol className="accordion-suggestions-list" style={{ marginTop: '4px', paddingLeft: 0, listStyle: 'none', marginBottom: 0 }}>
                             {howToOvercomeList.map((sug, sIdx) => (
-                              <li key={sIdx} className="accordion-suggestion-item" style={{ marginBottom: '6px' }}>
-                                <span className="accordion-step-counter">{sIdx + 1}</span>
-                                <span className="accordion-step-text">{sug}</span>
+                              <li key={sIdx} className="accordion-suggestion-item" style={{ marginBottom: '6px', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                                <span className="accordion-step-counter" style={{ fontSize: '10px', width: '18px', height: '18px', minWidth: '18px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: '4px' }}>{sIdx + 1}</span>
+                                <span className="accordion-step-text" style={{ fontSize: '12px', lineHeight: '1.5', color: '#334155' }}>{sug}</span>
                               </li>
                             ))}
                           </ol>
@@ -1000,9 +1138,34 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                   </div>
                 </div>
                 <div className="diagnostic-card-content">
-                  {!isMetricLive || missingConfigs.length === 0 ? (
+                  {!isMetricLive ? (
                     <div style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>
                       <p style={{ margin: 0, fontWeight: 500 }}>Data not yet fetched from Supabase.</p>
+                    </div>
+                  ) : missingConfigs.length === 0 ? (
+                    <div
+                      className="cfg-no-missing-banner"
+                      style={{
+                        padding: '16px 20px',
+                        borderRadius: '8px',
+                        background: 'rgba(16, 185, 129, 0.06)',
+                        border: '1px solid rgba(16, 185, 129, 0.25)',
+                        borderLeft: '4px solid #10b981',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px',
+                        marginTop: '6px'
+                      }}
+                    >
+                      <span style={{ fontSize: '18px', lineHeight: 1 }}>✅</span>
+                      <div>
+                        <div style={{ fontSize: '12.5px', fontWeight: 700, color: '#065f46', marginBottom: '2px' }}>
+                          No Missing Configurations Detected
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#047857', lineHeight: 1.45 }}>
+                          All required system fields, validation rules, picklists, and governance controls are present.
+                        </div>
+                      </div>
                     </div>
                   ) : (
                     <>
@@ -1079,70 +1242,71 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                   <div className="card-header-text">
                     <h2 className="diagnostic-card-title">4. Root Cause Analysis</h2>
                     <span className="diagnostic-card-subtitle">
-                      {brdPlan?.stageDrivers ? 'What is causing the breach, rendered from the ML insight JSON' : 'Deep Failure Modes & Systemic Diagnostic Trace'}
+                      {unifiedRcaDrivers.length > 0 ? 'Primary factors and stage drivers causing the breach, extracted from ML diagnostics' : 'Deep Failure Modes & Systemic Diagnostic Trace'}
                     </span>
                   </div>
                 </div>
                 <div className="diagnostic-card-content">
-                  {!isMetricLive || (!brdPlan?.stageDrivers?.length && !rcaFailureModes?.length) ? (
+                  {!isMetricLive || (!unifiedRcaDrivers.length && !rcaFailureModes?.length) ? (
                     <div style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>
                       <p style={{ margin: 0, fontWeight: 500 }}>Data not yet fetched from Supabase.</p>
                     </div>
                   ) : (
                     <>
-                      {brdPlan?.stageDrivers && brdPlan.stageDrivers.length > 0 && (
-                        <div className="rca-drivers-split-grid">
-                          <div className="brd-spec-table-container">
-                            <table className="brd-spec-table">
-                              <thead>
-                                <tr>
-                                  <th style={{ width: '45%' }}>Stage driver</th>
-                                  <th style={{ width: '25%' }}>Avg days</th>
-                                  <th style={{ width: '20%' }}>Share of breach</th>
-                                  <th style={{ width: '10%' }}>ID</th>
+                      {unifiedRcaDrivers.length > 0 && (
+                        <div className="brd-spec-table-container" style={{ margin: '0 0 16px 0', border: '1px solid #cbd5e1', borderRadius: '6px' }}>
+                          <table className="brd-spec-table" style={{ width: '100%' }}>
+                            <thead>
+                              <tr>
+                                <th style={{ width: '40%' }}>Root Cause Factor / Driver</th>
+                                <th style={{ width: '18%' }}>Category</th>
+                                <th style={{ width: '18%' }}>Impact / Value</th>
+                                <th style={{ width: '16%' }}>Share of Breach</th>
+                                <th style={{ width: '8%', textAlign: 'center' }}>ID</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {unifiedRcaDrivers.map((driver, dIdx) => (
+                                <tr key={dIdx}>
+                                  <td>
+                                    <strong style={{ color: '#0f172a' }}>{driver.driver}</strong>
+                                  </td>
+                                  <td>
+                                    <span
+                                      style={{
+                                        display: 'inline-block',
+                                        fontSize: '0.72rem',
+                                        fontWeight: 600,
+                                        padding: '2px 8px',
+                                        borderRadius: '4px',
+                                        background: driver.typeBadgeBg,
+                                        color: driver.typeBadgeColor,
+                                        border: `1px solid ${driver.typeBadgeBorder}`,
+                                        whiteSpace: 'nowrap'
+                                      }}
+                                    >
+                                      {driver.type}
+                                    </span>
+                                  </td>
+                                  <td style={{ fontWeight: 600, color: '#334155' }}>
+                                    {driver.impact}
+                                  </td>
+                                  <td>
+                                    <span style={{ fontWeight: 700, color: '#b91c1c' }}>
+                                      {driver.share}
+                                    </span>
+                                  </td>
+                                  <td style={{ textAlign: 'center' }}>
+                                    <span className="workstream-id-badge">{driver.id}</span>
+                                  </td>
                                 </tr>
-                              </thead>
-                              <tbody>
-                                {brdPlan.stageDrivers.map((sd, sIdx) => (
-                                  <tr key={sIdx}>
-                                    <td><strong>{sd.driver}</strong></td>
-                                    <td>{sd.avgDays}</td>
-                                    <td>{sd.share}</td>
-                                    <td><span className="workstream-id-badge">{sd.id}</span></td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-
-                          {brdPlan?.segmentDrivers && brdPlan.segmentDrivers.length > 0 && (
-                            <div className="brd-spec-table-container">
-                              <table className="brd-spec-table">
-                                <thead>
-                                  <tr>
-                                    <th style={{ width: '45%' }}>Segment driver</th>
-                                    <th style={{ width: '25%' }}>Avg days</th>
-                                    <th style={{ width: '20%' }}>Vs company average</th>
-                                    <th style={{ width: '10%' }}>ID</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {brdPlan.segmentDrivers.map((seg, segIdx) => (
-                                    <tr key={segIdx}>
-                                      <td><strong>{seg.driver}</strong></td>
-                                      <td>{seg.avgDays}</td>
-                                      <td>{seg.vsCompany}</td>
-                                      <td><span className="workstream-id-badge">{seg.id}</span></td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                          )}
+                              ))}
+                            </tbody>
+                          </table>
                         </div>
                       )}
 
-                      {rcaFailureModes && rcaFailureModes.length > 0 && (
+                      {!unifiedRcaDrivers.length && rcaFailureModes && rcaFailureModes.length > 0 && (
                         <div className="rca-breakdown-grid">
                           {rcaFailureModes.map((item, rIdx) => (
                             <div key={rIdx} className="rca-mode-card">
@@ -1170,29 +1334,35 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                   </div>
                 </div>
                 <div className="diagnostic-card-content">
-                  {!isMetricLive || !detailedAnalysis?.howItEffects || detailedAnalysis.howItEffects === 'Data not yet fetched from Supabase' ? (
+                  {!isMetricLive || (!detailedAnalysis?.howItEffects && !businessImpactOverview && !financialExposure) || (detailedAnalysis?.howItEffects === 'Data not yet fetched from Supabase' && !financialExposure) ? (
                     <div style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>
                       <p style={{ margin: 0, fontWeight: 500 }}>Data not yet fetched from Supabase.</p>
                     </div>
                   ) : (
                     <>
-                      <p className="analysis-text-paragraph">{detailedAnalysis.howItEffects}</p>
+                      <p className="analysis-text-paragraph">{businessImpactOverview || detailedAnalysis?.howItEffects}</p>
 
                       <div className="impact-triad-grid">
                         <div className="impact-triad-card triad-cost">
                           <div className="triad-icon">💰</div>
                           <div className="triad-title">Financial Exposure</div>
-                          <div className="triad-desc">Off-cycle adjustments, replacement recruiting fees &amp; lost productivity overhead</div>
+                          <div className="triad-desc">
+                            {financialExposure || 'Data not yet fetched from Supabase'}
+                          </div>
                         </div>
                         <div className="impact-triad-card triad-sla">
                           <div className="triad-icon">⏱️</div>
                           <div className="triad-title">SLA &amp; Turnaround</div>
-                          <div className="triad-desc">Process stagnation, managerial escalation queues &amp; extended cycle delays</div>
+                          <div className="triad-desc">
+                            {slaAndTurnaround || 'Data not yet fetched from Supabase'}
+                          </div>
                         </div>
                         <div className="impact-triad-card triad-gov">
                           <div className="triad-icon">🛡️</div>
                           <div className="triad-title">Governance &amp; Audit</div>
-                          <div className="triad-desc">Downstream integration exceptions, compliance findings &amp; security exposure</div>
+                          <div className="triad-desc">
+                            {governanceAndAudit || 'Data not yet fetched from Supabase'}
+                          </div>
                         </div>
                       </div>
                     </>
@@ -1215,7 +1385,7 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                 </div>
 
                 <div className="diagnostic-card-content">
-                  {!isMetricLive || !brdPlan?.specialistManpower?.length ? (
+                  {!isMetricLive || (!brdPlan?.specialistManpower?.length && !brdPlan?.phasedActivities?.length) ? (
                     <div style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>
                       <p style={{ margin: 0, fontWeight: 500 }}>Data not yet fetched from Supabase.</p>
                     </div>

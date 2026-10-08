@@ -6,7 +6,7 @@ const BASE_URL = APP_CONFIG.apiBaseUrl || 'http://localhost:8000/api/v1';
 /**
  * Helper to execute fetch with timeout
  */
-async function fetchWithTimeout(resource, options = {}, timeoutMs = 8000) {
+async function fetchWithTimeout(resource, options = {}, timeoutMs = 20000) {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -142,9 +142,24 @@ function sanitizeAndMergeModules(rawModules) {
         (isFromSupabase ? b.whereItHappens : null)
       );
 
+      const rawBWorkstreams = b.workstreams || overview.workstreams || [];
+      let bWsSteps = [];
+      if (Array.isArray(rawBWorkstreams) && rawBWorkstreams.length > 0) {
+        bWsSteps = rawBWorkstreams
+          .filter(w => w && (w.step || w.remediationStep || w.title) && w.kind !== 'data')
+          .map(w => w.step || w.remediationStep || w.title);
+        if (bWsSteps.length === 0) {
+          bWsSteps = rawBWorkstreams
+            .filter(w => w && (w.step || w.remediationStep || w.title))
+            .map(w => w.step || w.remediationStep || w.title);
+        }
+      }
+
       const rawLiveSuggestions = (
+        (bWsSteps.length > 0 ? bWsSteps : null) ||
         (overview.suggestions && overview.suggestions.length > 0 ? overview.suggestions : null) ||
         (b.moduleOverview?.suggestions && b.moduleOverview.suggestions.length > 0 ? b.moduleOverview.suggestions : null) ||
+        (b.suggestions && b.suggestions.length > 0 ? b.suggestions : null) ||
         extractSectionValue(overview, 'suggestions') ||
         extractSectionValue(b, 'suggestions') ||
         (isFromSupabase ? b.howToOvercome : null)
@@ -183,6 +198,7 @@ function sanitizeAndMergeModules(rawModules) {
         variance: varianceVal,
         _source: isFromSupabase ? (b._source || 'supabase_table') : 'static_baseline',
         isSupabaseLive: isFromSupabase,
+        diagnosis: b.diagnosis || defaultB?.diagnosis || {},
         moduleOverview: finalModuleOverview,
         detailedAnalysis
       });
@@ -366,7 +382,8 @@ async function fetchDirectSupabaseTable(tableName) {
 function normalizeSupabaseInsightPayload(rawData, metricCode, metricName = null) {
   if (!rawData || typeof rawData !== 'object') return null;
 
-  const rep = (rawData.report && typeof rawData.report === 'object') ? rawData.report : rawData;
+  const repNested = (rawData.report && typeof rawData.report === 'object') ? rawData.report : {};
+  const rep = { ...repNested, ...rawData };
   const overview = rawData.moduleOverview || rawData.module_overview || rep.moduleOverview || rep.module_overview || {};
 
   const rootCause = (
@@ -385,8 +402,28 @@ function normalizeSupabaseInsightPayload(rawData, metricCode, metricName = null)
     rawData.whereItHappens
   );
 
+  const diagObj = rep.diagnosis && typeof rep.diagnosis === 'object' ? rep.diagnosis : {};
+
+  // Extract dynamic workstreams from Supabase
+  const rawWs = rawData.workstreams || rep.workstreams || [];
+  let wsSteps = [];
+  if (Array.isArray(rawWs) && rawWs.length > 0) {
+    wsSteps = rawWs
+      .filter(w => w && (w.step || w.remediationStep || w.title) && w.kind !== 'data')
+      .map(w => w.step || w.remediationStep || w.title);
+    if (wsSteps.length === 0) {
+      wsSteps = rawWs
+        .filter(w => w && (w.step || w.remediationStep || w.title))
+        .map(w => w.step || w.remediationStep || w.title);
+    }
+  }
+
   const rawSug = (
-    overview.suggestions ||
+    (wsSteps.length > 0 ? wsSteps : null) ||
+    (Array.isArray(rawData.suggestions) && rawData.suggestions.length > 0 ? rawData.suggestions : null) ||
+    (Array.isArray(repNested.suggestions) && repNested.suggestions.length > 0 ? repNested.suggestions : null) ||
+    (Array.isArray(diagObj.suggestions) && diagObj.suggestions.length > 0 ? diagObj.suggestions : null) ||
+    (Array.isArray(overview.suggestions) && overview.suggestions.length > 0 ? overview.suggestions : null) ||
     extractSectionValue(rawData, 'suggestions') ||
     extractSectionValue(rawData, 'howToOvercome', 'how_to_overcome') ||
     rawData.howToOvercome ||
@@ -399,8 +436,6 @@ function normalizeSupabaseInsightPayload(rawData, metricCode, metricName = null)
     affectedArea: affectedArea || 'SuccessFactors workflow touchpoints',
     suggestions: suggestionsList
   };
-
-  const diagObj = rep.diagnosis && typeof rep.diagnosis === 'object' ? rep.diagnosis : {};
   const headlineText = String(diagObj.headline || '');
   const narrativeText = String(diagObj.narrative || '');
   const impactText = String(rep.businessImpact?.overview || rawData.businessImpact?.overview || '');
@@ -558,8 +593,8 @@ function normalizeSupabaseInsightPayload(rawData, metricCode, metricName = null)
     }));
   }
 
-  // 2. Plan extraction
-  const rawPlan = rep.plan || rep.brdPlan || rep.brd_plan || rawData.plan || rawData.brdPlan || {};
+  // 2. Plan extraction (prioritizing top-level dynamic plan with 114 hours, 6 weeks)
+  const rawPlan = rawData.plan || rawData.brdPlan || rep.plan || rep.brdPlan || repNested.plan || {};
 
   // Phases
   const rawPhases = rawPlan.phases || rawPlan.phasedActivities || [];
@@ -605,11 +640,11 @@ function normalizeSupabaseInsightPayload(rawData, metricCode, metricName = null)
   }
 
   // Workstreams
-  const rawWs = rep.workstreams || rawData.workstreams || rawPlan.executionWorkstreams || rawPlan.workstreams || [];
+  const rawPlanWs = rep.workstreams || rawData.workstreams || rawPlan.executionWorkstreams || rawPlan.workstreams || [];
   const executionWorkstreams = [];
-  if (Array.isArray(rawWs) && rawWs.length > 0) {
-    for (let i = 0; i < rawWs.length; i++) {
-      const ws = rawWs[i];
+  if (Array.isArray(rawPlanWs) && rawPlanWs.length > 0) {
+    for (let i = 0; i < rawPlanWs.length; i++) {
+      const ws = rawPlanWs[i];
       let fixes = ws.fixesFactors || ws.fixesDrivers || 'Governance SLA';
       if (Array.isArray(fixes)) fixes = fixes.join(', ');
       executionWorkstreams.push({
@@ -639,8 +674,18 @@ function normalizeSupabaseInsightPayload(rawData, metricCode, metricName = null)
     'Achieve standard compliance across all process stages.'
   );
 
+  const rawBiz = rep.businessImpact || rawData.businessImpact || rep.business_impact || rawData.business_impact || {};
+  const businessImpact = {
+    overview: rawBiz.overview || rep.howItEffects || rawData.howItEffects || '',
+    financialExposure: rawBiz.financialExposure || rawBiz.financial_exposure || '',
+    slaAndTurnaround: rawBiz.slaAndTurnaround || rawBiz.sla_and_turnaround || '',
+    governanceAndAudit: rawBiz.governanceAndAudit || rawBiz.governance_and_audit || ''
+  };
+
   const normalizedBrd = {
     ...rawPlan,
+    phases: rawPhases,
+    roles: rawRoles,
     specialistManpower: specialistManpower.length > 0 ? specialistManpower : (rawPlan.specialistManpower || []),
     phasedActivities: phasedActivities.length > 0 ? phasedActivities : (rawPlan.phasedActivities || []),
     executionWorkstreams: executionWorkstreams.length > 0 ? executionWorkstreams : (rawPlan.executionWorkstreams || []),
@@ -669,16 +714,24 @@ function normalizeSupabaseInsightPayload(rawData, metricCode, metricName = null)
       variance: String(varianceVal),
       isSupabaseLive: true,
       _source: rawData._source || 'supabase',
+      diagnosis: diagObj,
+      suggestions: suggestionsList,
+      businessImpact,
       moduleOverview: modOverviewObj,
       detailedAnalysis: {
-        whyItHappens: rootCause || modOverviewObj.rootCause,
+        headline: headlineText,
+        whyItHappens: narrativeText || rootCause || modOverviewObj.rootCause,
         whereItHappens: affectedArea || modOverviewObj.affectedArea,
         howToOvercome: suggestionsList,
         trendAnalysis: rep.trendAnalysis || rawData.trendAnalysis || {},
         missingConfigurations: rawData.missingConfigurations || [],
-        howItEffects: rep.businessImpact?.overview || rawData.howItEffects || ''
+        howItEffects: businessImpact.overview || rep.businessImpact?.overview || rawData.howItEffects || '',
+        businessImpact
       }
     },
+    diagnosis: diagObj,
+    suggestions: suggestionsList,
+    businessImpact,
     moduleOverview: modOverviewObj,
     brdPlan: normalizedBrd,
     stageDrivers,
@@ -687,6 +740,10 @@ function normalizeSupabaseInsightPayload(rawData, metricCode, metricName = null)
     source: rawData._source || 'supabase',
     storagePath: rawData._storage_path || `report/latest/${metricCode}.json`
   };
+}
+
+function parseMetricDeepDivePayload(metricCode, metricName, raw) {
+  return normalizeSupabaseInsightPayload(raw, metricCode, metricName);
 }
 
 export const apiService = {
@@ -765,7 +822,7 @@ export const apiService = {
    */
   async getModules() {
     try {
-      const res = await fetchWithTimeout(`${BASE_URL}/modules?refresh=true`, { method: 'GET' }, 8000);
+      const res = await fetchWithTimeout(`${BASE_URL}/modules`, { method: 'GET' }, 8000);
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data) && data.length > 0) {
@@ -794,9 +851,59 @@ export const apiService = {
   },
 
   /**
+   * Fast parallel fallback directly to Supabase Storage if backend service is unreachable
+   */
+  async fetchDirectFromSupabase(metricCode, metricName = null, moduleId = null) {
+    const sbUrl = APP_CONFIG.supabaseUrl;
+    const sbKey = APP_CONFIG.supabaseKey;
+    const bucket = APP_CONFIG.supabaseBucket || 'Insights and Reports';
+    if (!sbUrl || !sbKey) return null;
+
+    const headers = {
+      apikey: sbKey,
+      Authorization: `Bearer ${sbKey}`
+    };
+
+    const rawName = String(metricName || metricCode || '').trim();
+    const cleanMetric = rawName.replace(/\s+/g, '').replace(/[-_]/g, '');
+    const pascalMetric = rawName.replace(/(?:^\w|[A-Z]|\b\w)/g, (letter) => letter.toUpperCase()).replace(/[\s_-]+/g, '');
+    const modId = moduleId ? String(moduleId).toUpperCase().trim() : '';
+
+    const candidates = [
+      modId ? `reports/latest/${modId}/${pascalMetric}.json` : null,
+      modId ? `reports/latest/${modId}/${cleanMetric}.json` : null,
+      `reports/latest/${pascalMetric}.json`
+    ].filter(Boolean);
+
+    // Run candidate fetches in parallel with fast 1.5s timeout instead of sequential loops
+    try {
+      const promises = candidates.map(async (p) => {
+        try {
+          const url = `${sbUrl}/storage/v1/object/authenticated/${encodeURIComponent(bucket)}/${p}`;
+          const res = await fetchWithTimeout(url, { headers }, 1500);
+          if (res.ok) {
+            const raw = await res.json();
+            if (raw && typeof raw === 'object') {
+              return parseMetricDeepDivePayload(metricCode, metricName, raw);
+            }
+          }
+        } catch (_) {}
+        return null;
+      });
+
+      const results = await Promise.all(promises);
+      const found = results.find(Boolean);
+      if (found) return found;
+    } catch (_) {}
+
+    return null;
+  },
+
+  /**
    * Fetch 8-section BRD deep dive and tree insights for a specific metric directly from backend
    */
   async getMetricDeepDive(metricCode, metricName = null, moduleId = null) {
+    let backendData = null;
     try {
       const params = new URLSearchParams();
       if (metricName) params.append('metric_name', metricName);
@@ -806,16 +913,31 @@ export const apiService = {
       const res = await fetchWithTimeout(
         `${BASE_URL}/metrics/${encodeURIComponent(metricCode)}/deep-dive${queryStr}`,
         { method: 'GET' },
-        8000
+        5000
       );
       if (res.ok) {
         const data = await res.json();
         if (data && data.metric) {
-          return data;
+          backendData = data;
         }
       }
     } catch (err) {
       console.warn(`Failed to fetch deep dive for ${metricCode} from backend:`, err.message);
+    }
+
+    // Backend is the authoritative source for Supabase data — return immediately!
+    if (backendData && backendData.metric) {
+      return backendData;
+    }
+
+    // Direct Supabase live fallback ONLY if backend server was completely offline/unreachable
+    try {
+      const directData = await this.fetchDirectFromSupabase(metricCode, metricName, moduleId);
+      if (directData && directData.metric) {
+        return directData;
+      }
+    } catch (directErr) {
+      console.warn('Direct Supabase fetch fallback warning:', directErr);
     }
 
     // Strict fallback for unfetched metrics: NO mock data!

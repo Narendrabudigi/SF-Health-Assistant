@@ -46,7 +46,7 @@ def alphanumeric_key(text: str) -> str:
 
 
 class SupabaseStorageService:
-    CACHE_TTL_SECONDS = 0  # 0 TTL disables caching so live edits in Supabase reflect immediately!
+    CACHE_TTL_SECONDS = 30  # 30-second cache prevents repeated round-trip scans; makes page reloads and navigation instant (2-5ms)
 
     def __init__(self):
         self.bucket_name = settings.SUPABASE_BUCKET_NAME or "Insights and Reports"
@@ -503,8 +503,8 @@ class SupabaseStorageService:
                         continue
                     logger.info(f"Loaded {len(llm_rows)} rows from Supabase table '{tbl_name}'")
                     for row in llm_rows:
-                        mod_raw = row.get("module") or "rcm"
-                        m_name_raw = row.get("metric_name") or ""
+                        mod_raw = row.get("module") or row.get("Module") or row.get("Module_Name") or "rcm"
+                        m_name_raw = row.get("metric_name") or row.get("Metric_Name") or row.get("metric") or row.get("MetricName") or ""
                         rep_payload = row.get("report") if isinstance(row.get("report"), dict) else {}
                         
                         # Merge row metadata with report payload
@@ -520,28 +520,82 @@ class SupabaseStorageService:
                         if not current_entry:
                             register_metric_data(mod_dict, m_name_raw, combined)
                         else:
-                            # CRITICAL: Intelligently merge LLM plan and ML notebook insights
-                            cur_overview = current_entry.get("moduleOverview") or current_entry.get("module_overview") or {}
-                            comb_overview = combined.get("moduleOverview") or combined.get("module_overview") or {}
-                            
-                            merged_overview = {**cur_overview}
-                            for k, v in comb_overview.items():
-                                if v:
-                                    merged_overview[k] = v
+                            # Intelligently merge LLM plan and ML notebook insights, giving precedence to direct storage files
+                            cur_rep = current_entry.get("report") if isinstance(current_entry.get("report"), dict) else current_entry
+                            comb_rep = combined.get("report") if isinstance(combined.get("report"), dict) else combined
 
-                            # Compare timestamps
-                            cur_ts = str(current_entry.get("generated_at") or current_entry.get("updated_at") or current_entry.get("created_at") or "")
-                            new_ts = str(row.get("generated_at") or row.get("created_at") or "")
-                            
-                            if new_ts >= cur_ts:
-                                final_item = {**current_entry, **combined}
-                            else:
-                                final_item = {**combined, **current_entry}
+                            cur_overview = cur_rep.get("moduleOverview") or cur_rep.get("module_overview") or current_entry.get("moduleOverview") or {}
+                            comb_overview = comb_rep.get("moduleOverview") or comb_rep.get("module_overview") or combined.get("moduleOverview") or {}
 
+                            # Extract dynamic workstreams from storage and table
+                            cur_ws = current_entry.get("workstreams") or cur_rep.get("workstreams") or []
+                            cur_ws_steps = []
+                            if isinstance(cur_ws, list) and cur_ws:
+                                cur_ws_steps = [
+                                    w.get("step") or w.get("remediationStep") or w.get("title")
+                                    for w in cur_ws
+                                    if isinstance(w, dict) and (w.get("step") or w.get("remediationStep") or w.get("title")) and w.get("kind") != "data"
+                                ]
+                                if not cur_ws_steps:
+                                    cur_ws_steps = [
+                                        w.get("step") or w.get("remediationStep") or w.get("title")
+                                        for w in cur_ws
+                                        if isinstance(w, dict) and (w.get("step") or w.get("remediationStep") or w.get("title"))
+                                    ]
+
+                            comb_ws = combined.get("workstreams") or comb_rep.get("workstreams") or []
+                            comb_ws_steps = []
+                            if isinstance(comb_ws, list) and comb_ws:
+                                comb_ws_steps = [
+                                    w.get("step") or w.get("remediationStep") or w.get("title")
+                                    for w in comb_ws
+                                    if isinstance(w, dict) and (w.get("step") or w.get("remediationStep") or w.get("title")) and w.get("kind") != "data"
+                                ]
+                                if not comb_ws_steps:
+                                    comb_ws_steps = [
+                                        w.get("step") or w.get("remediationStep") or w.get("title")
+                                        for w in comb_ws
+                                        if isinstance(w, dict) and (w.get("step") or w.get("remediationStep") or w.get("title"))
+                                    ]
+
+                            cur_sug = (
+                                (cur_ws_steps if cur_ws_steps else None) or
+                                current_entry.get("suggestions") or
+                                cur_rep.get("suggestions") or
+                                cur_overview.get("suggestions")
+                            )
+                            comb_sug = (
+                                (comb_ws_steps if comb_ws_steps else None) or
+                                combined.get("suggestions") or
+                                comb_rep.get("suggestions") or
+                                comb_overview.get("suggestions")
+                            )
+
+                            merged_overview = {**comb_overview, **cur_overview}
+                            if cur_sug:
+                                merged_overview["suggestions"] = cur_sug
+                            elif comb_sug:
+                                merged_overview["suggestions"] = comb_sug
+
+                            final_item = {**combined, **current_entry}
                             if merged_overview:
                                 final_item["moduleOverview"] = merged_overview
+                            if cur_sug:
+                                final_item["suggestions"] = cur_sug
+                                if isinstance(final_item.get("report"), dict):
+                                    final_item["report"]["suggestions"] = cur_sug
+                            elif comb_sug:
+                                final_item["suggestions"] = comb_sug
+                                if isinstance(final_item.get("report"), dict):
+                                    final_item["report"]["suggestions"] = comb_sug
 
-                            # Preserve ML factors & data quality if LLM report doesn't contain them
+                            # Preserve ML factors, workstreams, data quality, businessImpact & plan
+                            if current_entry.get("workstreams"):
+                                final_item["workstreams"] = current_entry.get("workstreams")
+                            if current_entry.get("plan"):
+                                final_item["plan"] = current_entry.get("plan")
+                            if not final_item.get("businessImpact") and current_entry.get("businessImpact"):
+                                final_item["businessImpact"] = current_entry.get("businessImpact")
                             if not final_item.get("factors") and current_entry.get("factors"):
                                 final_item["factors"] = current_entry.get("factors")
                             if not final_item.get("trendAnalysis") and current_entry.get("trendAnalysis"):
@@ -576,34 +630,63 @@ class SupabaseStorageService:
         target_alpha = alphanumeric_key(metric_identifier)
 
         # Check in specified module or across all modules
-        mod_keys = [module_identifier.lower().strip()] if module_identifier and module_identifier.lower().strip() in all_overrides else list(all_overrides.keys())
+        mod_keys = []
+        if module_identifier:
+            m_id = str(module_identifier).lower().strip()
+            aliases = [m_id, normalize_slug(m_id), alphanumeric_key(m_id)]
+            k_clean = alphanumeric_key(m_id)
+            if k_clean in {"rcm", "recruitment", "recruiting"}:
+                aliases = ["rcm", "recruitment", "recruiting"]
+            elif k_clean in {"ec", "employeecentral", "employee_central", "hr"}:
+                aliases = ["ec", "employeecentral", "employee_central", "hr"]
+            elif k_clean in {"onb", "onb2", "onboarding"}:
+                aliases = ["onb", "onb2", "onboarding"]
+            elif k_clean in {"ofb", "ofb2", "offboarding"}:
+                aliases = ["ofb", "ofb2", "offboarding"]
+            elif k_clean in {"ecp", "payroll"}:
+                aliases = ["ecp", "payroll"]
+
+            for a in aliases:
+                if a in all_overrides and a not in mod_keys:
+                    mod_keys.append(a)
+
+        # If module was specified but not found in Supabase, do NOT leak other modules
+        if not mod_keys:
+            if not module_identifier:
+                mod_keys = list(all_overrides.keys())
+            else:
+                return {
+                    "_source": "none",
+                    "metric_name": metric_identifier,
+                    "_note": f"Module '{module_identifier}' has no data in Supabase."
+                }
 
         for m_key in mod_keys:
             mod_dict = all_overrides.get(m_key, {})
             # 1. Exact match
             if metric_identifier in mod_dict:
                 return mod_dict[metric_identifier]
+            if target_norm in mod_dict:
+                return mod_dict[target_norm]
             # 2. Slug match
             if target_slug in mod_dict:
                 return mod_dict[target_slug]
             # 3. Alphanumeric match (case & whitespace insensitive)
             if target_alpha in mod_dict:
                 return mod_dict[target_alpha]
-            # 4. Partial / flexible match
+            # 4. High-confidence specific match
             for k, val in mod_dict.items():
                 k_slug = normalize_slug(k)
                 k_alpha = alphanumeric_key(k)
-                if (len(k_slug) > 4 and (k_slug in target_slug or target_slug in k_slug)):
+                if k_alpha == target_alpha or k_slug == target_slug:
                     return val
-                if (len(k_alpha) >= 4 and (k_alpha in target_alpha or target_alpha in k_alpha)):
+                if len(k_alpha) >= 10 and (
+                    target_alpha.startswith(k_alpha) or
+                    target_alpha.endswith(k_alpha) or
+                    k_alpha.startswith(target_alpha) or
+                    k_alpha.endswith(target_alpha)
+                ):
                     return val
-
-        # Fallback to pre-seeded defaults
-        fb = DEFAULT_ML_INSIGHTS.get(metric_identifier)
-        if fb:
-            res = dict(fb)
-            res["_source"] = "preseeded_dataset"
-            return res
 
         return {
             "_source": "none",

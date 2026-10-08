@@ -49,7 +49,8 @@ def extract_metric_fields(override: Dict[str, Any], default_b: Optional[Dict[str
     Guarantees that user's word-to-word text from Supabase moduleOverview (rootCause, affectedArea, suggestions)
     is strictly used and never overwritten by generic narratives.
     """
-    rep = override.get("report") if isinstance(override.get("report"), dict) else override
+    rep_nested = override.get("report") if isinstance(override.get("report"), dict) else {}
+    rep = {**rep_nested, **override}
     diag = rep.get("diagnosis") if isinstance(rep.get("diagnosis"), dict) else {}
     narrative = str(diag.get("narrative", "") or rep.get("diagnosis_narrative", "") or "")
     headline = str(diag.get("headline", "") or "")
@@ -78,8 +79,29 @@ def extract_metric_fields(override: Dict[str, Any], default_b: Optional[Dict[str
         (overview.get("affected_area") if isinstance(overview, dict) else None) or
         find_nested_val(override, "affectedArea", "affected_area")
     )
+
+    # Dynamic workstreams remediation steps from Supabase
+    raw_ws = override.get("workstreams") or rep.get("workstreams") or []
+    ws_steps = []
+    if isinstance(raw_ws, list) and raw_ws:
+        ws_steps = [
+            w.get("step") or w.get("remediationStep") or w.get("title")
+            for w in raw_ws
+            if isinstance(w, dict) and (w.get("step") or w.get("remediationStep") or w.get("title")) and w.get("kind") != "data"
+        ]
+        if not ws_steps:
+            ws_steps = [
+                w.get("step") or w.get("remediationStep") or w.get("title")
+                for w in raw_ws
+                if isinstance(w, dict) and (w.get("step") or w.get("remediationStep") or w.get("title"))
+            ]
+
     suggestions_val = (
-        (overview.get("suggestions") if isinstance(overview, dict) else None) or
+        (ws_steps if ws_steps and len(ws_steps) > 0 else None) or
+        (override.get("suggestions") if isinstance(override.get("suggestions"), list) and len(override["suggestions"]) > 0 else None) or
+        (rep_nested.get("suggestions") if isinstance(rep_nested.get("suggestions"), list) and len(rep_nested["suggestions"]) > 0 else None) or
+        (diag.get("suggestions") if isinstance(diag.get("suggestions"), list) and len(diag["suggestions"]) > 0 else None) or
+        (overview.get("suggestions") if isinstance(overview, dict) and isinstance(overview.get("suggestions"), list) and len(overview["suggestions"]) > 0 else None) or
         find_nested_val(override, "suggestions")
     )
 
@@ -123,10 +145,8 @@ def extract_metric_fields(override: Dict[str, Any], default_b: Optional[Dict[str
         status_val = "At Risk"
     elif "health" in status_candidate or "target" in status_candidate or "good" in status_candidate:
         status_val = "Healthy"
-    elif override.get("_source") == "static_baseline":
-        status_val = "Not yet fetched"
     else:
-        status_val = "At Risk"
+        status_val = "Not yet fetched"
 
     def clean_val(v: Any) -> Optional[str]:
         if v is None:
@@ -298,18 +318,40 @@ def extract_metric_fields(override: Dict[str, Any], default_b: Optional[Dict[str
         "suggestions": suggestions_list
     }
 
+    diagnosis_obj = {
+        "headline": headline,
+        "narrative": narrative
+    } if (headline or narrative) else {}
+
+    final_why_it_happens = narrative if narrative else (root_cause or why_happens)
+
+    biz_impact_full = (
+        rep.get("businessImpact") if isinstance(rep.get("businessImpact"), dict) else (
+            override.get("businessImpact") if isinstance(override.get("businessImpact"), dict) else {}
+        )
+    )
+    business_impact_obj = {
+        "overview": biz_impact_full.get("overview") or (how_effects if how_effects != "Data not yet fetched from Supabase" else ""),
+        "financialExposure": biz_impact_full.get("financialExposure") or biz_impact_full.get("financial_exposure", ""),
+        "slaAndTurnaround": biz_impact_full.get("slaAndTurnaround") or biz_impact_full.get("sla_and_turnaround", ""),
+        "governanceAndAudit": biz_impact_full.get("governanceAndAudit") or biz_impact_full.get("governance_and_audit", "")
+    }
+
     return {
         "company": final_company,
         "standard": final_target,
         "status": status_val,
         "variance": final_variance,
         "moduleOverview": module_overview,
+        "diagnosis": diagnosis_obj,
+        "businessImpact": business_impact_obj,
         "detailedAnalysis": {
-            "whyItHappens": root_cause or why_happens,
+            "whyItHappens": final_why_it_happens,
             "whereItHappens": affected_area or where_happens,
             "trendAnalysis": trend,
             "missingConfigurations": missing_cfg,
-            "howItEffects": how_effects,
+            "howItEffects": business_impact_obj["overview"] or how_effects,
+            "businessImpact": business_impact_obj,
             "howToOvercome": suggestions_list
         }
     }
@@ -371,11 +413,10 @@ def apply_module_metric_overrides(
         if not override:
             for k, val in mod_overrides.items():
                 k_alpha = alphanumeric_key(k)
-                if len(k_alpha) >= 4 and (
-                    k_alpha in m_alpha or
-                    m_alpha in k_alpha or
-                    k_alpha in c_alpha or
-                    c_alpha in k_alpha
+                if len(k_alpha) >= 8 and (
+                    k_alpha == m_alpha or
+                    k_alpha == c_alpha or
+                    (len(k_alpha) >= 12 and (k_alpha in m_alpha or m_alpha in k_alpha))
                 ):
                     override = val
                     break
