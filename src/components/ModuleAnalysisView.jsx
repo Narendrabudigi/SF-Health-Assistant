@@ -99,8 +99,8 @@ export default function ModuleAnalysisView({
   const isModuleNotFetched = !hasLiveMetrics || module.status === 'Not yet fetched' || String(module.status || '').toLowerCase().includes('not yet');
 
   const executiveSummary = isModuleNotFetched
-    ? (module.aiReport?.summary && !module.aiReport.summary.toLowerCase().includes('critically bottlenecked') ? module.aiReport.summary : 'Data not yet fetched from Supabase.')
-    : (module.aiReport?.summary || `${displayName} diagnostic analysis synthesized from Supabase.`);
+    ? (module.aiReport?.summary && !module.aiReport.summary.toLowerCase().includes('critically bottlenecked') ? module.aiReport.summary : 'Data not yet fetched.')
+    : (module.aiReport?.summary || `${displayName} diagnostic analysis synthesized from live telemetry.`);
 
   const overlineText = isModuleNotFetched
     ? 'EXECUTIVE SUMMARY • NOT YET FETCHED'
@@ -180,8 +180,8 @@ export default function ModuleAnalysisView({
 
       {/* 3. 2-Column Grid: Issues Identified (Left) & Standards Table (Right) */}
       <div className="analysis-view-grid">
-        {/* Left Column: Issues Identified Accordion Cards */}
-        <section className="analysis-grid-col" aria-label="Issues Identified">
+        {/* Left Column: Areas of Focus Accordion Cards */}
+        <section className="analysis-grid-col" aria-label="Areas of Focus">
           <GenAIReport module={module} />
         </section>
 

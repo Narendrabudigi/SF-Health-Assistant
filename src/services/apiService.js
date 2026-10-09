@@ -168,8 +168,8 @@ function sanitizeAndMergeModules(rawModules) {
         ? rawLiveSuggestions
         : (typeof rawLiveSuggestions === 'string' ? [rawLiveSuggestions] : (rawLiveSuggestions ? [rawLiveSuggestions] : null));
 
-      const finalWhyItHappens = liveRootCause || (isFromSupabase ? b.whyItHappens : null) || 'Data not yet fetched from Supabase';
-      const finalWhereItHappens = liveAffectedArea || (isFromSupabase ? b.whereItHappens : null) || 'Data not yet fetched from Supabase';
+      const finalWhyItHappens = liveRootCause || (isFromSupabase ? b.whyItHappens : null) || 'Data not yet fetched';
+      const finalWhereItHappens = liveAffectedArea || (isFromSupabase ? b.whereItHappens : null) || 'Data not yet fetched';
       const finalSuggestions = liveSuggestions !== null ? liveSuggestions : (isFromSupabase ? [] : []);
 
       const finalModuleOverview = {
@@ -216,16 +216,16 @@ function sanitizeAndMergeModules(rawModules) {
             status: 'Not yet fetched',
             variance: 'Not yet fetched',
             moduleOverview: {
-              rootCause: 'Data not yet fetched from Supabase',
-              affectedArea: 'Data not yet fetched from Supabase',
+              rootCause: 'Data not yet fetched',
+              affectedArea: 'Data not yet fetched',
               suggestions: []
             },
             detailedAnalysis: {
-              whyItHappens: 'Data not yet fetched from Supabase',
-              whereItHappens: 'Data not yet fetched from Supabase',
-              trendAnalysis: { summary: 'Data not yet fetched from Supabase', points: [] },
+              whyItHappens: 'Data not yet fetched',
+              whereItHappens: 'Data not yet fetched',
+              trendAnalysis: { summary: 'Data not yet fetched', points: [] },
               missingConfigurations: [],
-              howItEffects: 'Data not yet fetched from Supabase',
+              howItEffects: 'Data not yet fetched',
               howToOvercome: []
             },
             _source: 'static_baseline',
@@ -249,7 +249,7 @@ function sanitizeAndMergeModules(rawModules) {
 
     const computedAiReport = hasLive
       ? (rawMod.aiReport || { summary: `${modName} health status is ${computedModuleStatus}.` })
-      : { summary: 'Data not yet fetched from Supabase.' };
+      : { summary: 'Data not yet fetched.' };
 
     return {
       ...defaultMod,
@@ -953,22 +953,22 @@ export const apiService = {
         isSupabaseLive: false,
         _source: 'static_baseline',
         moduleOverview: {
-          rootCause: 'Data not yet fetched from Supabase',
-          affectedArea: 'Data not yet fetched from Supabase',
+          rootCause: 'Data not yet fetched',
+          affectedArea: 'Data not yet fetched',
           suggestions: []
         },
         detailedAnalysis: {
-          whyItHappens: 'Data not yet fetched from Supabase',
-          whereItHappens: 'Data not yet fetched from Supabase',
-          trendAnalysis: { summary: 'Data not yet fetched from Supabase', points: [] },
+          whyItHappens: 'Data not yet fetched',
+          whereItHappens: 'Data not yet fetched',
+          trendAnalysis: { summary: 'Data not yet fetched', points: [] },
           missingConfigurations: [],
-          howItEffects: 'Data not yet fetched from Supabase',
+          howItEffects: 'Data not yet fetched',
           howToOvercome: []
         }
       },
       moduleOverview: {
-        rootCause: 'Data not yet fetched from Supabase',
-        affectedArea: 'Data not yet fetched from Supabase',
+        rootCause: 'Data not yet fetched',
+        affectedArea: 'Data not yet fetched',
         suggestions: []
       },
       stageDrivers: [],
@@ -987,7 +987,7 @@ export const apiService = {
         totalEffortHours: 0,
         totalEffortsDisplay: 'Not yet fetched',
         timelineAndEffort: { timeline: 'Not yet fetched', totalEffort: 'Not yet fetched' },
-        targetOutcome: 'Data not yet fetched from Supabase'
+        targetOutcome: 'Data not yet fetched'
       }
     };
   },

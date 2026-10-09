@@ -27,8 +27,8 @@ export function formatBrdPlan(rawPlan, metric = {}) {
       totalEffortHours: 0,
       totalEffortsDisplay: 'Not yet fetched',
       timelineAndEffort: { timeline: 'Not yet fetched', totalEffort: 'Not yet fetched' },
-      targetOutcome: 'Data not yet fetched from Supabase',
-      expectedOutcome: 'Data not yet fetched from Supabase'
+      targetOutcome: 'Data not yet fetched',
+      expectedOutcome: 'Data not yet fetched'
     };
   }
 
@@ -116,7 +116,7 @@ export function formatBrdPlan(rawPlan, metric = {}) {
   const successCriteria = Array.isArray(rawPlan.successCriteria) ? rawPlan.successCriteria : [];
 
   // 7. Target Outcome
-  const targetOutcome = rawPlan.targetOutcome || rawPlan.expectedOutcome || 'Data not yet fetched from Supabase';
+  const targetOutcome = rawPlan.targetOutcome || rawPlan.expectedOutcome || 'Data not yet fetched';
 
   return {
     ...rawPlan,
@@ -140,7 +140,7 @@ export function formatBrdPlan(rawPlan, metric = {}) {
 }
 
 /**
- * Returns BRD plan if fetched from Supabase; otherwise returns strictly empty / "Not yet fetched".
+ * Returns BRD plan if fetched from telemetry; otherwise returns strictly empty / "Not yet fetched".
  */
 export function getBrdPlan(metric) {
   if (!metric) return null;
@@ -166,8 +166,8 @@ export function getBrdPlan(metric) {
     totalEffortHours: 0,
     totalEffortsDisplay: 'Not yet fetched',
     timelineAndEffort: { timeline: 'Not yet fetched', totalEffort: 'Not yet fetched' },
-    targetOutcome: 'Data not yet fetched from Supabase',
-    expectedOutcome: 'Data not yet fetched from Supabase'
+    targetOutcome: 'Data not yet fetched',
+    expectedOutcome: 'Data not yet fetched'
   };
 }
 

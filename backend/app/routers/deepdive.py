@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Query
 from typing import Optional, Dict, Any, List
 from app.db.supabase_client import supabase_storage, normalize_slug, alphanumeric_key
 from app.db.mock_data import DEFAULT_MODULES
-from app.routers.modules import extract_metric_fields
+from app.routers import modules
 
 router = APIRouter()
 
@@ -61,13 +61,19 @@ def get_metric_deep_dive(
 
     # 3. Dynamic overrides from Supabase folder:
     if supabase_data.get("_source") != "none":
-        extracted = extract_metric_fields(supabase_data, default_b=metric_obj)
-        company_val = extracted["company"]
-        standard_val = extracted["standard"]
-        status_val = extracted["status"]
-        variance_val = extracted["variance"]
+        extracted = modules.extract_metric_fields(supabase_data, default_b=metric_obj)
+        company_val = supabase_data.get("company") if supabase_data.get("company") and supabase_data.get("company") != "Not yet fetched" else extracted["company"]
+        standard_val = supabase_data.get("standard") if supabase_data.get("standard") and supabase_data.get("standard") != "Not yet fetched" else extracted["standard"]
+        status_val = supabase_data.get("status") if supabase_data.get("status") and supabase_data.get("status") != "Not yet fetched" else extracted["status"]
+        variance_val = supabase_data.get("variance") if supabase_data.get("variance") and supabase_data.get("variance") != "Not yet fetched" else extracted["variance"]
         detailed_analysis = extracted["detailedAnalysis"]
+        supa_cfgs = supabase_data.get("missingConfigurations") or []
+        ext_cfgs = detailed_analysis.get("missingConfigurations") or []
+        chosen_cfgs = supa_cfgs if len(supa_cfgs) >= len(ext_cfgs) else ext_cfgs
+        detailed_analysis["missingConfigurations"] = chosen_cfgs
         module_overview = extracted.get("moduleOverview", {})
+        if supabase_data.get("moduleOverview") and isinstance(supabase_data["moduleOverview"], dict):
+            module_overview = {**module_overview, **supabase_data["moduleOverview"]}
         is_live_supabase = True
     else:
         company_val = "Not yet fetched"
@@ -75,16 +81,16 @@ def get_metric_deep_dive(
         status_val = "Not yet fetched"
         variance_val = "Not yet fetched"
         detailed_analysis = {
-            "whyItHappens": "Data not yet fetched from Supabase",
-            "whereItHappens": "Data not yet fetched from Supabase",
-            "trendAnalysis": {"summary": "Data not yet fetched from Supabase", "points": []},
+            "whyItHappens": "Data not yet fetched",
+            "whereItHappens": "Data not yet fetched",
+            "trendAnalysis": {"summary": "Data not yet fetched", "points": []},
             "missingConfigurations": [],
-            "howItEffects": "Data not yet fetched from Supabase",
+            "howItEffects": "Data not yet fetched",
             "howToOvercome": []
         }
         module_overview = {
-            "rootCause": "Data not yet fetched from Supabase",
-            "affectedArea": "Data not yet fetched from Supabase",
+            "rootCause": "Data not yet fetched",
+            "affectedArea": "Data not yet fetched",
             "suggestions": []
         }
         is_live_supabase = False
@@ -222,9 +228,9 @@ def get_metric_deep_dive(
     )
     target_outcome = (
         raw_plan.get("targetOutcome") or
-        (module_overview.get("rootCause") if isinstance(module_overview, dict) and module_overview.get("rootCause") != "Data not yet fetched from Supabase" else "") or
+        (module_overview.get("rootCause") if isinstance(module_overview, dict) and module_overview.get("rootCause") not in ("Data not yet fetched", "Data not yet fetched from Supabase") else "") or
         (rep.get("diagnosis", {}).get("headline") if isinstance(rep.get("diagnosis"), dict) else "") or
-        "Data not yet fetched from Supabase"
+        "Data not yet fetched"
     )
 
     formatted_stage_drivers = [
@@ -288,10 +294,21 @@ def get_metric_deep_dive(
     }
 
     raw_diag = rep.get("diagnosis") or supabase_data.get("diagnosis") or {}
+    headline_raw = raw_diag.get("headline", "")
+    narrative_raw = raw_diag.get("narrative", "")
+
+    # If headline contains "Not yet fetched" or is missing, regenerate it dynamically
+    if not headline_raw or "Not yet fetched" in headline_raw:
+        headline_raw = f"{metric_title} is {status_val} at {company_val} (Standard: {standard_val})."
+
+    # If narrative was generic fallback, use moduleOverview root cause
+    if narrative_raw in ("Data analyzed from Supabase ML pipeline.", "Data analyzed from ML pipeline.", "") and module_overview.get("rootCause") and module_overview.get("rootCause") not in ("Data not yet fetched", "Data not yet fetched from Supabase"):
+        narrative_raw = module_overview.get("rootCause")
+
     diagnosis_obj = {
-        "headline": raw_diag.get("headline", ""),
-        "narrative": raw_diag.get("narrative", "")
-    } if isinstance(raw_diag, dict) else {}
+        "headline": headline_raw,
+        "narrative": narrative_raw
+    }
 
     if diagnosis_obj.get("narrative"):
         detailed_analysis["whyItHappens"] = diagnosis_obj["narrative"]
@@ -334,6 +351,8 @@ def get_metric_deep_dive(
         "segmentDrivers": formatted_segment_drivers,
         "shapFactors": shap_factors,
         "brdPlan": normalized_brd,
+        "missingConfigurations": detailed_analysis.get("missingConfigurations", []),
+        "dataQuality": supabase_data.get("dataQuality") or {},
         "source": supabase_data.get("_source", "supabase_storage"),
         "storageFolder": supabase_data.get("_metric_folder"),
         "storagePath": supabase_data.get("_storage_path"),

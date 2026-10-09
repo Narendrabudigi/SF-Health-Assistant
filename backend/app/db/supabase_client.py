@@ -45,6 +45,95 @@ def alphanumeric_key(text: str) -> str:
     return re.sub(r'[^a-zA-Z0-9]', '', clean).lower()
 
 
+def normalize_missing_configurations(raw_cfgs: Any, mod_name: str = "EC", dq_checks: list = None) -> List[Dict[str, Any]]:
+    """
+    Normalizes any format of missing configuration / fields from Supabase ML pipeline:
+    - dict with 'mandatoryFields' and 'normalFields' (e.g. EmployeeDataAccuracy)
+    - dict with 'mandatory' and 'other' (e.g. FullFinalSettlementTimeliness)
+    - list of dicts or field names
+    - dataQuality.checks with affectedColumns for Completeness / MissingValues
+    Maps every field into a structured specification with ID, Configuration Component,
+    Missing Field Deficit, Severity, and Target Setting.
+    """
+    if isinstance(raw_cfgs, list) and raw_cfgs and isinstance(raw_cfgs[0], dict) and "setting" in raw_cfgs[0]:
+        return raw_cfgs
+
+    cfgs = []
+    seen = set()
+    mod_clean = str(mod_name or "EC").upper()
+    mod_prefix = mod_clean[:2] if len(mod_clean) >= 2 else "EC"
+
+    def get_component(field: str) -> str:
+        f_low = field.lower()
+        if any(k in f_low for k in ["name", "nationality", "authorization", "email", "gender", "dob", "birth", "personal"]):
+            return "Employee Central Personal Information Portlet"
+        if any(k in f_low for k in ["startdate", "hire", "class", "position", "unit", "division", "company", "legal", "cost", "job", "manager", "reportsto"]):
+            return "Employee Central Job Information & Org Structures"
+        if any(k in f_low for k in ["audit", "checked", "discrepancy", "accuracy", "rate", "status"]):
+            return "Employee Central Data Quality & Audit Framework"
+        if any(k in f_low for k in ["settle", "disburse", "exit", "terminat", "offboard", "fas"]):
+            return "Offboarding Settlement & Payroll SLA"
+        if any(k in f_low for k in ["onboard", "task", "milestone", "day1"]):
+            return "Onboarding Journey Governance"
+        return f"{mod_clean} Data Architecture"
+
+    def add_cfg(field: Any, is_mandatory: bool):
+        f_clean = str(field.get("field") if isinstance(field, dict) else field).strip()
+        if not f_clean or f_clean.lower() in seen:
+            return
+        seen.add(f_clean.lower())
+        idx = len(cfgs) + 1
+        comp = get_component(f_clean)
+        sev = "Critical" if is_mandatory else "Medium"
+        title = f"Mandatory Field Missing: {f_clean}" if is_mandatory else f"Missing Field: {f_clean}"
+        status = "Unpopulated Mandatory Field" if is_mandatory else "Unpopulated Field"
+        setting = (
+            f"Manage Business Configuration (BCUI) > Enable mandatory validation and data cleansing for '{f_clean}'"
+            if is_mandatory else
+            f"Manage Business Configuration (BCUI) > Configure attribute mapping and historical data migration for '{f_clean}'"
+        )
+        cfgs.append({
+            "id": f"CFG-{mod_prefix}{idx:02d}",
+            "component": comp,
+            "field": f_clean,
+            "fieldName": f_clean,
+            "title": title,
+            "status": status,
+            "severity": sev,
+            "setting": setting
+        })
+
+    # Case 1: Dict with categorization
+    if isinstance(raw_cfgs, dict):
+        # Prioritize mandatory lists first
+        for cat, flist in raw_cfgs.items():
+            if "mandat" in cat.lower() and isinstance(flist, list):
+                for item in flist:
+                    add_cfg(item, is_mandatory=True)
+        # Then normal/other lists
+        for cat, flist in raw_cfgs.items():
+            if "mandat" not in cat.lower() and isinstance(flist, list):
+                for item in flist:
+                    add_cfg(item, is_mandatory=False)
+
+    # Case 2: List of strings or dicts
+    elif isinstance(raw_cfgs, list):
+        for item in raw_cfgs:
+            is_mand = bool(isinstance(item, dict) and item.get("severity") in ("Critical", "High"))
+            add_cfg(item, is_mandatory=is_mand)
+
+    # Case 3: Completeness checks from dataQuality if raw_cfgs had few or no fields
+    if dq_checks and isinstance(dq_checks, list):
+        for chk in dq_checks:
+            if isinstance(chk, dict) and chk.get("category") in ("Completeness", "Schema", "MissingValues"):
+                cols = chk.get("affectedColumns") or []
+                if isinstance(cols, list):
+                    for c in cols:
+                        add_cfg(c, is_mandatory=False)
+
+    return cfgs
+
+
 class SupabaseStorageService:
     CACHE_TTL_SECONDS = 30  # 30-second cache prevents repeated round-trip scans; makes page reloads and navigation instant (2-5ms)
 
@@ -350,7 +439,7 @@ class SupabaseStorageService:
                         data_qual = jr.get("dataQuality") or {}
                         trend_obj = jr.get("trendAnalysis") or {}
                         forecast_obj = jr.get("forecast") or {}
-                        missing_cfgs = jr.get("missingConfigurations") or []
+                        missing_cfgs = jr.get("missingConfigurations") or jr.get("missingConfiguration") or {}
 
                         # Older ml_insights schema fallback (executive_summary)
                         exec_summ = jr.get("executive_summary") or {}
@@ -373,7 +462,8 @@ class SupabaseStorageService:
                             else:
                                 company_display = c_str
                         else:
-                            company_display = "Not yet fetched"
+                            rec_analyzed = data_qual.get("recordsAnalysed", 0)
+                            company_display = f"No Data ({rec_analyzed} Records)" if rec_analyzed == 0 else "N/A"
 
                         # Format standard display value
                         if std_val is not None:
@@ -397,50 +487,70 @@ class SupabaseStorageService:
                             status_display = "At Risk"
                         elif "health" in h_lower or "track" in h_lower or "ok" in h_lower or "good" in h_lower:
                             status_display = "Healthy"
-                        elif company_val is not None:
-                            status_display = "Healthy"
+                        elif "unknown" in h_lower or company_val is None:
+                            status_display = "At Risk" if data_qual.get("overallRating") == "poor" else "Unknown"
                         else:
-                            status_display = "Not yet fetched"
+                            status_display = "Healthy"
 
                         # Variance formatting
                         if isinstance(variance_obj, dict):
                             v_val = variance_obj.get("value")
                             v_pct = variance_obj.get("percentage")
                             if v_val is not None and v_pct is not None:
-                                sign = "+" if float(v_val) > 0 else ""
-                                variance_display = f"{sign}{v_val} ({sign}{v_pct}%)"
+                                try:
+                                    sign = "+" if float(v_val) > 0 else ""
+                                    variance_display = f"{sign}{v_val} ({sign}{v_pct}%)"
+                                except Exception:
+                                    variance_display = f"{v_val} ({v_pct}%)"
                             elif v_val is not None:
-                                sign = "+" if float(v_val) > 0 else ""
-                                variance_display = f"{sign}{v_val}"
+                                try:
+                                    sign = "+" if float(v_val) > 0 else ""
+                                    variance_display = f"{sign}{v_val}"
+                                except Exception:
+                                    variance_display = str(v_val)
                             else:
-                                variance_display = "Not yet fetched"
+                                variance_display = "N/A (Data Gap)"
                         elif variance_obj:
                             variance_display = str(variance_obj)
                         else:
-                            variance_display = "Not yet fetched"
+                            variance_display = "N/A (Data Gap)"
 
-                        # Generate root cause and suggestions from factors
+                        # Normalize missingConfigurations / missingConfiguration using unified multi-format normalizer
+                        normalized_missing_cfgs = normalize_missing_configurations(
+                            missing_cfgs,
+                            mod_name=mod_raw,
+                            dq_checks=data_qual.get("checks")
+                        )
+
+                        # Extract suggestions ONLY if explicitly present in Supabase JSON
+                        raw_sug = jr.get("suggestions") or row.get("suggestions") or []
+                        suggestions = list(raw_sug) if isinstance(raw_sug, list) else ([raw_sug] if raw_sug else [])
+
                         factor_summaries = []
-                        suggestions = []
                         for f in factors_raw:
                             if isinstance(f, dict):
                                 fname = f.get("factorName") or f.get("name")
                                 fpct = f.get("impactPct")
                                 if fname:
                                     factor_summaries.append(f"{fname} ({fpct}%)" if fpct else str(fname))
-                                    suggestions.append(f"Remediate and monitor configuration for '{fname}' to reduce diagnostic impact.")
                         
+                        dq_checks = data_qual.get("checks") or []
+                        dq_failures = [c for c in dq_checks if isinstance(c, dict) and c.get("failedRecords")]
+
                         if factor_summaries:
                             root_cause_display = f"Primary drivers: {', '.join(factor_summaries[:3])}."
+                        elif dq_failures:
+                            fail_reasons = [f"{c.get('failedRecords')} records missing '{', '.join(c.get('affectedColumns') or [])}'" for c in dq_failures]
+                            root_cause_display = f"Data completeness breach: {'; '.join(fail_reasons)}. 0 records could be evaluated against the benchmark standard."
                         elif exec_summ.get("primary_root_cause"):
                             root_cause_display = exec_summ.get("primary_root_cause")
-                        elif data_qual.get("recordsAnalysed"):
+                        elif data_qual.get("recordsAnalysed") is not None:
                             root_cause_display = f"Evaluated across {data_qual.get('recordsAnalysed')} records (Data Quality: {data_qual.get('overallRating', 'fair')})."
                         else:
-                            root_cause_display = "Data analyzed from Supabase ML pipeline."
+                            root_cause_display = "Data analyzed from live telemetry pipeline."
 
-                        trend_summary_text = trend_obj.get("summary") or trend_obj.get("macro_trajectory") or f"Trend direction is {trend_obj.get('direction', 'stable')}."
-                        affected_area_display = f"SuccessFactors {mod_raw} architecture touchpoints ({len(missing_cfgs)} unmapped fields flagged)." if missing_cfgs else f"SuccessFactors {mod_raw} process workflows."
+                        trend_summary_text = trend_obj.get("summary") or trend_obj.get("macro_trajectory") or f"Trend direction is {trend_obj.get('direction', 'flat')}."
+                        affected_area_display = jr.get("affectedArea") or jr.get("affected_area") or (f"SuccessFactors {mod_raw} architecture touchpoints ({len(normalized_missing_cfgs)} unmapped fields flagged)." if normalized_missing_cfgs else "")
 
                         parsed_ml_entry = {
                             **row,
@@ -461,8 +571,9 @@ class SupabaseStorageService:
                                     "summary": trend_summary_text,
                                     "points": trend_obj.get("periods") or []
                                 },
-                                "missingConfigurations": missing_cfgs
+                                "missingConfigurations": normalized_missing_cfgs
                             },
+                            "missingConfigurations": normalized_missing_cfgs,
                             "factors": factors_raw,
                             "stageDrivers": factors_raw,
                             "dataQuality": data_qual,

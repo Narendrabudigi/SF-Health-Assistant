@@ -182,16 +182,6 @@ export default function ComparisonTable({
                     <td className="td-metric">
                       <div className="metric-title-cell-wrap">
                         <span className="metric-primary-name">{row.metric}</span>
-                        {(row.isSupabaseLive || row._source === 'supabase_storage_metric_folder' || row._source === 'supabase_llm_reports_table' || row._source === 'supabase') ? (
-                          <span className="source-chip source-chip-live" title="Live ML metric synthesized from Supabase">
-                            <span className="source-chip-dot"></span>
-                            Supabase Live
-                          </span>
-                        ) : (
-                          <span className="source-chip source-chip-static" title="Data not yet fetched from Supabase">
-                            Not yet fetched
-                          </span>
-                        )}
                       </div>
                       <div className="metric-category-subtext">{row.category}</div>
                     </td>

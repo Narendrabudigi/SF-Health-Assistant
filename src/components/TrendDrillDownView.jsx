@@ -3,12 +3,31 @@ import { getTrendDrillDownData } from '../utils/trendDrillDownData';
 
 export default function TrendDrillDownView({ metric }) {
   const metricName = metric?.metric;
-  const isUnfetched = !metric?.isSupabaseLive || metric?.company === 'Not yet fetched' || metric?.company === 'Data not yet fetched from Supabase';
+  const isUnfetched = !metric?.isSupabaseLive || metric?.company === 'Not yet fetched' || ['data not yet fetched', 'data not yet fetched from supabase'].includes(String(metric?.company || '').toLowerCase());
+  const isDataGap = Boolean(
+    metric?.company === 'N/A' ||
+    String(metric?.company || '').toLowerCase().includes('no data') ||
+    String(metric?.variance || '').toLowerCase().includes('data gap')
+  );
 
   if (isUnfetched) {
     return (
       <div style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>
-        <p style={{ margin: 0, fontWeight: 500 }}>Data not yet fetched from Supabase.</p>
+        <p style={{ margin: 0, fontWeight: 500 }}>Data not yet fetched.</p>
+      </div>
+    );
+  }
+
+  if (isDataGap && (!metric?.trendAnalysis?.periods || metric.trendAnalysis.periods.length === 0)) {
+    return (
+      <div style={{ padding: '20px 24px', borderRadius: '8px', background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.25)', borderLeft: '4px solid #f59e0b', color: '#92400e' }}>
+        <div style={{ fontWeight: 700, fontSize: '13px', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span>⚠️</span>
+          <span>Data Gap: Historical Trend Trajectory Unavailable</span>
+        </div>
+        <div style={{ fontSize: '12px', color: '#b45309', lineHeight: 1.55 }}>
+          Multi-period trajectory modeling (Yearly › Quarterly › Monthly) requires timestamped historical transaction data. Due to data gaps across the evaluated client records, trend curves could not be plotted.
+        </div>
       </div>
     );
   }

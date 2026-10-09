@@ -271,7 +271,7 @@ export async function generateMetricBrdPdf(metric, options = {}) {
               <p class="analysis-text" style="margin-top: 0; line-height: 1.6;">${options.whyItHappensText || detailedAnalysis.whyItHappens}</p>
             </div>
           ` : ''}
-          ${(options.whereItHappensText && options.whereItHappensText !== 'SuccessFactors workflow touchpoints' && options.whereItHappensText !== options.whyItHappensText && options.whereItHappensText !== 'Data not yet fetched from Supabase') ? `
+          ${(options.whereItHappensText && options.whereItHappensText !== 'SuccessFactors workflow touchpoints' && options.whereItHappensText !== options.whyItHappensText && !['data not yet fetched', 'data not yet fetched from supabase'].includes(options.whereItHappensText.toLowerCase())) ? `
           <div class="footprint-box">
             <div class="footprint-header">
               <strong>Impacted Architecture Touchpoints:</strong> ${options.whereItHappensText}
@@ -316,20 +316,20 @@ export async function generateMetricBrdPdf(metric, options = {}) {
         </div>
       </div>
 
-      <!-- SECTION 03: MISSING CONFIGURATIONS -->
+      <!-- SECTION 03: DATA GAPS -->
       ${missingConfigs && missingConfigs.length > 0 ? `
       <div class="diagnostic-card">
         <div class="diagnostic-card-header">
           <div>
-            <h2 class="diagnostic-card-title">3. Missing Configurations</h2>
-            <div class="diagnostic-card-subtitle">System Configuration Gaps, Missing Rules & Governance Inactive Controls</div>
+            <h2 class="diagnostic-card-title">3. Data Gaps</h2>
+            <div class="diagnostic-card-subtitle">System Configuration Gaps, Unpopulated Fields & Governance Controls</div>
           </div>
         </div>
         <div class="diagnostic-card-content">
           <div class="cfg-summary-banner">
             <div>
-              <div class="cfg-banner-title">⚠️ ${missingConfigs.length} Identified Configuration Gaps</div>
-              <div class="cfg-banner-desc">Technical audit diagnosed the following missing validation rules, unassigned picklists, and workflow escalation deficits directly driving the variance gap.</div>
+              <div class="cfg-banner-title">⚠️ ${missingConfigs.length} Identified Data Gaps</div>
+              <div class="cfg-banner-desc">Technical audit diagnosed the following unpopulated fields, missing attributes, and configuration deficits directly driving the variance gap.</div>
             </div>
             <div class="cfg-banner-stats">
               <span class="cfg-stat-pill pill-critical">${missingConfigs.filter(c => c.severity === 'Critical').length} Critical</span>
@@ -344,7 +344,7 @@ export async function generateMetricBrdPdf(metric, options = {}) {
                 <tr>
                   <th style="width: 8%;">ID</th>
                   <th style="width: 24%;">Configuration Component</th>
-                  <th style="width: 30%;">Missing Configuration / Deficit</th>
+                  <th style="width: 30%;">Data Gap / Unpopulated Field</th>
                   <th style="width: 12%;">Severity</th>
                   <th style="width: 26%;">Recommended Target Configuration</th>
                 </tr>

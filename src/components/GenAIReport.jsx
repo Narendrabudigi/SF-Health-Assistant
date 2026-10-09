@@ -43,7 +43,7 @@ export default function GenAIReport({ module }) {
               <polyline points="10 9 9 9 8 9"></polyline>
             </svg>
           </span>
-          <h2 className="issues-header-title">Issues Identified</h2>
+          <h2 className="issues-header-title">Areas of Focus</h2>
         </div>
 
         {issueMetrics.length > 0 && (
@@ -58,9 +58,9 @@ export default function GenAIReport({ module }) {
           <div className="healthy-state-report-callout" style={{ borderLeftColor: '#64748b' }}>
             <div className="healthy-icon-pill" style={{ background: '#f1f5f9', color: '#64748b' }}>⏳</div>
             <div>
-              <h4 className="healthy-title">Data Not Yet Fetched from Supabase</h4>
+              <h4 className="healthy-title">Data Not Yet Fetched</h4>
               <p className="healthy-desc">
-                No active metrics or diagnostic reports have been ingested from Supabase for this module.
+                No active metrics or diagnostic reports have been ingested for this module.
               </p>
             </div>
           </div>

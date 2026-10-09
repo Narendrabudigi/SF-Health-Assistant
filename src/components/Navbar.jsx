@@ -25,55 +25,7 @@ export default function Navbar({
 
         {/* Right: Actions */}
         <div className="navbar-right">
-          {/* Supabase Storage / Backend Telemetry Status Badge */}
-          {backendStatus?.isConnected && (
-            <div
-              className="navbar-telemetry-pill"
-              title={
-                backendStatus.supabaseConnected
-                  ? `Supabase Connected: Bucket '${backendStatus.bucketName}/${backendStatus.folder}' has ${backendStatus.bucketFiles} insight file(s)`
-                  : 'FastAPI Backend Online (Supabase credentials pending in backend/.env)'
-              }
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '4px 10px',
-                borderRadius: '12px',
-                background: backendStatus.supabaseConnected ? 'rgba(16, 185, 129, 0.12)' : 'rgba(56, 189, 248, 0.12)',
-                border: `1px solid ${backendStatus.supabaseConnected ? 'rgba(16, 185, 129, 0.3)' : 'rgba(56, 189, 248, 0.3)'}`,
-                color: backendStatus.supabaseConnected ? '#34d399' : '#38bdf8',
-                fontSize: '11px',
-                fontWeight: 600,
-                letterSpacing: '0.04em'
-              }}
-            >
-              <span
-                style={{
-                  width: '7px',
-                  height: '7px',
-                  borderRadius: '50%',
-                  background: backendStatus.supabaseConnected ? '#10b981' : '#38bdf8',
-                  boxShadow: `0 0 8px ${backendStatus.supabaseConnected ? '#10b981' : '#38bdf8'}`
-                }}
-              ></span>
-              <span>
-                {backendStatus.supabaseConnected
-                  ? `SUPABASE: LIVE (${backendStatus.bucketFiles} FILES)`
-                  : 'BACKEND: LIVE'}
-              </span>
-            </div>
-          )}
 
-          {isConnected && (
-            <div
-              className="navbar-telemetry-pill"
-              title="Live Telemetry: Connected to SAP SuccessFactors via OData v2 API"
-            >
-              <span className="status-pulse-dot dot-online"></span>
-              <span className="telemetry-label">LIVE</span>
-            </div>
-          )}
 
           {/* Single Optimized Refresh Button: Triggers ML Model -> LLM -> Backend -> UI */}
           <button

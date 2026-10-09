@@ -5,7 +5,7 @@
  */
 
 const NOT_YET_FETCHED = 'Not yet fetched';
-const DATA_NOT_YET_FETCHED = 'Data not yet fetched from Supabase';
+const DATA_NOT_YET_FETCHED = 'Data not yet fetched';
 
 const createDefaultAnalysis = () => ({
   whyItHappens: DATA_NOT_YET_FETCHED,

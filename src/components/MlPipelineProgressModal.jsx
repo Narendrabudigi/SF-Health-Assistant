@@ -24,9 +24,9 @@ const PIPELINE_STEPS = [
   },
   {
     id: 'data_fabric',
-    name: '4. Supabase Central Fabric Commit',
+    name: '4. Central Telemetry Fabric Commit',
     sub: 'Writing pre-computed BRD action plans & ML drivers to central cache',
-    tech: 'PostgreSQL JSONB • Supabase',
+    tech: 'PostgreSQL JSONB • Central Fabric',
     durationMs: 500
   },
   {

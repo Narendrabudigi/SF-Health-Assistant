@@ -2,7 +2,7 @@ import re
 from fastapi import APIRouter, HTTPException, Query
 from typing import List, Dict, Any, Optional
 from app.db.mock_data import DEFAULT_MODULES
-from app.db.supabase_client import supabase_storage, normalize_slug, alphanumeric_key
+from app.db.supabase_client import supabase_storage, normalize_slug, alphanumeric_key, normalize_missing_configurations
 
 router = APIRouter()
 
@@ -145,6 +145,10 @@ def extract_metric_fields(override: Dict[str, Any], default_b: Optional[Dict[str
         status_val = "At Risk"
     elif "health" in status_candidate or "target" in status_candidate or "good" in status_candidate:
         status_val = "Healthy"
+    elif "unknown" in status_candidate or (isinstance(override.get("dataQuality"), dict) and override.get("dataQuality", {}).get("overallRating") == "poor"):
+        status_val = "At Risk"
+    elif override.get("isSupabaseLive") or override.get("_source", "").startswith("supabase"):
+        status_val = "At Risk" if (isinstance(override.get("dataQuality"), dict) and override.get("dataQuality", {}).get("recordsAnalysed") == 0) else "Healthy"
     else:
         status_val = "Not yet fetched"
 
@@ -155,11 +159,17 @@ def extract_metric_fields(override: Dict[str, Any], default_b: Optional[Dict[str
             val = v.get("value")
             pct = v.get("percentage")
             if val is not None and pct is not None:
-                sign = "+" if float(val) > 0 else ""
-                return f"{sign}{val} ({sign}{pct}%)"
+                try:
+                    sign = "+" if float(val) > 0 else ""
+                    return f"{sign}{val} ({sign}{pct}%)"
+                except Exception:
+                    return f"{val} ({pct}%)"
             elif val is not None:
-                sign = "+" if float(val) > 0 else ""
-                return f"{sign}{val}"
+                try:
+                    sign = "+" if float(val) > 0 else ""
+                    return f"{sign}{val}"
+                except Exception:
+                    return str(val)
             return None
         s = str(v).strip()
         if s.lower() in ("not yet fetched", "data not yet fetched from supabase", "--", "-", "none", "null", ""):
@@ -277,20 +287,29 @@ def extract_metric_fields(override: Dict[str, Any], default_b: Optional[Dict[str
         variance_val = f"{variance_val}%"
 
     # Default fallbacks if not found
-    final_company = str(company_val) if company_val else "Not yet fetched"
+    is_live_supa = bool(override.get("isSupabaseLive") or override.get("_source", "").startswith("supabase"))
+    if not company_val and is_live_supa:
+        rec_count = override.get("dataQuality", {}).get("recordsAnalysed", 0) if isinstance(override.get("dataQuality"), dict) else 0
+        final_company = f"No Data ({rec_count} Records)" if rec_count == 0 else "N/A"
+    else:
+        final_company = str(company_val) if company_val else "Not yet fetched"
+
     final_target = str(target_val) if target_val else "Not yet fetched"
-    final_variance = str(variance_val) if variance_val else "Not yet fetched"
+    if not variance_val and is_live_supa:
+        final_variance = "N/A (Data Gap)"
+    else:
+        final_variance = str(variance_val) if variance_val else "Not yet fetched"
 
     # 5. Word-to-word Detailed Analysis & moduleOverview Structure
     why_happens = (
         root_cause or
         narrative or
         override.get("diagnosis_narrative") or
-        "Data not yet fetched from Supabase"
+        "Data not yet fetched"
     )
     where_happens = (
         affected_area or
-        "Data not yet fetched from Supabase"
+        "Data not yet fetched"
     )
     if suggestions_val:
         suggestions_list = suggestions_val if isinstance(suggestions_val, list) else [suggestions_val]
@@ -300,15 +319,20 @@ def extract_metric_fields(override: Dict[str, Any], default_b: Optional[Dict[str
     trend = (
         rep.get("trendAnalysis") or
         override.get("trendAnalysis") or
-        {"summary": "Data not yet fetched from Supabase", "points": []}
+        {"summary": "Data not yet fetched", "points": []}
     )
-    missing_cfg = (
-        override.get("missingConfigurations") or
-        []
+    raw_missing = override.get("missingConfigurations") or override.get("missingConfiguration") or []
+    dq_checks = override.get("dataQuality", {}).get("checks", []) if isinstance(override.get("dataQuality"), dict) else []
+    mod_raw = (
+        override.get("Module_Name") or
+        override.get("module") or
+        override.get("_module") or
+        (default_b.get("code", "")[:2] if default_b and default_b.get("code") else "EC")
     )
+    missing_cfg = normalize_missing_configurations(raw_missing, mod_name=mod_raw, dq_checks=dq_checks)
     how_effects = (
         rep.get("businessImpact", {}).get("overview") if isinstance(rep.get("businessImpact"), dict) else (
-            override.get("howItEffects") or "Data not yet fetched from Supabase"
+            override.get("howItEffects") or "Data not yet fetched"
         )
     )
 
@@ -331,7 +355,7 @@ def extract_metric_fields(override: Dict[str, Any], default_b: Optional[Dict[str
         )
     )
     business_impact_obj = {
-        "overview": biz_impact_full.get("overview") or (how_effects if how_effects != "Data not yet fetched from Supabase" else ""),
+        "overview": biz_impact_full.get("overview") or (how_effects if how_effects not in ("Data not yet fetched", "Data not yet fetched from Supabase") else ""),
         "financialExposure": biz_impact_full.get("financialExposure") or biz_impact_full.get("financial_exposure", ""),
         "slaAndTurnaround": biz_impact_full.get("slaAndTurnaround") or biz_impact_full.get("sla_and_turnaround", ""),
         "governanceAndAudit": biz_impact_full.get("governanceAndAudit") or biz_impact_full.get("governance_and_audit", "")
@@ -442,16 +466,16 @@ def apply_module_metric_overrides(
             b_copy["status"] = "Not yet fetched"
             b_copy["variance"] = "Not yet fetched"
             b_copy["moduleOverview"] = {
-                "rootCause": "Data not yet fetched from Supabase",
-                "affectedArea": "Data not yet fetched from Supabase",
+                "rootCause": "Data not yet fetched",
+                "affectedArea": "Data not yet fetched",
                 "suggestions": []
             }
             b_copy["detailedAnalysis"] = {
-                "whyItHappens": "Data not yet fetched from Supabase",
-                "whereItHappens": "Data not yet fetched from Supabase",
-                "trendAnalysis": {"summary": "Data not yet fetched from Supabase", "points": []},
+                "whyItHappens": "Data not yet fetched",
+                "whereItHappens": "Data not yet fetched",
+                "trendAnalysis": {"summary": "Data not yet fetched", "points": []},
                 "missingConfigurations": [],
-                "howItEffects": "Data not yet fetched from Supabase",
+                "howItEffects": "Data not yet fetched",
                 "howToOvercome": []
             }
             b_copy["_source"] = "static_baseline"
@@ -509,7 +533,11 @@ def get_all_modules(refresh: bool = Query(True)):
     report/latest/{module}/{metric}/
     Always fresh so live pipeline updates reflect instantly.
     """
-    module_overrides_map = supabase_storage.get_all_module_metric_overrides(force_refresh=True)
+    try:
+        module_overrides_map = supabase_storage.get_all_module_metric_overrides(force_refresh=True)
+    except Exception as e:
+        logger.error(f"Error fetching Supabase overrides: {e}", exc_info=True)
+        module_overrides_map = {}
 
     enriched = []
     for mod in DEFAULT_MODULES:
@@ -527,7 +555,7 @@ def get_all_modules(refresh: bool = Query(True)):
         has_live = any(b.get("isSupabaseLive") for b in benchmarks)
         if not has_live:
             mod_status = "Not yet fetched"
-            mod_ai_report = {"summary": "Data not yet fetched from Supabase."}
+            mod_ai_report = {"summary": "Data not yet fetched."}
         else:
             if crit_count > 0:
                 mod_status = "Critical"
@@ -547,7 +575,7 @@ def get_all_modules(refresh: bool = Query(True)):
                         "summary": f"{clean_name} status is {mod_status}. {root_c}".strip()
                     }
             else:
-                mod_ai_report = {"summary": "Data not yet fetched from Supabase."}
+                mod_ai_report = {"summary": "Data not yet fetched."}
 
         enriched.append({
             **mod,

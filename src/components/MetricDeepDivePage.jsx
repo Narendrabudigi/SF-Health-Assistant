@@ -8,7 +8,7 @@ import { apiService } from '../services/apiService';
 const CATALOG_SECTIONS = [
   { id: 'sec-diagnosis', label: 'Diagnosis', icon: 'help', desc: 'LLM diagnostic synthesis & touchpoints' },
   { id: 'sec-trend', label: 'Trend Analysis', icon: 'trend', desc: 'Yearly, quarterly & monthly drill-down' },
-  { id: 'sec-missing-configs', label: 'Missing Configurations', icon: 'settings', desc: 'Identified configuration gaps & rule deficits' },
+  { id: 'sec-missing-configs', label: 'Data Gaps', icon: 'settings', desc: 'Identified data gaps & unpopulated fields' },
   { id: 'sec-rca', label: 'Root Cause Analysis', icon: 'search', desc: 'Stage & segment breach drivers' },
   { id: 'sec-impact', label: 'Business Impact', icon: 'alert', desc: 'Downstream SLA & financial risk' },
   { id: 'sec-brd', label: 'BRD Plan of Action', icon: 'clipboard', desc: 'Workforce, hours & milestones' },
@@ -378,11 +378,18 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
     return () => { active = false; };
   }, [currentMetric.code, currentMetric.metric, module?.id]);
 
+  const pickNonEmpty = (liveVal, baseVal) => {
+    const isInvalid = (v) => !v || ['not yet fetched', 'data not yet fetched from supabase', '--', '-', 'none', 'null', ''].includes(String(v).trim().toLowerCase());
+    if (!isInvalid(liveVal)) return liveVal;
+    if (!isInvalid(baseVal)) return baseVal;
+    return liveVal || baseVal;
+  };
+
   // Real-time overrides: Whatever is present in the Supabase metric folder reflects directly!
-  const rawCompany = liveInsight?.metric?.company || baseCompany;
-  const rawStandard = liveInsight?.metric?.standard || baseStandard;
-  const rawStatus = liveInsight?.metric?.status || baseStatus;
-  const rawVariance = liveInsight?.metric?.variance || baseVariance;
+  const rawCompany = pickNonEmpty(liveInsight?.metric?.company, baseCompany);
+  const rawStandard = pickNonEmpty(liveInsight?.metric?.standard, baseStandard);
+  const rawStatus = pickNonEmpty(liveInsight?.metric?.status, baseStatus);
+  const rawVariance = pickNonEmpty(liveInsight?.metric?.variance, baseVariance);
   const detailedAnalysis = liveInsight?.metric?.detailedAnalysis || baseDetailedAnalysis;
 
   const isMetricLive = Boolean(
@@ -423,16 +430,16 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
 
   const overviewData = isMetricLive
     ? (liveInsight?.moduleOverview || liveInsight?.metric?.moduleOverview || currentMetric?.moduleOverview || {})
-    : { rootCause: 'Data not yet fetched from Supabase', affectedArea: 'Data not yet fetched from Supabase', suggestions: [] };
+    : { rootCause: 'Data not yet fetched', affectedArea: 'Data not yet fetched', suggestions: [] };
 
   const diagnosisData = isMetricLive
     ? (liveInsight?.diagnosis || liveInsight?.metric?.diagnosis || currentMetric?.diagnosis || {})
     : {};
   const diagnosisHeadline = diagnosisData?.headline || detailedAnalysis?.headline || '';
-  const diagnosisNarrative = diagnosisData?.narrative || (detailedAnalysis?.whyItHappens !== 'Data not yet fetched from Supabase' ? detailedAnalysis?.whyItHappens : '') || (overviewData.rootCause !== 'Data not yet fetched from Supabase' ? overviewData.rootCause : '') || (isMetricLive ? '' : 'Data not yet fetched from Supabase');
+  const diagnosisNarrative = diagnosisData?.narrative || (detailedAnalysis?.whyItHappens && !['data not yet fetched', 'data not yet fetched from supabase'].includes(detailedAnalysis.whyItHappens.toLowerCase()) ? detailedAnalysis?.whyItHappens : '') || (overviewData.rootCause && !['data not yet fetched', 'data not yet fetched from supabase'].includes(overviewData.rootCause.toLowerCase()) ? overviewData.rootCause : '') || (isMetricLive ? '' : 'Data not yet fetched');
 
-  const whyItHappensText = diagnosisNarrative || (isMetricLive ? '' : 'Data not yet fetched from Supabase');
-  const whereItHappensText = (overviewData.affectedArea !== 'Data not yet fetched from Supabase' ? overviewData.affectedArea : '') || (detailedAnalysis?.whereItHappens !== 'Data not yet fetched from Supabase' ? detailedAnalysis?.whereItHappens : '') || (isMetricLive ? '' : 'Data not yet fetched from Supabase');
+  const whyItHappensText = diagnosisNarrative || (isMetricLive ? '' : 'Data not yet fetched');
+  const whereItHappensText = (overviewData.affectedArea && !['data not yet fetched', 'data not yet fetched from supabase'].includes(overviewData.affectedArea.toLowerCase()) ? overviewData.affectedArea : '') || (detailedAnalysis?.whereItHappens && !['data not yet fetched', 'data not yet fetched from supabase'].includes(detailedAnalysis.whereItHappens.toLowerCase()) ? detailedAnalysis?.whereItHappens : '') || (isMetricLive ? '' : 'Data not yet fetched');
 
   const businessImpactData = isMetricLive
     ? (liveInsight?.businessImpact || liveInsight?.metric?.businessImpact || detailedAnalysis?.businessImpact || currentMetric?.businessImpact || {})
@@ -481,7 +488,7 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
         totalEffortHours: 0,
         totalEffortsDisplay: 'Not yet fetched',
         timelineAndEffort: { timeline: 'Not yet fetched', totalEffort: 'Not yet fetched' },
-        targetOutcome: 'Data not yet fetched from Supabase'
+        targetOutcome: 'Data not yet fetched'
       };
     }
 
@@ -576,7 +583,7 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
     const timeline = liveBrd.timeline || (durationWeeks ? `${durationWeeks} Weeks` : 'Not yet fetched');
     const totalEffortsDisplay = liveBrd.totalEffortsDisplay || (totalEffortHours ? `${totalEffortHours} Total Hours` : 'Not yet fetched');
     const timelineAndEffort = liveBrd.timelineAndEffort || { timeline, totalEffort: totalEffortsDisplay };
-    const targetOutcome = liveBrd.targetOutcome || liveInsight?.targetOutcome || (isMetricLive && whyItHappensText && whyItHappensText !== 'Data not yet fetched from Supabase' ? whyItHappensText : 'Data not yet fetched from Supabase');
+    const targetOutcome = liveBrd.targetOutcome || liveInsight?.targetOutcome || (isMetricLive && whyItHappensText && !['data not yet fetched', 'data not yet fetched from supabase'].includes(whyItHappensText.toLowerCase()) ? whyItHappensText : 'Data not yet fetched');
 
     return {
       ...liveBrd,
@@ -603,11 +610,82 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
   const rcaFailureModes = (liveInsight?.rca && liveInsight.rca.length > 0)
     ? liveInsight.rca
     : (liveInsight?.report?.rca || []);
-  const missingConfigs = (liveInsight?.missingConfigurations && liveInsight.missingConfigurations.length > 0)
+  const rawMissingConfigs = (liveInsight?.missingConfigurations && liveInsight.missingConfigurations.length > 0)
     ? liveInsight.missingConfigurations
     : ((detailedAnalysis?.missingConfigurations && detailedAnalysis.missingConfigurations.length > 0)
       ? detailedAnalysis.missingConfigurations
-      : []);
+      : ((currentMetric?.missingConfigurations && currentMetric.missingConfigurations.length > 0)
+        ? currentMetric.missingConfigurations
+        : ((currentMetric?.detailedAnalysis?.missingConfigurations && currentMetric.detailedAnalysis.missingConfigurations.length > 0)
+          ? currentMetric.detailedAnalysis.missingConfigurations
+          : [])));
+
+  const missingConfigs = useMemo(() => {
+    if (!rawMissingConfigs) return [];
+    if (Array.isArray(rawMissingConfigs)) {
+      return rawMissingConfigs.map((item, idx) => {
+        if (typeof item === 'string') {
+          const isMand = item.toLowerCase().includes('audit') || item.toLowerCase().includes('status');
+          return {
+            id: `CFG-${idx + 1 < 10 ? '0' : ''}${idx + 1}`,
+            component: 'Employee Central Data Architecture',
+            field: item,
+            fieldName: item,
+            title: isMand ? `Mandatory Field Missing: ${item}` : `Missing Field: ${item}`,
+            status: isMand ? 'Unpopulated Mandatory Field' : 'Unpopulated Field',
+            severity: isMand ? 'Critical' : 'Medium',
+            setting: `Manage Business Configuration (BCUI) > Configure attribute mapping and data cleansing for '${item}'`
+          };
+        }
+        if (typeof item === 'object' && item !== null) {
+          const fieldName = item.field || item.fieldName || (item.title ? item.title.replace(/^(Mandatory\s+Field\s+Missing:\s*|Missing\s+Field:\s*)/i, '').trim() : '');
+          return {
+            ...item,
+            field: fieldName || item.title,
+            fieldName: fieldName || item.title
+          };
+        }
+        return item;
+      });
+    }
+    if (typeof rawMissingConfigs === 'object') {
+      const list = [];
+      let idx = 1;
+      Object.entries(rawMissingConfigs).forEach(([cat, items]) => {
+        const isMandatory = cat.toLowerCase().includes('mandat');
+        if (Array.isArray(items)) {
+          items.forEach((item) => {
+            const fieldName = typeof item === 'object' ? item.field || item.name || JSON.stringify(item) : String(item);
+            list.push({
+              id: `CFG-${idx < 10 ? '0' : ''}${idx}`,
+              component: 'Employee Central Data Architecture',
+              field: fieldName,
+              fieldName: fieldName,
+              title: isMandatory ? `Mandatory Field Missing: ${fieldName}` : `Missing Field: ${fieldName}`,
+              status: isMandatory ? 'Unpopulated Mandatory Field' : 'Unpopulated Field',
+              severity: isMandatory ? 'Critical' : 'Medium',
+              setting: `Manage Business Configuration (BCUI) > Enable mandatory validation and data cleansing for '${fieldName}'`
+            });
+            idx++;
+          });
+        }
+      });
+      return list;
+    }
+    return [];
+  }, [rawMissingConfigs, currentMetric?.metric]);
+
+  const hasDataGap = Boolean(
+    String(variance || '').toLowerCase().includes('data gap') ||
+    String(company || '').toLowerCase().includes('no data') ||
+    company === 'N/A' ||
+    company === 'Not yet fetched' ||
+    status === 'Unknown' ||
+    status === 'Not yet fetched' ||
+    (liveInsight?.dataQuality && liveInsight.dataQuality.overallRating === 'poor') ||
+    (currentMetric?.dataQuality && currentMetric.dataQuality.overallRating === 'poor') ||
+    (missingConfigs.length > 0)
+  );
 
   const rcaPriorityLabels = useMemo(() => [
     'P1 • Critical Architecture Gap',
@@ -879,16 +957,6 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
               <div className="catalog-metric-heading">{metricName}</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginTop: '4px' }}>
                 <span className="catalog-sub">{category} • {module?.name || 'Module'}</span>
-                {isMetricLive ? (
-                  <span className="source-chip source-chip-live" title="Live ML metric synthesized from Supabase">
-                    <span className="source-chip-dot"></span>
-                    Supabase Live
-                  </span>
-                ) : (
-                  <span className="source-chip source-chip-static" title="Data not yet fetched from Supabase">
-                    Not yet fetched
-                  </span>
-                )}
               </div>
 
               {/* Step Progress Tracker */}
@@ -948,26 +1016,6 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
               </div>
 
               <div className="deepdive-hero-badge-wrap" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                {(liveInsight?.storageFolder || liveInsight?.storagePath) && (
-                  <span
-                    className="supabase-source-badge"
-                    title={`Live Diagnostic loaded from Supabase Folder: ${liveInsight.storageFolder || liveInsight.storagePath}${liveInsight.filesLoaded?.length ? ` (${liveInsight.filesLoaded.join(', ')})` : ''}`}
-                    style={{
-                      fontSize: '11px',
-                      padding: '4px 10px',
-                      borderRadius: '6px',
-                      background: 'rgba(16, 185, 129, 0.15)',
-                      border: '1px solid rgba(16, 185, 129, 0.35)',
-                      color: '#34d399',
-                      fontWeight: 600,
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '5px'
-                    }}
-                  >
-                    <span>📦 Supabase: {liveInsight.storageFolder || liveInsight.storagePath}</span>
-                  </span>
-                )}
                 <span className={`pill-badge ${badgeClass}`}>{status}</span>
               </div>
             </div>
@@ -1021,10 +1069,39 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                 <div className="diagnostic-card-content">
                   {!isMetricLive ? (
                     <div style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>
-                      <p style={{ margin: 0, fontWeight: 500 }}>Data not yet fetched from Supabase.</p>
+                      <p style={{ margin: 0, fontWeight: 500 }}>Data not yet fetched.</p>
                     </div>
                   ) : (
                     <>
+                      {hasDataGap && (
+                        <div
+                          className="diagnosis-data-gap-banner"
+                          style={{
+                            marginBottom: '14px',
+                            padding: '11px 15px',
+                            borderRadius: '6px',
+                            background: '#fffbeb',
+                            border: '1px solid #fde68a',
+                            borderLeft: '4px solid #f59e0b',
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            gap: '10px'
+                          }}
+                        >
+                          <span style={{ fontSize: '16px', lineHeight: 1.2 }}>⚠️</span>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: '12.5px', fontWeight: 700, color: '#92400e', marginBottom: '2px' }}>
+                              Data Gap Identified
+                            </div>
+                            <div style={{ fontSize: '11.8px', color: '#b45309', lineHeight: 1.5 }}>
+                              {missingConfigs.length > 0
+                                ? `${missingConfigs.length} unpopulated data field${missingConfigs.length > 1 ? 's' : ''} detected in client data feed. Records lack required attributes, resulting in an uncomputed company actual and variance data gap.`
+                                : 'Record completeness checks failed or unpopulated values detected in data feed. Metric actuals reflect an operational data gap.'}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       {diagnosisHeadline && (
                         <div
                           className="diagnosis-headline-box"
@@ -1053,7 +1130,7 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                         </div>
                       )}
 
-                      {whyItHappensText && (
+                      {whyItHappensText && !['data not yet fetched', 'data not yet fetched from supabase'].includes(whyItHappensText.toLowerCase()) ? (
                         <div style={{ marginBottom: '14px' }}>
                           <div className="footprint-header" style={{ marginBottom: '5px', fontSize: '11.5px', color: '#475569', fontWeight: 700, letterSpacing: '0.02em' }}>
                             <span>🔍 WHY IT IS HAPPENING (ROOT CAUSE):</span>
@@ -1062,13 +1139,22 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                             {whyItHappensText}
                           </p>
                         </div>
-                      )}
+                      ) : hasDataGap ? (
+                        <div style={{ marginBottom: '14px' }}>
+                          <div className="footprint-header" style={{ marginBottom: '5px', fontSize: '11.5px', color: '#475569', fontWeight: 700, letterSpacing: '0.02em' }}>
+                            <span>🔍 WHY IT IS HAPPENING (ROOT CAUSE):</span>
+                          </div>
+                          <p className="analysis-text-paragraph" style={{ lineHeight: '1.55', color: '#92400e', fontSize: '12px', margin: 0, fontStyle: 'italic', background: '#fffbeb', padding: '10px 14px', borderRadius: '6px', border: '1px solid #fde68a' }}>
+                            ⚠️ Data Gap: Automated root cause modeling could not be evaluated due to unpopulated fields in client data.
+                          </p>
+                        </div>
+                      ) : null}
 
                       {whereItHappensText &&
                         whereItHappensText !== 'SuccessFactors workflow touchpoints' &&
-                        whereItHappensText !== 'Data not yet fetched from Supabase' &&
+                        !['data not yet fetched', 'data not yet fetched from supabase'].includes(whereItHappensText.toLowerCase()) &&
                         whereItHappensText !== whyItHappensText &&
-                        whereItHappensText !== diagnosisNarrative && (
+                        whereItHappensText !== diagnosisNarrative ? (
                           <div className="sf-footprint-box" style={{ marginTop: '12px', padding: '10px 12px', borderRadius: '6px' }}>
                             <div className="footprint-header" style={{ fontSize: '11.5px', color: '#475569' }}>
                               <span><strong style={{ fontWeight: 700 }}>IMPACTED ARCHITECTURE TOUCHPOINTS:</strong> <span style={{ fontSize: '12px', color: '#334155', fontWeight: 500 }}>{whereItHappensText}</span></span>
@@ -1084,9 +1170,15 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                               </div>
                             )}
                           </div>
-                        )}
+                        ) : hasDataGap ? (
+                          <div className="sf-footprint-box" style={{ marginTop: '12px', padding: '10px 12px', borderRadius: '6px', background: '#fffbeb', border: '1px solid #fde68a' }}>
+                            <div className="footprint-header" style={{ fontSize: '11.5px', color: '#92400e' }}>
+                              <span><strong style={{ fontWeight: 700 }}>IMPACTED ARCHITECTURE TOUCHPOINTS:</strong> <span style={{ fontSize: '12px', color: '#b45309', fontStyle: 'italic' }}>⚠️ Data Gap: Architecture touchpoints unmapped due to missing data attributes.</span></span>
+                            </div>
+                          </div>
+                        ) : null}
 
-                      {howToOvercomeList && howToOvercomeList.length > 0 && (
+                      {howToOvercomeList && howToOvercomeList.length > 0 ? (
                         <div className="sf-footprint-box" style={{ marginTop: '12px', padding: '10px 12px', borderRadius: '6px' }}>
                           <div className="footprint-header" style={{ fontSize: '11.5px', marginBottom: '6px', color: '#475569', fontWeight: 700, letterSpacing: '0.02em' }}>
                             <span>💡 SUGGESTIONS TO IMPROVE:</span>
@@ -1099,6 +1191,70 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                               </li>
                             ))}
                           </ol>
+                        </div>
+                      ) : hasDataGap ? (
+                        <div className="sf-footprint-box" style={{ marginTop: '12px', padding: '10px 12px', borderRadius: '6px', background: '#fffbeb', border: '1px solid #fde68a' }}>
+                          <div className="footprint-header" style={{ fontSize: '11.5px', marginBottom: '6px', color: '#92400e', fontWeight: 700, letterSpacing: '0.02em' }}>
+                            <span>💡 SUGGESTIONS TO IMPROVE:</span>
+                          </div>
+                          <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#b45309', fontStyle: 'italic' }}>
+                            ⚠️ Data Gap: No suggestions generated (mandatory configuration fields are missing).
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="sf-footprint-box" style={{ marginTop: '12px', padding: '10px 12px', borderRadius: '6px' }}>
+                          <div className="footprint-header" style={{ fontSize: '11.5px', marginBottom: '6px', color: '#475569', fontWeight: 700, letterSpacing: '0.02em' }}>
+                            <span>💡 SUGGESTIONS TO IMPROVE:</span>
+                          </div>
+                          <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#64748b', fontStyle: 'italic' }}>
+                            No suggestions returned for this metric.
+                          </p>
+                        </div>
+                      )}
+
+                      {hasDataGap && missingConfigs.length > 0 && (
+                        <div
+                          className="diagnosis-data-gap-detail-card"
+                          style={{
+                            marginTop: '14px',
+                            padding: '12px 14px',
+                            borderRadius: '6px',
+                            background: '#f8fafc',
+                            border: '1px solid #e2e8f0',
+                            borderLeft: '4px solid #f59e0b'
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                            <div style={{ fontSize: '12px', fontWeight: 700, color: '#334155' }}>
+                              📋 Data Completeness &amp; Schema Audit (Data Gaps Breakdown)
+                            </div>
+                            <span style={{ fontSize: '11px', fontWeight: 600, color: '#92400e', background: '#fef3c7', padding: '2px 8px', borderRadius: '12px' }}>
+                              {missingConfigs.length} Missing Fields
+                            </span>
+                          </div>
+                          <div style={{ fontSize: '11.5px', color: '#64748b', lineHeight: 1.5, marginBottom: '8px' }}>
+                            The following unpopulated attributes prevent calculation of the company actual benchmark. Populating these fields in SuccessFactors will resolve the data gap:
+                          </div>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                            {missingConfigs.map((cfg, idx) => (
+                              <span
+                                key={idx}
+                                style={{
+                                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                                  fontSize: '11px',
+                                  fontWeight: 600,
+                                  padding: '2px 8px',
+                                  borderRadius: '4px',
+                                  background: cfg.severity === 'Critical' ? '#fee2e2' : '#f1f5f9',
+                                  color: cfg.severity === 'Critical' ? '#991b1b' : '#334155',
+                                  border: `1px solid ${cfg.severity === 'Critical' ? '#fca5a5' : '#cbd5e1'}`
+                                }}
+                              >
+                                {cfg.field || cfg.fieldName || cfg.title.replace(/^(Mandatory\s+Field\s+Missing:\s*|Missing\s+Field:\s*)/i, '').trim()}
+                                {cfg.severity === 'Critical' ? ' (Mandatory)' : ''}
+                              </span>
+                            ))}
+                          </div>
                         </div>
                       )}
                     </>
@@ -1119,7 +1275,7 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                 <div className="diagnostic-card-content">
                   {!isMetricLive ? (
                     <div style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>
-                      <p style={{ margin: 0, fontWeight: 500 }}>Data not yet fetched from Supabase.</p>
+                      <p style={{ margin: 0, fontWeight: 500 }}>Data not yet fetched.</p>
                     </div>
                   ) : (
                     <TrendDrillDownView metric={{ ...currentMetric, company, standard, status, variance, isSupabaseLive }} />
@@ -1127,20 +1283,20 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                 </div>
               </div>
 
-              {/* SECTION 03: MISSING CONFIGURATIONS */}
+              {/* SECTION 03: DATA GAPS */}
               <div id="sec-missing-configs" className="diagnostic-card deepdive-card">
                 <div className="diagnostic-card-header">
                   <div className="card-header-text">
-                    <h2 className="diagnostic-card-title">3. Missing Configurations</h2>
+                    <h2 className="diagnostic-card-title">3. Data Gaps</h2>
                     <span className="diagnostic-card-subtitle">
-                      System Configuration Gaps, Missing Rules &amp; Governance Inactive Controls
+                      System Configuration Gaps, Unpopulated Fields &amp; Governance Controls
                     </span>
                   </div>
                 </div>
                 <div className="diagnostic-card-content">
                   {!isMetricLive ? (
                     <div style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>
-                      <p style={{ margin: 0, fontWeight: 500 }}>Data not yet fetched from Supabase.</p>
+                      <p style={{ margin: 0, fontWeight: 500 }}>Data not yet fetched.</p>
                     </div>
                   ) : missingConfigs.length === 0 ? (
                     <div
@@ -1160,10 +1316,10 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                       <span style={{ fontSize: '18px', lineHeight: 1 }}>✅</span>
                       <div>
                         <div style={{ fontSize: '12.5px', fontWeight: 700, color: '#065f46', marginBottom: '2px' }}>
-                          No Missing Configurations Detected
+                          No Data Gaps Detected
                         </div>
                         <div style={{ fontSize: '12px', color: '#047857', lineHeight: 1.45 }}>
-                          All required system fields, validation rules, picklists, and governance controls are present.
+                          All required system fields, validation rules, picklists, and governance controls are populated.
                         </div>
                       </div>
                     </div>
@@ -1175,10 +1331,10 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                           <span className="cfg-banner-icon" aria-hidden="true">⚠️</span>
                           <div>
                             <div className="cfg-banner-title">
-                              {missingConfigs.length} Identified Configuration Gaps
+                              {missingConfigs.length} Identified Data Gaps
                             </div>
                             <div className="cfg-banner-desc">
-                              Technical audit diagnosed the following missing validation rules, unassigned picklists, and workflow escalation deficits directly driving the variance gap.
+                              Technical audit diagnosed the following unpopulated fields, missing attributes, and configuration deficits directly driving the variance gap.
                             </div>
                           </div>
                         </div>
@@ -1202,7 +1358,7 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                             <tr>
                               <th style={{ width: '9%' }}>ID</th>
                               <th style={{ width: '23%' }}>Configuration Component</th>
-                              <th style={{ width: '30%' }}>Missing Configuration / Deficit</th>
+                              <th style={{ width: '30%' }}>Data Gap / Unpopulated Field</th>
                               <th style={{ width: '13%' }}>Severity</th>
                               <th style={{ width: '25%' }}>Recommended Target Configuration</th>
                             </tr>
@@ -1213,9 +1369,31 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                                 <td><span className="workstream-id-badge">{cfg.id}</span></td>
                                 <td><strong>{cfg.component}</strong></td>
                                 <td>
-                                  <div style={{ fontWeight: 600, color: '#0f172a' }}>{cfg.title}</div>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', flexWrap: 'wrap' }}>
+                                    <span
+                                      style={{
+                                        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                                        fontSize: '0.84rem',
+                                        fontWeight: 700,
+                                        color: cfg.severity === 'Critical' ? '#991b1b' : '#0369a1',
+                                        background: cfg.severity === 'Critical' ? '#fef2f2' : '#f0f9ff',
+                                        border: `1px solid ${cfg.severity === 'Critical' ? '#fecaca' : '#bae6fd'}`,
+                                        padding: '2px 8px',
+                                        borderRadius: '4px',
+                                        letterSpacing: '0.01em'
+                                      }}
+                                    >
+                                      {cfg.field || cfg.fieldName || cfg.title.replace(/^(Mandatory\s+Field\s+Missing:\s*|Missing\s+Field:\s*)/i, '').trim()}
+                                    </span>
+                                    {cfg.severity === 'Critical' && (
+                                      <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#b91c1c', background: '#fee2e2', border: '1px solid #fca5a5', padding: '1px 6px', borderRadius: '3px', textTransform: 'uppercase' }}>
+                                        Mandatory
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div style={{ fontWeight: 600, fontSize: '0.82rem', color: '#1e293b' }}>{cfg.title}</div>
                                   <div style={{ fontSize: '0.76rem', color: '#64748b', marginTop: '3px' }}>
-                                    Current Status: <span style={{ color: '#b91c1c', fontWeight: 600 }}>{cfg.status}</span>
+                                    Current Status: <span style={{ color: cfg.severity === 'Critical' ? '#b91c1c' : '#b45309', fontWeight: 600 }}>{cfg.status}</span>
                                   </div>
                                 </td>
                                 <td>
@@ -1247,9 +1425,16 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                   </div>
                 </div>
                 <div className="diagnostic-card-content">
-                  {!isMetricLive || (!unifiedRcaDrivers.length && !rcaFailureModes?.length) ? (
+                  {!isMetricLive ? (
                     <div style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>
-                      <p style={{ margin: 0, fontWeight: 500 }}>Data not yet fetched from Supabase.</p>
+                      <p style={{ margin: 0, fontWeight: 500 }}>Data not yet fetched.</p>
+                    </div>
+                  ) : (!unifiedRcaDrivers.length && !rcaFailureModes?.length) ? (
+                    <div style={{ padding: '16px 20px', borderRadius: '6px', background: '#fffbeb', border: '1px solid #fde68a', borderLeft: '4px solid #f59e0b', color: '#92400e' }}>
+                      <div style={{ fontWeight: 700, fontSize: '13px', marginBottom: '3px' }}>⚠️ Data Gap: Factor Attribution Unavailable</div>
+                      <div style={{ fontSize: '12px', color: '#b45309', lineHeight: 1.5 }}>
+                        Root cause factor ranking and TreeSHAP attribution could not be calculated because mandatory records/fields are missing from the input data feed. Please refer to Section 3 (Data Gaps) for the unpopulated fields.
+                      </div>
                     </div>
                   ) : (
                     <>
@@ -1334,9 +1519,9 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                   </div>
                 </div>
                 <div className="diagnostic-card-content">
-                  {!isMetricLive || (!detailedAnalysis?.howItEffects && !businessImpactOverview && !financialExposure) || (detailedAnalysis?.howItEffects === 'Data not yet fetched from Supabase' && !financialExposure) ? (
+                  {!isMetricLive || (!detailedAnalysis?.howItEffects && !businessImpactOverview && !financialExposure) || (['data not yet fetched', 'data not yet fetched from supabase'].includes(detailedAnalysis?.howItEffects?.toLowerCase?.()) && !financialExposure) ? (
                     <div style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>
-                      <p style={{ margin: 0, fontWeight: 500 }}>Data not yet fetched from Supabase.</p>
+                      <p style={{ margin: 0, fontWeight: 500 }}>Data not yet fetched.</p>
                     </div>
                   ) : (
                     <>
@@ -1347,21 +1532,21 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                           <div className="triad-icon">💰</div>
                           <div className="triad-title">Financial Exposure</div>
                           <div className="triad-desc">
-                            {financialExposure || 'Data not yet fetched from Supabase'}
+                            {financialExposure || 'Data not yet fetched'}
                           </div>
                         </div>
                         <div className="impact-triad-card triad-sla">
                           <div className="triad-icon">⏱️</div>
                           <div className="triad-title">SLA &amp; Turnaround</div>
                           <div className="triad-desc">
-                            {slaAndTurnaround || 'Data not yet fetched from Supabase'}
+                            {slaAndTurnaround || 'Data not yet fetched'}
                           </div>
                         </div>
                         <div className="impact-triad-card triad-gov">
                           <div className="triad-icon">🛡️</div>
                           <div className="triad-title">Governance &amp; Audit</div>
                           <div className="triad-desc">
-                            {governanceAndAudit || 'Data not yet fetched from Supabase'}
+                            {governanceAndAudit || 'Data not yet fetched'}
                           </div>
                         </div>
                       </div>
@@ -1387,7 +1572,7 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                 <div className="diagnostic-card-content">
                   {!isMetricLive || (!brdPlan?.specialistManpower?.length && !brdPlan?.phasedActivities?.length) ? (
                     <div style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>
-                      <p style={{ margin: 0, fontWeight: 500 }}>Data not yet fetched from Supabase.</p>
+                      <p style={{ margin: 0, fontWeight: 500 }}>Data not yet fetched.</p>
                     </div>
                   ) : (
                     <>
@@ -1485,7 +1670,7 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                 <div className="diagnostic-card-content">
                   {!isMetricLive || !brdPlan?.executionWorkstreams?.length ? (
                     <div style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>
-                      <p style={{ margin: 0, fontWeight: 500 }}>Data not yet fetched from Supabase.</p>
+                      <p style={{ margin: 0, fontWeight: 500 }}>Data not yet fetched.</p>
                     </div>
                   ) : (
                     <>
@@ -1537,7 +1722,7 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                 <div className="diagnostic-card-content">
                   {!isMetricLive || (!brdPlan?.assumptionsAndRisks?.length && !brdPlan?.successCriteria?.length) ? (
                     <div style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>
-                      <p style={{ margin: 0, fontWeight: 500 }}>Data not yet fetched from Supabase.</p>
+                      <p style={{ margin: 0, fontWeight: 500 }}>Data not yet fetched.</p>
                     </div>
                   ) : (
                     <>

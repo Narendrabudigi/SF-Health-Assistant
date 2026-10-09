@@ -6,7 +6,7 @@ by live telemetry and diagnostic reports fetched from Supabase.
 """
 
 NOT_YET_FETCHED = "Not yet fetched"
-DATA_NOT_YET_FETCHED = "Data not yet fetched from Supabase"
+DATA_NOT_YET_FETCHED = "Data not yet fetched"
 
 def default_analysis():
     return {

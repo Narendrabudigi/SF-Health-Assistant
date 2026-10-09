@@ -41,6 +41,26 @@ def get_user_tables():
 
 
 
+@router.get("/raw-metric/{metric_name}")
+def get_raw_metric(metric_name: str):
+    from app.db.supabase_client import supabase_client
+    if not supabase_client:
+        return {"error": "no supabase_client"}
+    res = {}
+    for tbl in ["ML_Notebook_Insights", "LLM_Reports_Latest"]:
+        try:
+            q = supabase_client.table(tbl).select("*").ilike("Metric_Name" if tbl == "ML_Notebook_Insights" else "metric_name", f"%{metric_name}%").execute()
+            res[tbl] = q.data
+        except Exception as e:
+            res[tbl] = str(e)
+    return res
+
+@router.get("/cache/invalidate")
+@router.post("/cache/invalidate")
+def invalidate_cache():
+    supabase_storage.invalidate_cache()
+    return {"status": "cache_invalidated"}
+
 @router.get("/status")
 def get_supabase_storage_status():
     """
