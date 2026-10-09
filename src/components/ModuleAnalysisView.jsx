@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import GenAIReport from './GenAIReport';
 import ComparisonTable from './ComparisonTable';
 import MetricDeepDivePage from './MetricDeepDivePage';
 
@@ -79,20 +78,20 @@ export default function ModuleAnalysisView({
 
   const displayName = CANONICAL_MODULE_NAMES[module.id?.toLowerCase()] || module.name;
   const benchmarks = module.benchmarks || [];
-  const criticalCount = module.criticalCount !== undefined 
-    ? module.criticalCount 
+  const criticalCount = module.criticalCount !== undefined
+    ? module.criticalCount
     : benchmarks.filter(b => String(b.status || '').toLowerCase().includes('crit')).length;
-  const atRiskCount = module.atRiskCount !== undefined 
-    ? module.atRiskCount 
+  const atRiskCount = module.atRiskCount !== undefined
+    ? module.atRiskCount
     : benchmarks.filter(b => String(b.status || '').toLowerCase().includes('risk') || String(b.status || '').toLowerCase().includes('warn')).length;
-  const healthyCount = module.healthyCount !== undefined 
-    ? module.healthyCount 
+  const healthyCount = module.healthyCount !== undefined
+    ? module.healthyCount
     : benchmarks.filter(b => String(b.status || '').toLowerCase().includes('health')).length;
 
-  const hasLiveMetrics = benchmarks.some(b => 
-    b.isSupabaseLive || 
-    b._source === 'supabase' || 
-    b._source === 'supabase_storage_metric_folder' || 
+  const hasLiveMetrics = benchmarks.some(b =>
+    b.isSupabaseLive ||
+    b._source === 'supabase' ||
+    b._source === 'supabase_storage_metric_folder' ||
     b._source === 'supabase_llm_reports_table'
   );
 
@@ -178,23 +177,15 @@ export default function ModuleAnalysisView({
         </div>
       </div>
 
-      {/* 3. 2-Column Grid: Issues Identified (Left) & Standards Table (Right) */}
-      <div className="analysis-view-grid">
-        {/* Left Column: Areas of Focus Accordion Cards */}
-        <section className="analysis-grid-col" aria-label="Areas of Focus">
-          <GenAIReport module={module} />
-        </section>
-
-        {/* Right Column: Company vs. Standards Table */}
-        <section className="analysis-grid-col" aria-label="Company vs. Standards">
-          <ComparisonTable
-            module={module}
-            standardMode={standardMode}
-            onSelectMetric={setSelectedMetric}
-            customStandardsMap={customStandardsMap}
-          />
-        </section>
-      </div>
+      {/* 3. Full-Width Company vs. Standards Comparison Table */}
+      <section className="analysis-table-full-section" aria-label="Company vs. Standards">
+        <ComparisonTable
+          module={module}
+          standardMode={standardMode}
+          onSelectMetric={setSelectedMetric}
+          customStandardsMap={customStandardsMap}
+        />
+      </section>
     </div>
   );
 }

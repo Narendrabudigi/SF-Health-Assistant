@@ -1252,8 +1252,15 @@ body {
 }
 
 /* ==========================================================================
-   8. Main 2-Column Grid: Issues Identified (Left) & Standards Table (Right)
+   8. Comparison Table Section (Full Width Layout)
    ========================================================================== */
+.analysis-table-full-section {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  margin-top: 8px;
+}
+
 .analysis-view-grid {
   display: grid;
   grid-template-columns: 1fr 1.35fr;
@@ -1631,8 +1638,8 @@ body {
 .clean-table-container {
   overflow-x: auto;
   border-radius: 8px;
-  border: 1px solid #edf2f7;
-  background-color: #ffffff !important;
+  border: none;
+  background-color: transparent;
 }
 
 .clean-benchmark-table {
@@ -1645,10 +1652,13 @@ body {
   font-size: 0.68rem;
   font-weight: 750;
   letter-spacing: 0.06em;
-  color: #64748b;
+  color: #475569;
   text-transform: uppercase;
   padding: 12px 14px;
-  border-bottom: 1.5px solid #e2e8f0;
+  border-bottom: 1px solid #e2e8f0;
+  border-top: none;
+  border-left: none;
+  border-right: none;
   background-color: #f8fafc;
   vertical-align: middle;
 }
@@ -1656,6 +1666,9 @@ body {
 .clean-benchmark-table td {
   padding: 13px 14px;
   border-bottom: 1px solid #f1f5f9;
+  border-top: none;
+  border-left: none;
+  border-right: none;
   vertical-align: middle;
   font-size: 0.84rem;
   background-color: #ffffff;
@@ -5300,6 +5313,7 @@ select.form-control {
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }
@@ -5567,10 +5581,13 @@ select.form-control {
 }
 
 @keyframes pulseIndicator {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: scale(0.8);
     opacity: 0.6;
   }
+
   50% {
     transform: scale(1.3);
     opacity: 1;
