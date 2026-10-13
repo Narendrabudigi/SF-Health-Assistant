@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 
 const normalizeStatus = (status, variance = '') => {
   const s = String(status || '').toLowerCase().trim();
@@ -123,6 +123,7 @@ export default function ComparisonTable({
                 {isCustom ? 'Custom Standard' : 'Industry Standard'}
               </th>
               <th scope="col" className="th-status text-center">Health Status</th>
+              <th scope="col" className="th-data-gaps text-center">Data Gaps Count</th>
               <th scope="col" className="th-variance text-right">Variance</th>
               <th scope="col" className="th-action text-right">Analysis</th>
             </tr>
@@ -130,7 +131,7 @@ export default function ComparisonTable({
           <tbody>
             {filteredBenchmarks.length === 0 ? (
               <tr>
-                <td colSpan={6} className="no-data-msg">
+                <td colSpan={7} className="no-data-msg">
                   No metrics match the selected filter.
                 </td>
               </tr>
@@ -148,6 +149,12 @@ export default function ComparisonTable({
                 const isIssue = currentStatus === 'Critical' || currentStatus === 'At Risk' || hasVarianceBreach || !isHealthy;
                 const customStdVal = customStandardsMap[row.metric.toLowerCase().trim()];
                 const displayStandard = (isCustom && customStdVal) ? customStdVal : row.standard;
+                const rawGapSource = row.missingConfigurations ?? row.missingConfiguration ?? row.dataGaps ?? row.data_gaps ?? [];
+                const dataGapsCount = Array.isArray(rawGapSource)
+                  ? rawGapSource.length
+                  : (rawGapSource && typeof rawGapSource === 'object'
+                    ? Object.values(rawGapSource).reduce((total, value) => total + (Array.isArray(value) ? value.length : 0), 0)
+                    : 0);
 
                 return (
                   <tr 
@@ -206,6 +213,16 @@ export default function ComparisonTable({
                       <span className={`pill-badge ${getBadgeClass(currentStatus)}`}>
                         <span className="badge-dot" aria-hidden="true"></span>
                         <span>{currentStatus}</span>
+                      </span>
+                    </td>
+
+                    {/* DATA GAPS COUNT */}
+                    <td className="td-data-gaps text-center">
+                      <span
+                        className={`data-gap-count-badge ${dataGapsCount > 0 ? 'has-gaps' : 'no-gaps'}`}
+                        title={dataGapsCount > 0 ? `${dataGapsCount} data gap${dataGapsCount === 1 ? '' : 's'} detected` : 'No data gaps detected'}
+                      >
+                        {dataGapsCount}
                       </span>
                     </td>
 

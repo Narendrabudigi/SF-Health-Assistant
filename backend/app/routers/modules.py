@@ -1,10 +1,18 @@
 import re
+import logging
 from fastapi import APIRouter, HTTPException, Query
 from typing import List, Dict, Any, Optional
 from app.db.mock_data import DEFAULT_MODULES
-from app.db.supabase_client import supabase_storage, normalize_slug, alphanumeric_key, normalize_missing_configurations
+from app.db.supabase_client import (
+    supabase_storage,
+    normalize_slug,
+    alphanumeric_key,
+    normalize_missing_configurations,
+    get_fixed_benchmark,
+)
 
 router = APIRouter()
+logger = logging.getLogger("sf_health.modules")
 
 ENTERPRISE_MODULE_NAMES = {
     "ec": "Employee Central",
@@ -39,6 +47,48 @@ def find_nested_val(data: Any, *keys: str) -> Optional[Any]:
             found = find_nested_val(v, *keys)
             if found is not None and found != "":
                 return found
+    return None
+
+
+def normalize_confidence_score(value: Any) -> Optional[float]:
+    if value is None or value == "":
+        return None
+    try:
+        n = float(value)
+    except (TypeError, ValueError):
+        m = re.search(r"[-+]?\d*\.?\d+", str(value))
+        if not m:
+            return None
+        try:
+            n = float(m.group(0))
+        except ValueError:
+            return None
+    if 0 <= n <= 1:
+        n *= 100
+    return round(max(0, min(100, n)), 1)
+
+
+def extract_confidence_score(data: Dict[str, Any]) -> Optional[float]:
+    if not isinstance(data, dict):
+        return None
+    candidates = [
+        data.get("confidenceScore"), data.get("confidence_score"), data.get("confidence"),
+        data.get("diagnosisConfidence"), data.get("diagnosis_confidence"),
+        data.get("modelConfidence"), data.get("model_confidence")
+    ]
+    for container_key in ("diagnosis", "report", "metric", "dataQuality", "data_quality", "trendAnalysis", "trend_analysis"):
+        container = data.get(container_key)
+        if isinstance(container, dict):
+            candidates.extend([
+                container.get("confidenceScore"), container.get("confidence_score"),
+                container.get("confidence"), container.get("diagnosisConfidence"),
+                container.get("diagnosis_confidence"), container.get("modelConfidence"),
+                container.get("model_confidence")
+            ])
+    for candidate in candidates:
+        score = normalize_confidence_score(candidate)
+        if score is not None:
+            return score
     return None
 
 
@@ -361,11 +411,15 @@ def extract_metric_fields(override: Dict[str, Any], default_b: Optional[Dict[str
         "governanceAndAudit": biz_impact_full.get("governanceAndAudit") or biz_impact_full.get("governance_and_audit", "")
     }
 
+    confidence_score = extract_confidence_score(rep) or extract_confidence_score(override)
+
     return {
         "company": final_company,
         "standard": final_target,
         "status": status_val,
         "variance": final_variance,
+        "confidenceScore": confidence_score,
+        "missingConfigurations": missing_cfg,
         "moduleOverview": module_overview,
         "diagnosis": diagnosis_obj,
         "businessImpact": business_impact_obj,
@@ -396,13 +450,16 @@ def apply_module_metric_overrides(
     module_overrides_map: Dict[str, Dict[str, Dict[str, Any]]]
 ) -> List[Dict[str, Any]]:
     """
-    Apply metric overrides from Supabase Storage:
-    report/latest/{module}/{metric}/
-    Guarantees that ALL metrics in Supabase are reflected without dropping defaults or cross-contaminating modules.
+    Apply live Supabase metric overrides while keeping public.benchmarks authoritative
+    for industry standards.
+
+    A metric's company/status/diagnosis/etc. can come from live ML/LLM/storage data,
+    but its industry standard is always resolved from the fixed benchmark master when
+    a matching fixed value exists.
     """
     mod_key = mod_id.lower().strip()
     valid_aliases = MODULE_ALIASES.get(mod_key, {mod_key, alphanumeric_key(mod_key)})
-    
+
     mod_overrides = module_overrides_map.get(mod_key)
     if not mod_overrides:
         for k, val in module_overrides_map.items():
@@ -412,10 +469,39 @@ def apply_module_metric_overrides(
                 break
     mod_overrides = mod_overrides or {}
 
+    def authoritative_benchmark(code: Any = "", metric: Any = "") -> Optional[Dict[str, Any]]:
+        try:
+            return get_fixed_benchmark(str(code or ""), str(metric or ""))
+        except Exception as exc:
+            logger.warning(
+                "Could not resolve fixed benchmark for module=%s code=%s metric=%s: %s",
+                mod_id, code, metric, exc
+            )
+            return None
+
+    def apply_authoritative_standard(entry: Dict[str, Any], code: Any = "", metric: Any = "") -> Dict[str, Any]:
+        fixed = authoritative_benchmark(code, metric)
+        if fixed:
+            fixed_value = fixed.get("standard_value")
+            if fixed_value is not None and str(fixed_value).strip() != "":
+                entry["standard"] = fixed_value
+
+            if fixed.get("unit"):
+                entry["benchmarkUnit"] = fixed.get("unit")
+            if fixed.get("operator"):
+                entry["benchmarkOperator"] = fixed.get("operator")
+            if fixed.get("evaluation_direction"):
+                entry["benchmarkDirection"] = fixed.get("evaluation_direction")
+            elif fixed.get("higher_is_better") is not None:
+                entry["higherIsBetter"] = bool(fixed.get("higher_is_better"))
+
+            entry["benchmarkSource"] = "public.benchmarks"
+        return entry
+
     matched_storage_paths = set()
     updated_benchmarks = []
 
-    # 1. Update existing default benchmarks if present in Supabase
+    # 1. Update existing default benchmarks if present in Supabase.
     for b in benchmarks:
         b_copy = dict(b)
         m_name = b_copy.get("metric", "")
@@ -452,19 +538,27 @@ def apply_module_metric_overrides(
 
             extracted = extract_metric_fields(override, default_b=b_copy)
             b_copy["company"] = extracted["company"]
+
+            # Never trust the ML/LLM standard if the fixed benchmark master has a value.
             b_copy["standard"] = extracted["standard"]
             b_copy["status"] = extracted["status"]
             b_copy["variance"] = extracted["variance"]
+            b_copy["confidenceScore"] = extracted.get("confidenceScore")
+            b_copy["missingConfigurations"] = extracted.get("missingConfigurations", [])
             b_copy["moduleOverview"] = extracted["moduleOverview"]
             b_copy["detailedAnalysis"] = extracted["detailedAnalysis"]
             b_copy["_source"] = "supabase_storage_metric_folder"
             b_copy["_storage_path"] = storage_path
             b_copy["isSupabaseLive"] = True
+
+            b_copy = apply_authoritative_standard(b_copy, m_code, m_name)
         else:
             b_copy["company"] = "Not yet fetched"
             b_copy["standard"] = "Not yet fetched"
             b_copy["status"] = "Not yet fetched"
             b_copy["variance"] = "Not yet fetched"
+            b_copy["confidenceScore"] = None
+            b_copy["missingConfigurations"] = []
             b_copy["moduleOverview"] = {
                 "rootCause": "Data not yet fetched",
                 "affectedArea": "Data not yet fetched",
@@ -481,20 +575,28 @@ def apply_module_metric_overrides(
             b_copy["_source"] = "static_baseline"
             b_copy["isSupabaseLive"] = False
 
+            # Even without live telemetry, expose a fixed industry standard when one exists.
+            b_copy = apply_authoritative_standard(b_copy, m_code, m_name)
+
         updated_benchmarks.append(b_copy)
 
-    # 2. Add any extra metrics in Supabase that were NOT in default benchmarks
+    # 2. Add extra metrics from Supabase that were not in the default benchmark list.
     seen_alphas = {alphanumeric_key(b.get("metric", "")) for b in updated_benchmarks}
     seen_alphas.update({alphanumeric_key(b.get("code", "")) for b in updated_benchmarks})
 
     for override in mod_overrides.values():
         if not isinstance(override, dict):
             continue
+
         storage_path = override.get("_storage_path")
         if storage_path and storage_path in matched_storage_paths:
             continue
 
-        m_folder_name = override.get("_metric_folder") or override.get("metric_name") or override.get("metric")
+        m_folder_name = (
+            override.get("_metric_folder") or
+            override.get("metric_name") or
+            override.get("metric")
+        )
         if not m_folder_name:
             continue
 
@@ -507,20 +609,31 @@ def apply_module_metric_overrides(
             matched_storage_paths.add(storage_path)
 
         extracted = extract_metric_fields(override, default_b=None)
+        metric_code = override.get("metric_code") or f"{mod_id}_{normalize_slug(m_folder_name)}"
+        metric_name = override.get("metric_name") or m_folder_name
+
         new_metric_entry = {
-            "code": override.get("metric_code") or f"{mod_id}_{normalize_slug(m_folder_name)}",
-            "metric": override.get("metric_name") or m_folder_name,
+            "code": metric_code,
+            "metric": metric_name,
             "category": override.get("category") or "Operational KPI",
             "company": extracted["company"],
             "standard": extracted["standard"],
             "status": extracted["status"],
             "variance": extracted["variance"],
+            "confidenceScore": extracted.get("confidenceScore"),
+            "missingConfigurations": extracted.get("missingConfigurations", []),
             "_source": override.get("_source", "supabase_storage_metric_folder"),
             "_storage_path": storage_path,
             "isSupabaseLive": True,
             "moduleOverview": extracted["moduleOverview"],
             "detailedAnalysis": extracted["detailedAnalysis"]
         }
+
+        new_metric_entry = apply_authoritative_standard(
+            new_metric_entry,
+            metric_code,
+            metric_name
+        )
         updated_benchmarks.append(new_metric_entry)
 
     return updated_benchmarks

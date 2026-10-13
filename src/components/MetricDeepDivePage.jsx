@@ -435,6 +435,13 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
   const diagnosisData = isMetricLive
     ? (liveInsight?.diagnosis || liveInsight?.metric?.diagnosis || currentMetric?.diagnosis || {})
     : {};
+  const rawConfidenceScore = liveInsight?.confidenceScore ?? liveInsight?.metric?.confidenceScore ?? currentMetric?.confidenceScore ?? diagnosisData?.confidenceScore ?? diagnosisData?.confidence_score ?? diagnosisData?.confidence ?? liveInsight?.dataQuality?.confidenceScore ?? currentMetric?.dataQuality?.confidenceScore;
+  const parsedConfidence = (() => {
+    if (rawConfidenceScore === null || rawConfidenceScore === undefined || rawConfidenceScore === '') return null;
+    const n = Number.parseFloat(String(rawConfidenceScore).replace('%', ''));
+    if (!Number.isFinite(n)) return null;
+    return Math.round((n <= 1 ? n * 100 : n) * 10) / 10;
+  })();
   const diagnosisHeadline = diagnosisData?.headline || detailedAnalysis?.headline || '';
   const diagnosisNarrative = diagnosisData?.narrative || (detailedAnalysis?.whyItHappens && !['data not yet fetched', 'data not yet fetched from supabase'].includes(detailedAnalysis.whyItHappens.toLowerCase()) ? detailedAnalysis?.whyItHappens : '') || (overviewData.rootCause && !['data not yet fetched', 'data not yet fetched from supabase'].includes(overviewData.rootCause.toLowerCase()) ? overviewData.rootCause : '') || (isMetricLive ? '' : 'Data not yet fetched');
 
@@ -1064,6 +1071,13 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                   <div className="card-header-text">
                     <h2 className="diagnostic-card-title">1. Diagnosis</h2>
                     <span className="diagnostic-card-subtitle">Written by the LLM from the ML insights only</span>
+                  </div>
+                  <div
+                    className="diagnosis-confidence-badge"
+                    title={parsedConfidence === null ? 'Confidence score was not returned by the analytics pipeline' : 'Confidence score from the analytics pipeline'}
+                  >
+                    <span className="confidence-label">Confidence Score</span>
+                    <strong>{parsedConfidence === null ? 'N/A' : `${parsedConfidence}%`}</strong>
                   </div>
                 </div>
                 <div className="diagnostic-card-content">

@@ -516,6 +516,39 @@ function normalizeSupabaseInsightPayload(rawData, metricCode, metricName = null)
     }
   }
 
+  const rawConfidence =
+    rawData.confidenceScore ??
+    rawData.confidence_score ??
+    diagObj.confidenceScore ??
+    diagObj.confidence_score ??
+    rep.confidenceScore ??
+    rep.confidence_score ??
+    null;
+
+  let confidenceScore = Number(rawConfidence);
+
+  if (!Number.isFinite(confidenceScore)) {
+    confidenceScore = null;
+  }
+
+  // Accept both:
+  // 0.85 -> 85%
+  // 85   -> 85%
+  if (
+    confidenceScore !== null &&
+    confidenceScore >= 0 &&
+    confidenceScore <= 1
+  ) {
+    confidenceScore *= 100;
+  }
+
+  if (confidenceScore !== null) {
+    confidenceScore = Math.max(
+      0,
+      Math.min(100, confidenceScore)
+    );
+  }
+
   const statusCandidate = String(rawData.status || rep.healthState || rep.health_state || '').toLowerCase();
   let statusVal = 'At Risk';
   if (statusCandidate.includes('crit')) statusVal = 'Critical';
@@ -703,44 +736,87 @@ function normalizeSupabaseInsightPayload(rawData, metricCode, metricName = null)
     targetOutcome
   };
 
-  return {
+    return {
     metric: {
       code: metricCode,
       metric: metricName || metricCode,
       category: rawData.category || 'Operational Quality',
       company: String(companyVal),
       standard: String(standardVal),
-      status: statusVal,
+      status: statusVal,  
       variance: String(varianceVal),
+      confidenceScore,
+
       isSupabaseLive: true,
       _source: rawData._source || 'supabase',
+
       diagnosis: diagObj,
       suggestions: suggestionsList,
       businessImpact,
       moduleOverview: modOverviewObj,
+
       detailedAnalysis: {
         headline: headlineText,
-        whyItHappens: narrativeText || rootCause || modOverviewObj.rootCause,
-        whereItHappens: affectedArea || modOverviewObj.affectedArea,
+
+        whyItHappens:
+          narrativeText ||
+          rootCause ||
+          modOverviewObj.rootCause,
+
+        whereItHappens:
+          affectedArea ||
+          modOverviewObj.affectedArea,
+
         howToOvercome: suggestionsList,
-        trendAnalysis: rep.trendAnalysis || rawData.trendAnalysis || {},
-        missingConfigurations: rawData.missingConfigurations || [],
-        howItEffects: businessImpact.overview || rep.businessImpact?.overview || rawData.howItEffects || '',
+
+        trendAnalysis:
+          rep.trendAnalysis ||
+          rawData.trendAnalysis ||
+          {},
+
+        missingConfigurations:
+          rawData.missingConfigurations ||
+          [],
+
+        howItEffects:
+          businessImpact.overview ||
+          rep.businessImpact?.overview ||
+          rawData.howItEffects ||
+          '',
+
         businessImpact
       }
     },
+
+    // Top-level values are also exposed so
+    // MetricDeepDivePage can read them directly.
     diagnosis: diagObj,
+
+    confidenceScore,
+
     suggestions: suggestionsList,
+
     businessImpact,
+
     moduleOverview: modOverviewObj,
+
     brdPlan: normalizedBrd,
+
     stageDrivers,
+
     segmentDrivers,
+
     shapFactors,
-    source: rawData._source || 'supabase',
-    storagePath: rawData._storage_path || `report/latest/${metricCode}.json`
+
+    source:
+      rawData._source || 'supabase',
+
+    storagePath:
+      rawData._storage_path ||
+      `report/latest/${metricCode}.json`
   };
 }
+
 
 function parseMetricDeepDivePayload(metricCode, metricName, raw) {
   return normalizeSupabaseInsightPayload(raw, metricCode, metricName);
@@ -950,6 +1026,7 @@ export const apiService = {
         standard: 'Not yet fetched',
         status: 'Not yet fetched',
         variance: 'Not yet fetched',
+        confidenceScore: null,
         isSupabaseLive: false,
         _source: 'static_baseline',
         moduleOverview: {
