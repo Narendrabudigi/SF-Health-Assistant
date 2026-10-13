@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import ComparisonTable from './ComparisonTable';
 import MetricDeepDivePage from './MetricDeepDivePage';
-import ModuleTrendOverview from './ModuleTrendOverview';
 
 export default function ModuleAnalysisView({
   module,
@@ -69,12 +68,52 @@ export default function ModuleAnalysisView({
 
   if (!module) return null;
 
+  const statusCounts = (Array.isArray(module.benchmarks) ? module.benchmarks : []).reduce(
+    (counts, benchmark) => {
+      const status = String(benchmark?.status || '').toLowerCase();
+      if (status.includes('crit')) counts.critical += 1;
+      else if (status.includes('risk') || status.includes('warning')) counts.atRisk += 1;
+      else if (status.includes('healthy') || status.includes('on track')) counts.healthy += 1;
+      return counts;
+    },
+    { critical: 0, atRisk: 0, healthy: 0 }
+  );
+
   return (
     <div className="analysis-page-wrapper">
-      {/* 1. Module Trend Overview */}
-      <ModuleTrendOverview module={module} />
+      <section className="metric-status-summary" aria-label="Metric status summary">
+        <article className="metric-status-card metric-status-critical">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M12 3 22 20H2L12 3Z" />
+            <path d="M12 9v5m0 3h.01" />
+          </svg>
+          <strong className="metric-status-count">{statusCounts.critical}</strong>
+          <h2>Critical Issues</h2>
+          <p>Requires immediate action</p>
+        </article>
 
-      {/* 2. Full-Width Company vs. Standards Comparison Table */}
+        <article className="metric-status-card metric-status-at-risk">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M12 3 22 20H2L12 3Z" />
+            <path d="M12 9v5m0 3h.01" />
+          </svg>
+          <strong className="metric-status-count">{statusCounts.atRisk}</strong>
+          <h2>At Risk Issues</h2>
+          <p>Need attention</p>
+        </article>
+
+        <article className="metric-status-card metric-status-healthy">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M20 11.2V12a8 8 0 1 1-4.7-7.3" />
+            <path d="m8.5 11.5 3 3L22 4" />
+          </svg>
+          <strong className="metric-status-count">{statusCounts.healthy}</strong>
+          <h2>Healthy Metric</h2>
+          <p>Performing well</p>
+        </article>
+      </section>
+
+      {/* Full-Width Company vs. Standards Comparison Table */}
       <section className="analysis-table-full-section" aria-label="Company vs. Standards">
         <ComparisonTable
           module={module}

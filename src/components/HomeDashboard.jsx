@@ -102,6 +102,13 @@ export default function HomeDashboard({ modules, onSelectModule }) {
       {/* 4 Smooth Module Cards Grid */}
       <div className="module-cards-row">
         {modules.map((mod) => {
+          const liveMetricCount = (mod.benchmarks || []).filter(
+            (benchmark) => benchmark.isSupabaseLive
+          ).length;
+          const moduleDescription = liveMetricCount > 0
+            ? `${liveMetricCount} of ${mod.benchmarks.length} benchmark metrics fetched.`
+            : mod.description;
+
           return (
             <div 
               key={mod.id} 
@@ -122,7 +129,7 @@ export default function HomeDashboard({ modules, onSelectModule }) {
               </div>
 
               {/* Short Description */}
-              <p className="card-module-desc">{mod.description}</p>
+              <p className="card-module-desc">{moduleDescription}</p>
 
               {/* KPI Count Micro-pill */}
               <div className="card-kpi-count-tag">

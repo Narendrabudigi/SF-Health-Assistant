@@ -4,6 +4,102 @@ import { getBrdPlan } from '../utils/brdPlanData';
 import { generateMetricBrdPdf } from '../utils/pdfGenerator';
 import TrendDrillDownView from './TrendDrillDownView';
 import { apiService } from '../services/apiService';
+import { getMissingFields } from '../utils/dataGapUtils';
+
+
+/**
+ * Defensive display helpers for inconsistent/partial backend payloads.
+ * These prevent values such as objects or nulls from crashing React render.
+ */
+function safeText(value, fallback = '') {
+  if (value === null || value === undefined) return fallback;
+  if (typeof value === 'string') return value.trim() || fallback;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (Array.isArray(value)) {
+    const text = value.map((item) => safeText(item)).filter(Boolean).join(', ');
+    return text || fallback;
+  }
+  if (typeof value === 'object') {
+    const candidate = value.text ?? value.description ?? value.message ?? value.value ?? value.label ?? value.title ?? value.headline ?? value.narrative ?? value.criterion ?? value.name;
+    if (candidate !== undefined && candidate !== value) return safeText(candidate, fallback);
+    return fallback;
+  }
+  return fallback;
+}
+
+function safeLower(value) {
+  return safeText(value).toLowerCase();
+}
+
+function firstUsableValue(...values) {
+  return values.find((value) => {
+    if (value === null || value === undefined) return false;
+    if (typeof value === 'string') return value.trim() !== '' && !isPlaceholder(value);
+    if (Array.isArray(value)) return value.length > 0;
+    if (typeof value === 'object') return Object.keys(value).length > 0;
+    return true;
+  });
+}
+
+function toDiagnosisPoints(value) {
+  if (Array.isArray(value)) {
+    return value.flatMap(toDiagnosisPoints);
+  }
+
+  if (value && typeof value === 'object') {
+    const nestedPoints = firstUsableValue(
+      value.points,
+      value.findings,
+      value.rootCauses,
+      value.root_causes,
+      value.contributingFactors,
+      value.observations,
+      value.bullets,
+      value.items
+    );
+    if (nestedPoints !== undefined) return toDiagnosisPoints(nestedPoints);
+
+    const text = safeText(value);
+    return text ? toDiagnosisPoints(text) : [];
+  }
+
+  if (typeof value !== 'string') return [];
+
+  return value
+    .split(/\r?\n/)
+    .flatMap((line) => line.split(/\s+(?=[•●▪‣]\s+|\d+[.)]\s+)/))
+    .map((point) => point.replace(/^\s*(?:[•●▪‣*-]|\d+[.)])\s*/, '').trim())
+    .filter(Boolean);
+}
+
+function isPlaceholder(value) {
+  return [
+    '',
+    'data not yet fetched',
+    'data not yet fetched from supabase',
+    'not yet fetched',
+    '--',
+    '-',
+    'none',
+    'null'
+  ].includes(safeLower(value).trim());
+}
+
+function safeArray(value) {
+  if (Array.isArray(value)) return value.filter((item) => item !== null && item !== undefined);
+  if (typeof value === 'string' && value.trim()) return [value.trim()];
+  return [];
+}
+
+function safeCriterion(item) {
+  if (typeof item === 'string') return { criterion: item, target: '' };
+  if (!item || typeof item !== 'object') return { criterion: '', target: '' };
+  return {
+    ...item,
+    criterion: safeText(item.criterion ?? item.name ?? item.metric ?? item.title ?? item.description),
+    target: safeText(item.target ?? item.successTarget ?? item.success_target ?? item.threshold ?? item.expected ?? item.goal)
+  };
+}
 
 const CATALOG_SECTIONS = [
   { id: 'sec-diagnosis', label: 'Diagnosis', icon: 'help', desc: 'LLM diagnostic synthesis & touchpoints' },
@@ -342,22 +438,22 @@ function _unused_old_getModuleMapping(moduleId, metricName = '') {
 }
 
 export default function MetricDeepDivePage({ metric, initialMetric, module, onBack, onGoHome, onSelectModule }) {
-  const currentMetric = metric || initialMetric;
+  const hasCurrentMetric = Boolean(metric || initialMetric);
+  const currentMetric = metric || initialMetric || {};
   const [activeSection, setActiveSection] = useState('sec-diagnosis');
   const [isDownloading, setIsDownloading] = useState(false);
   const isManualScrollRef = useRef(false);
 
-  if (!currentMetric) return null;
-
   const {
     detailedAnalysis: baseDetailedAnalysis,
     metric: metricName,
-    category,
+    category: baseCategory,
     company: baseCompany,
     standard: baseStandard,
     status: baseStatus,
     variance: baseVariance
   } = currentMetric;
+  const category = safeText(baseCategory);
 
   // Live ML Insight fetched from Supabase Storage bucket via FastAPI
   const [liveInsight, setLiveInsight] = useState(null);
@@ -379,10 +475,9 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
   }, [currentMetric.code, currentMetric.metric, module?.id]);
 
   const pickNonEmpty = (liveVal, baseVal) => {
-    const isInvalid = (v) => !v || ['not yet fetched', 'data not yet fetched from supabase', '--', '-', 'none', 'null', ''].includes(String(v).trim().toLowerCase());
-    if (!isInvalid(liveVal)) return liveVal;
-    if (!isInvalid(baseVal)) return baseVal;
-    return liveVal || baseVal;
+    if (!isPlaceholder(liveVal)) return liveVal;
+    if (!isPlaceholder(baseVal)) return baseVal;
+    return liveVal ?? baseVal;
   };
 
   // Real-time overrides: Whatever is present in the Supabase metric folder reflects directly!
@@ -415,17 +510,13 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
   const isSupabaseLive = isMetricLive;
 
   const cleanVal = (val) => {
-    if (!val) return 'Not yet fetched';
-    const s = String(val).trim();
-    if (['not yet fetched', 'data not yet fetched from supabase', '--', '-', 'none', 'null', ''].includes(s.toLowerCase())) {
-      return 'Not yet fetched';
-    }
-    return s;
+    const text = safeText(val);
+    return isPlaceholder(text) ? 'Not yet fetched' : text;
   };
 
   const company = isMetricLive ? cleanVal(rawCompany) : 'Not yet fetched';
   const standard = isMetricLive ? cleanVal(rawStandard) : 'Not yet fetched';
-  const status = isMetricLive ? (rawStatus && rawStatus !== 'Not yet fetched' ? rawStatus : 'Not yet fetched') : 'Not yet fetched';
+  const status = isMetricLive ? (isPlaceholder(rawStatus) ? 'Not yet fetched' : safeText(rawStatus, 'Not yet fetched')) : 'Not yet fetched';
   const variance = isMetricLive ? cleanVal(rawVariance) : 'Not yet fetched';
 
   const overviewData = isMetricLive
@@ -442,19 +533,39 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
     if (!Number.isFinite(n)) return null;
     return Math.round((n <= 1 ? n * 100 : n) * 10) / 10;
   })();
-  const diagnosisHeadline = diagnosisData?.headline || detailedAnalysis?.headline || '';
-  const diagnosisNarrative = diagnosisData?.narrative || (detailedAnalysis?.whyItHappens && !['data not yet fetched', 'data not yet fetched from supabase'].includes(detailedAnalysis.whyItHappens.toLowerCase()) ? detailedAnalysis?.whyItHappens : '') || (overviewData.rootCause && !['data not yet fetched', 'data not yet fetched from supabase'].includes(overviewData.rootCause.toLowerCase()) ? overviewData.rootCause : '') || (isMetricLive ? '' : 'Data not yet fetched');
+  const diagnosisHeadline = safeText(diagnosisData?.headline ?? detailedAnalysis?.headline);
+  const narrativeCandidate = safeText(diagnosisData?.narrative ?? detailedAnalysis?.whyItHappens);
+  const diagnosisPoints = toDiagnosisPoints(firstUsableValue(
+    diagnosisData?.points,
+    diagnosisData?.findings,
+    diagnosisData?.rootCauses,
+    diagnosisData?.root_causes,
+    diagnosisData?.narrative,
+    detailedAnalysis?.diagnosisPoints,
+    detailedAnalysis?.whyItHappens,
+    overviewData?.rootCause
+  ));
+  const rootCauseCandidate = safeText(overviewData?.rootCause);
+  const diagnosisNarrative =
+    (!isPlaceholder(narrativeCandidate) ? narrativeCandidate : '') ||
+    (!isPlaceholder(rootCauseCandidate) ? rootCauseCandidate : '') ||
+    (isMetricLive ? '' : 'Data not yet fetched');
 
   const whyItHappensText = diagnosisNarrative || (isMetricLive ? '' : 'Data not yet fetched');
-  const whereItHappensText = (overviewData.affectedArea && !['data not yet fetched', 'data not yet fetched from supabase'].includes(overviewData.affectedArea.toLowerCase()) ? overviewData.affectedArea : '') || (detailedAnalysis?.whereItHappens && !['data not yet fetched', 'data not yet fetched from supabase'].includes(detailedAnalysis.whereItHappens.toLowerCase()) ? detailedAnalysis?.whereItHappens : '') || (isMetricLive ? '' : 'Data not yet fetched');
+  const affectedAreaCandidate = safeText(overviewData?.affectedArea);
+  const detailedAffectedAreaCandidate = safeText(detailedAnalysis?.whereItHappens);
+  const whereItHappensText =
+    (!isPlaceholder(affectedAreaCandidate) ? affectedAreaCandidate : '') ||
+    (!isPlaceholder(detailedAffectedAreaCandidate) ? detailedAffectedAreaCandidate : '') ||
+    (isMetricLive ? '' : 'Data not yet fetched');
 
   const businessImpactData = isMetricLive
     ? (liveInsight?.businessImpact || liveInsight?.metric?.businessImpact || detailedAnalysis?.businessImpact || currentMetric?.businessImpact || {})
     : {};
-  const businessImpactOverview = businessImpactData?.overview || detailedAnalysis?.howItEffects || '';
-  const financialExposure = businessImpactData?.financialExposure || '';
-  const slaAndTurnaround = businessImpactData?.slaAndTurnaround || '';
-  const governanceAndAudit = businessImpactData?.governanceAndAudit || '';
+  const businessImpactOverview = safeText(businessImpactData?.overview ?? detailedAnalysis?.howItEffects);
+  const financialExposure = safeText(businessImpactData?.financialExposure);
+  const slaAndTurnaround = safeText(businessImpactData?.slaAndTurnaround);
+  const governanceAndAudit = safeText(businessImpactData?.governanceAndAudit);
 
   const rawOvercome = isMetricLive
     ? (
@@ -466,7 +577,9 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
         []
       )
     : [];
-  const howToOvercomeList = Array.isArray(rawOvercome) ? rawOvercome : (typeof rawOvercome === 'string' ? [rawOvercome] : (rawOvercome ? [rawOvercome] : []));
+  const howToOvercomeList = safeArray(rawOvercome)
+    .map((item) => safeText(item))
+    .filter(Boolean);
 
   const isCritical = status === 'Critical';
   const badgeClass = isCritical
@@ -505,19 +618,26 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
     const rawLivePhases = (Array.isArray(liveBrd.phasedActivities) && liveBrd.phasedActivities.length > 0)
       ? liveBrd.phasedActivities
       : (Array.isArray(liveBrd.phases) && liveBrd.phases.length > 0)
-        ? liveBrd.phases.map((p, idx) => ({
-            phaseName: p.title || p.phaseName || p.phase || `Phase ${idx + 1}`,
-            milestone: p.milestone || '',
-            deliverable: p.deliverable || '',
-            activities: (p.activities || []).map((a) => ({
-              activity: a.activity || a.title || '',
-              owner: a.role || a.owner || 'Specialist',
-              workstream: a.workstream || '-',
-              effort: (typeof a.hours === 'number' || typeof a.effort === 'number')
-                ? `${a.hours || a.effort} Hours`
-                : (a.hours || a.effort || '-')
-            }))
-          }))
+        ? liveBrd.phases.map((p, idx) => {
+            const phase = p && typeof p === 'object' ? p : { title: safeText(p) };
+            return {
+              phaseName: safeText(phase.title || phase.phaseName || phase.phase) || `Phase ${idx + 1}`,
+              milestone: safeText(phase.milestone),
+              deliverable: safeText(phase.deliverable),
+              activities: safeArray(phase.activities).map((inputActivity) => {
+                const activity = inputActivity && typeof inputActivity === 'object'
+                  ? inputActivity
+                  : { activity: safeText(inputActivity) };
+                const hours = activity.hours ?? activity.effort ?? '-';
+                return {
+                  activity: safeText(activity.activity || activity.title || activity.name),
+                  owner: safeText(activity.role || activity.owner) || 'Specialist',
+                  workstream: safeText(activity.workstream) || '-',
+                  effort: typeof hours === 'number' ? `${hours} Hours` : (safeText(hours) || '-')
+                };
+              })
+            };
+          })
         : [];
 
     const phasedActivities = rawLivePhases;
@@ -565,17 +685,36 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
         }))
       : (Array.isArray(liveBrd.segmentDrivers) ? liveBrd.segmentDrivers : []);
 
-    const assumptionsAndRisks = (Array.isArray(liveBrd.assumptionsAndRisks) && liveBrd.assumptionsAndRisks.length > 0)
-      ? liveBrd.assumptionsAndRisks
-      : (Array.isArray(liveInsight?.assumptionsAndRisks) && liveInsight.assumptionsAndRisks.length > 0
-        ? liveInsight.assumptionsAndRisks
-        : []);
+    const assumptionsAndRisks = safeArray(
+      firstUsableValue(
+        liveBrd.assumptionsAndRisks,
+        liveBrd.assumptions_and_risks,
+        liveInsight?.assumptionsAndRisks,
+        liveInsight?.assumptions_and_risks
+      ) || []
+    ).map((item) => {
+      if (typeof item === 'string') {
+        return { type: 'Assumption / Risk', description: item, mitigation: '' };
+      }
+      return item && typeof item === 'object'
+        ? item
+        : { type: 'Assumption / Risk', description: safeText(item), mitigation: '' };
+    });
 
-    const successCriteria = (Array.isArray(liveBrd.successCriteria) && liveBrd.successCriteria.length > 0)
-      ? liveBrd.successCriteria
-      : (Array.isArray(liveInsight?.successCriteria) && liveInsight.successCriteria.length > 0
-        ? liveInsight.successCriteria
-        : []);
+    const rawCriteria = firstUsableValue(
+      liveBrd.successCriteria,
+      liveBrd.success_criteria,
+      liveBrd.successCriteriaAndMonitoring,
+      liveBrd.success_criteria_and_monitoring,
+      liveInsight?.successCriteria,
+      liveInsight?.success_criteria,
+      liveInsight?.metric?.successCriteria,
+      liveInsight?.metric?.success_criteria
+    ) || [];
+
+    const successCriteria = safeArray(rawCriteria)
+      .map(safeCriterion)
+      .filter((item) => item.criterion || item.target);
 
     let totalEffortHours = liveBrd.totalEffortHours || liveBrd.totalHours || 0;
     if (!totalEffortHours && rawLiveSpecialists.length > 0) {
@@ -590,7 +729,7 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
     const timeline = liveBrd.timeline || (durationWeeks ? `${durationWeeks} Weeks` : 'Not yet fetched');
     const totalEffortsDisplay = liveBrd.totalEffortsDisplay || (totalEffortHours ? `${totalEffortHours} Total Hours` : 'Not yet fetched');
     const timelineAndEffort = liveBrd.timelineAndEffort || { timeline, totalEffort: totalEffortsDisplay };
-    const targetOutcome = liveBrd.targetOutcome || liveInsight?.targetOutcome || (isMetricLive && whyItHappensText && !['data not yet fetched', 'data not yet fetched from supabase'].includes(whyItHappensText.toLowerCase()) ? whyItHappensText : 'Data not yet fetched');
+    const targetOutcome = safeText(liveBrd.targetOutcome ?? liveInsight?.targetOutcome) || (isMetricLive && whyItHappensText && !isPlaceholder(whyItHappensText) ? whyItHappensText : 'Data not yet fetched');
 
     return {
       ...liveBrd,
@@ -611,13 +750,37 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
 
   // Dynamic module mapping for architecture touchpoints & RCA failure modes
   const moduleMapping = useMemo(() => (isMetricLive ? getModuleMapping(module?.id, metricName) : { touchpoints: [], missingConfigs: [], rca: [] }), [module?.id, metricName, isMetricLive]);
-  const systemTouchpoints = (liveInsight?.touchpoints && liveInsight.touchpoints.length > 0)
-    ? liveInsight.touchpoints
-    : (liveInsight?.report?.touchpoints || []);
-  const rcaFailureModes = (liveInsight?.rca && liveInsight.rca.length > 0)
-    ? liveInsight.rca
-    : (liveInsight?.report?.rca || []);
-  const rawMissingConfigs = (liveInsight?.missingConfigurations && liveInsight.missingConfigurations.length > 0)
+  const rawTouchpoints = firstUsableValue(
+    liveInsight?.touchpoints,
+    liveInsight?.report?.touchpoints,
+    liveInsight?.metric?.touchpoints
+  );
+  const systemTouchpoints = safeArray(rawTouchpoints).map((tp) => {
+    if (typeof tp === 'string') return { label: tp, type: 'core' };
+    return {
+      ...(tp && typeof tp === 'object' ? tp : {}),
+      label: safeText(tp?.label ?? tp?.name ?? tp?.title),
+      type: safeText(tp?.type) || 'core'
+    };
+  }).filter((tp) => tp.label);
+
+  const rawRcaModes = firstUsableValue(
+    liveInsight?.rca,
+    liveInsight?.report?.rca,
+    liveInsight?.metric?.rca
+  );
+  const rcaFailureModes = safeArray(rawRcaModes).map((item) => {
+    if (typeof item === 'string') {
+      return { title: item, category: 'Operational Analysis', detail: item };
+    }
+    return {
+      ...(item && typeof item === 'object' ? item : {}),
+      title: safeText(item?.title ?? item?.name ?? item?.driver),
+      category: safeText(item?.category),
+      detail: safeText(item?.detail ?? item?.description ?? item?.narrative)
+    };
+  }).filter((item) => item.title || item.detail);
+  const rawMissingConfigsFromPayload = (liveInsight?.missingConfigurations && liveInsight.missingConfigurations.length > 0)
     ? liveInsight.missingConfigurations
     : ((detailedAnalysis?.missingConfigurations && detailedAnalysis.missingConfigurations.length > 0)
       ? detailedAnalysis.missingConfigurations
@@ -627,10 +790,49 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
           ? currentMetric.detailedAnalysis.missingConfigurations
           : [])));
 
+  // Supplement missingConfigurations with missing field names reported by dataQuality.
+  // This keeps partial Supabase payloads useful even when they do not use one schema.
+  const additionalMissingFields = Array.from(new Set([
+    ...getMissingFields(liveInsight || {}),
+    ...getMissingFields(detailedAnalysis || {}),
+    ...getMissingFields(currentMetric || {})
+  ].map((field) => String(field || '').trim()).filter(Boolean)
+    .map((field) => field)));
+
+  const rawMissingConfigs = (() => {
+    const primary = rawMissingConfigsFromPayload;
+
+    if (Array.isArray(primary)) {
+      const existingNames = primary.map((item) => {
+        if (typeof item === 'string') return item.trim().toLowerCase();
+        if (item && typeof item === 'object') {
+          return String(item.field || item.fieldName || item.name || item.column || item.columnName || '')
+            .trim()
+            .toLowerCase();
+        }
+        return '';
+      }).filter(Boolean);
+
+      const supplemental = additionalMissingFields.filter((field) =>
+        !existingNames.includes(field.toLowerCase())
+      );
+
+      return [...primary, ...supplemental];
+    }
+
+    if (primary && typeof primary === 'object') {
+      return additionalMissingFields.length > 0
+        ? { ...primary, 'Additional Missing Fields': additionalMissingFields }
+        : primary;
+    }
+
+    return additionalMissingFields.length > 0 ? additionalMissingFields : [];
+  })();
+
   const missingConfigs = useMemo(() => {
     if (!rawMissingConfigs) return [];
     if (Array.isArray(rawMissingConfigs)) {
-      return rawMissingConfigs.map((item, idx) => {
+      return rawMissingConfigs.filter((item) => item !== null && item !== undefined).map((item, idx) => {
         if (typeof item === 'string') {
           const isMand = item.toLowerCase().includes('audit') || item.toLowerCase().includes('status');
           return {
@@ -645,7 +847,7 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
           };
         }
         if (typeof item === 'object' && item !== null) {
-          const fieldName = item.field || item.fieldName || (item.title ? item.title.replace(/^(Mandatory\s+Field\s+Missing:\s*|Missing\s+Field:\s*)/i, '').trim() : '');
+          const fieldName = item.field || item.fieldName || (item.title ? safeText(item.title).replace(/^(Mandatory\s+Field\s+Missing:\s*|Missing\s+Field:\s*)/i, '').trim() : '');
           return {
             ...item,
             field: fieldName || item.title,
@@ -706,10 +908,6 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
       list.push({
         id: sd.id || `S${idx + 1}`,
         driver: sd.driver || sd.name || `Stage ${idx + 1}`,
-        type: 'Stage Driver',
-        typeBadgeBg: '#eff6ff',
-        typeBadgeColor: '#0369a1',
-        typeBadgeBorder: '#bae6fd',
         impact: sd.avgDays || '-',
         share: sd.share || '-'
       });
@@ -718,10 +916,6 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
       list.push({
         id: seg.id || `A${idx + 1}`,
         driver: seg.driver || seg.name || `Segment ${idx + 1}`,
-        type: 'Segment Driver',
-        typeBadgeBg: '#f0fdf4',
-        typeBadgeColor: '#166534',
-        typeBadgeBorder: '#bbf7d0',
         impact: seg.avgDays || '-',
         share: seg.vsCompany || '-'
       });
@@ -905,6 +1099,9 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
     }
   }, [currentMetric, company, standard, status, variance, overviewData, detailedAnalysis, diagnosisHeadline, whyItHappensText, whereItHappensText, howToOvercomeList, brdPlan, missingConfigs, systemTouchpoints, rcaFailureModes, module?.name]);
 
+  // Keep hook order consistent if the parent temporarily has no selected metric.
+  if (!hasCurrentMetric) return null;
+
   return (
     <div className="deepdive-page-container">
       {/* 1. Top Compact Breadcrumb & Actions Bar */}
@@ -914,13 +1111,13 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
             type="button"
             className="btn-deepdive-back"
             onClick={onBack}
-            title={`Back to ${module?.name || 'Module'} Analysis`}
+            title={`Back to ${safeText(module?.name) || 'Module'} Analysis`}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <line x1="19" y1="12" x2="5" y2="12"></line>
               <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
-            <span>Back to {module?.name || 'Module'} Analysis</span>
+            <span>Back to {safeText(module?.name) || 'Module'} Analysis</span>
           </button>
 
           <div className="deepdive-breadcrumb-trail">
@@ -937,12 +1134,12 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
               type="button"
               className="breadcrumb-link"
               onClick={onBack}
-              title={`Back to ${module?.name || 'Module'} Analysis`}
+              title={`Back to ${safeText(module?.name) || 'Module'} Analysis`}
             >
-              {module?.name || 'Module'}
+              {safeText(module?.name) || 'Module'}
             </button>
             <span className="breadcrumb-sep">/</span>
-            <span className="breadcrumb-active">{metricName} Deep Dive</span>
+            <span className="breadcrumb-active">{safeText(metricName)} Deep Dive</span>
           </div>
         </div>
       </div>
@@ -959,11 +1156,11 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
             <div className="catalog-header">
               <div className="catalog-title-wrap">
                 <span className="catalog-title">Diagnostic Catalog</span>
-                <span className={`pill-badge ${badgeClass}`}>{status}</span>
+                <span className={`pill-badge ${badgeClass}`}>{safeText(status)}</span>
               </div>
               <div className="catalog-metric-heading">{metricName}</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginTop: '4px' }}>
-                <span className="catalog-sub">{category} • {module?.name || 'Module'}</span>
+                <span className="catalog-sub">{category} • {safeText(module?.name) || 'Module'}</span>
               </div>
 
               {/* Step Progress Tracker */}
@@ -1023,7 +1220,7 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
               </div>
 
               <div className="deepdive-hero-badge-wrap" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span className={`pill-badge ${badgeClass}`}>{status}</span>
+                <span className={`pill-badge ${badgeClass}`}>{safeText(status)}</span>
               </div>
             </div>
 
@@ -1140,18 +1337,20 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                           }}
                         >
                           <span style={{ fontSize: '13px', lineHeight: 1.2 }}>{status === 'Critical' ? '🚨' : status === 'Healthy' ? '✅' : '⚠️'}</span>
-                          <span>{diagnosisHeadline}</span>
+                          <span>{safeText(diagnosisHeadline)}</span>
                         </div>
                       )}
 
-                      {whyItHappensText && !['data not yet fetched', 'data not yet fetched from supabase'].includes(whyItHappensText.toLowerCase()) ? (
+                      {whyItHappensText && !isPlaceholder(whyItHappensText) ? (
                         <div style={{ marginBottom: '14px' }}>
                           <div className="footprint-header" style={{ marginBottom: '5px', fontSize: '11.5px', color: '#475569', fontWeight: 700, letterSpacing: '0.02em' }}>
                             <span>🔍 WHY IT IS HAPPENING (ROOT CAUSE):</span>
                           </div>
-                          <p className="analysis-text-paragraph" style={{ lineHeight: '1.55', color: '#334155', fontSize: '12px', margin: 0 }}>
-                            {whyItHappensText}
-                          </p>
+                          <ul className="analysis-text-paragraph" style={{ lineHeight: '1.55', color: '#334155', fontSize: '12px', margin: 0, paddingLeft: '20px' }}>
+                            {(diagnosisPoints.length > 0 ? diagnosisPoints : [safeText(whyItHappensText)]).map((point, idx) => (
+                              <li key={idx} style={{ marginBottom: '4px' }}>{point}</li>
+                            ))}
+                          </ul>
                         </div>
                       ) : hasDataGap ? (
                         <div style={{ marginBottom: '14px' }}>
@@ -1166,19 +1365,19 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
 
                       {whereItHappensText &&
                         whereItHappensText !== 'SuccessFactors workflow touchpoints' &&
-                        !['data not yet fetched', 'data not yet fetched from supabase'].includes(whereItHappensText.toLowerCase()) &&
+                        !isPlaceholder(whereItHappensText) &&
                         whereItHappensText !== whyItHappensText &&
                         whereItHappensText !== diagnosisNarrative ? (
                           <div className="sf-footprint-box" style={{ marginTop: '12px', padding: '10px 12px', borderRadius: '6px' }}>
                             <div className="footprint-header" style={{ fontSize: '11.5px', color: '#475569' }}>
-                              <span><strong style={{ fontWeight: 700 }}>IMPACTED ARCHITECTURE TOUCHPOINTS:</strong> <span style={{ fontSize: '12px', color: '#334155', fontWeight: 500 }}>{whereItHappensText}</span></span>
+                              <span><strong style={{ fontWeight: 700 }}>IMPACTED ARCHITECTURE TOUCHPOINTS:</strong> <span style={{ fontSize: '12px', color: '#334155', fontWeight: 500 }}>{safeText(whereItHappensText)}</span></span>
                             </div>
                             {/* Only show real touchpoint chips if provided from Supabase */}
-                            {liveInsight?.touchpoints && Array.isArray(liveInsight.touchpoints) && liveInsight.touchpoints.length > 0 && (
+                            {systemTouchpoints.length > 0 && (
                               <div className="footprint-chips" style={{ marginTop: '6px' }}>
-                                {liveInsight.touchpoints.map((tp, idx) => (
+                                {systemTouchpoints.map((tp, idx) => (
                                   <span key={idx} className="footprint-chip" style={{ fontSize: '11px', padding: '2px 8px' }}>
-                                    {typeof tp === 'string' ? tp : tp.label || tp.name}
+                                    {safeText(tp?.label ?? tp?.name ?? tp?.title ?? tp)}
                                   </span>
                                 ))}
                               </div>
@@ -1201,7 +1400,7 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                             {howToOvercomeList.map((sug, sIdx) => (
                               <li key={sIdx} className="accordion-suggestion-item" style={{ marginBottom: '6px', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
                                 <span className="accordion-step-counter" style={{ fontSize: '10px', width: '18px', height: '18px', minWidth: '18px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: '4px' }}>{sIdx + 1}</span>
-                                <span className="accordion-step-text" style={{ fontSize: '12px', lineHeight: '1.5', color: '#334155' }}>{sug}</span>
+                                <span className="accordion-step-text" style={{ fontSize: '12px', lineHeight: '1.5', color: '#334155' }}>{safeText(sug)}</span>
                               </li>
                             ))}
                           </ol>
@@ -1226,51 +1425,6 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                         </div>
                       )}
 
-                      {hasDataGap && missingConfigs.length > 0 && (
-                        <div
-                          className="diagnosis-data-gap-detail-card"
-                          style={{
-                            marginTop: '14px',
-                            padding: '12px 14px',
-                            borderRadius: '6px',
-                            background: '#f8fafc',
-                            border: '1px solid #e2e8f0',
-                            borderLeft: '4px solid #f59e0b'
-                          }}
-                        >
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                            <div style={{ fontSize: '12px', fontWeight: 700, color: '#334155' }}>
-                              📋 Data Completeness &amp; Schema Audit (Data Gaps Breakdown)
-                            </div>
-                            <span style={{ fontSize: '11px', fontWeight: 600, color: '#92400e', background: '#fef3c7', padding: '2px 8px', borderRadius: '12px' }}>
-                              {missingConfigs.length} Missing Fields
-                            </span>
-                          </div>
-                          <div style={{ fontSize: '11.5px', color: '#64748b', lineHeight: 1.5, marginBottom: '8px' }}>
-                            The following unpopulated attributes prevent calculation of the company actual benchmark. Populating these fields in SuccessFactors will resolve the data gap:
-                          </div>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                            {missingConfigs.map((cfg, idx) => (
-                              <span
-                                key={idx}
-                                style={{
-                                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                                  fontSize: '11px',
-                                  fontWeight: 600,
-                                  padding: '2px 8px',
-                                  borderRadius: '4px',
-                                  background: cfg.severity === 'Critical' ? '#fee2e2' : '#f1f5f9',
-                                  color: cfg.severity === 'Critical' ? '#991b1b' : '#334155',
-                                  border: `1px solid ${cfg.severity === 'Critical' ? '#fca5a5' : '#cbd5e1'}`
-                                }}
-                              >
-                                {cfg.field || cfg.fieldName || cfg.title.replace(/^(Mandatory\s+Field\s+Missing:\s*|Missing\s+Field:\s*)/i, '').trim()}
-                                {cfg.severity === 'Critical' ? ' (Mandatory)' : ''}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
                     </>
                   )}
                 </div>
@@ -1381,7 +1535,7 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                             {missingConfigs.map((cfg, cIdx) => (
                               <tr key={cIdx}>
                                 <td><span className="workstream-id-badge">{cfg.id}</span></td>
-                                <td><strong>{cfg.component}</strong></td>
+                                <td><strong>{safeText(cfg?.component)}</strong></td>
                                 <td>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', flexWrap: 'wrap' }}>
                                     <span
@@ -1397,7 +1551,7 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                                         letterSpacing: '0.01em'
                                       }}
                                     >
-                                      {cfg.field || cfg.fieldName || cfg.title.replace(/^(Mandatory\s+Field\s+Missing:\s*|Missing\s+Field:\s*)/i, '').trim()}
+                                      {safeText(cfg.field || cfg.fieldName || safeText(cfg.title).replace(/^(Mandatory\s+Field\s+Missing:\s*|Missing\s+Field:\s*)/i, '').trim())}
                                     </span>
                                     {cfg.severity === 'Critical' && (
                                       <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#b91c1c', background: '#fee2e2', border: '1px solid #fca5a5', padding: '1px 6px', borderRadius: '3px', textTransform: 'uppercase' }}>
@@ -1405,18 +1559,18 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                                       </span>
                                     )}
                                   </div>
-                                  <div style={{ fontWeight: 600, fontSize: '0.82rem', color: '#1e293b' }}>{cfg.title}</div>
+                                  <div style={{ fontWeight: 600, fontSize: '0.82rem', color: '#1e293b' }}>{safeText(cfg?.title)}</div>
                                   <div style={{ fontSize: '0.76rem', color: '#64748b', marginTop: '3px' }}>
-                                    Current Status: <span style={{ color: cfg.severity === 'Critical' ? '#b91c1c' : '#b45309', fontWeight: 600 }}>{cfg.status}</span>
+                                    Current Status: <span style={{ color: cfg.severity === 'Critical' ? '#b91c1c' : '#b45309', fontWeight: 600 }}>{safeText(cfg?.status)}</span>
                                   </div>
                                 </td>
                                 <td>
                                   <span className={`pill-badge ${cfg.severity === 'Critical' ? 'badge-critical' : cfg.severity === 'High' ? 'badge-at-risk' : 'badge-healthy'}`}>
-                                    {cfg.severity}
+                                    {safeText(cfg?.severity)}
                                   </span>
                                 </td>
                                 <td>
-                                  <code className="cfg-setting-code">{cfg.setting}</code>
+                                  <code className="cfg-setting-code">{safeText(cfg?.setting)}</code>
                                 </td>
                               </tr>
                             ))}
@@ -1457,46 +1611,28 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                           <table className="brd-spec-table" style={{ width: '100%' }}>
                             <thead>
                               <tr>
-                                <th style={{ width: '40%' }}>Root Cause Factor / Driver</th>
-                                <th style={{ width: '18%' }}>Category</th>
-                                <th style={{ width: '18%' }}>Impact / Value</th>
-                                <th style={{ width: '16%' }}>Share of Breach</th>
-                                <th style={{ width: '8%', textAlign: 'center' }}>ID</th>
+                                <th style={{ width: '50%' }}>Root Cause Factor / Driver</th>
+                                <th style={{ width: '20%' }}>Impact / Value</th>
+                                <th style={{ width: '20%' }}>Share of Breach</th>
+                                <th style={{ width: '10%', textAlign: 'center' }}>ID</th>
                               </tr>
                             </thead>
                             <tbody>
                               {unifiedRcaDrivers.map((driver, dIdx) => (
                                 <tr key={dIdx}>
                                   <td>
-                                    <strong style={{ color: '#0f172a' }}>{driver.driver}</strong>
-                                  </td>
-                                  <td>
-                                    <span
-                                      style={{
-                                        display: 'inline-block',
-                                        fontSize: '0.72rem',
-                                        fontWeight: 600,
-                                        padding: '2px 8px',
-                                        borderRadius: '4px',
-                                        background: driver.typeBadgeBg,
-                                        color: driver.typeBadgeColor,
-                                        border: `1px solid ${driver.typeBadgeBorder}`,
-                                        whiteSpace: 'nowrap'
-                                      }}
-                                    >
-                                      {driver.type}
-                                    </span>
+                                    <strong style={{ color: '#0f172a' }}>{safeText(driver?.driver ?? driver?.name)}</strong>
                                   </td>
                                   <td style={{ fontWeight: 600, color: '#334155' }}>
-                                    {driver.impact}
+                                    {safeText(driver?.impact)}
                                   </td>
                                   <td>
                                     <span style={{ fontWeight: 700, color: '#b91c1c' }}>
-                                      {driver.share}
+                                      {safeText(driver?.share)}
                                     </span>
                                   </td>
                                   <td style={{ textAlign: 'center' }}>
-                                    <span className="workstream-id-badge">{driver.id}</span>
+                                    <span className="workstream-id-badge">{safeText(driver?.id)}</span>
                                   </td>
                                 </tr>
                               ))}
@@ -1511,10 +1647,10 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                             <div key={rIdx} className="rca-mode-card">
                               <div className="rca-mode-header">
                                 <span className="rca-step-num">0{rIdx + 1}</span>
-                                <span className="rca-priority-tag">{rcaPriorityLabels[rIdx] || item.category}</span>
+                                <span className="rca-priority-tag">{safeText(rcaPriorityLabels[rIdx] || item?.category)}</span>
                               </div>
-                              <h3 className="rca-mode-title">{item.title}</h3>
-                              <p className="rca-mode-desc">{item.detail}</p>
+                              <h3 className="rca-mode-title">{safeText(item?.title ?? item?.name)}</h3>
+                              <p className="rca-mode-desc">{safeText(item?.detail ?? item?.description)}</p>
                             </div>
                           ))}
                         </div>
@@ -1546,21 +1682,21 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                           <div className="triad-icon">💰</div>
                           <div className="triad-title">Financial Exposure</div>
                           <div className="triad-desc">
-                            {financialExposure || 'Data not yet fetched'}
+                            {safeText(financialExposure) || 'Data not yet fetched'}
                           </div>
                         </div>
                         <div className="impact-triad-card triad-sla">
                           <div className="triad-icon">⏱️</div>
                           <div className="triad-title">SLA &amp; Turnaround</div>
                           <div className="triad-desc">
-                            {slaAndTurnaround || 'Data not yet fetched'}
+                            {safeText(slaAndTurnaround) || 'Data not yet fetched'}
                           </div>
                         </div>
                         <div className="impact-triad-card triad-gov">
                           <div className="triad-icon">🛡️</div>
                           <div className="triad-title">Governance &amp; Audit</div>
                           <div className="triad-desc">
-                            {governanceAndAudit || 'Data not yet fetched'}
+                            {safeText(governanceAndAudit) || 'Data not yet fetched'}
                           </div>
                         </div>
                       </div>
@@ -1603,15 +1739,15 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                           <tbody>
                             {(brdPlan.specialistManpower || []).map((sp, idx) => (
                               <tr key={idx}>
-                                <td><strong>{sp.role}</strong></td>
-                                <td>{sp.headcount}</td>
-                                <td>{sp.effort}</td>
+                                <td><strong>{safeText(sp?.role ?? sp)}</strong></td>
+                                <td>{safeText(sp?.headcount ?? 1)}</td>
+                                <td>{safeText(sp?.effort)}</td>
                               </tr>
                             ))}
                             <tr className="brd-spec-summary-row">
                               <td><strong>Timeline &amp; total effort</strong></td>
-                              <td><strong>{brdPlan.timelineAndEffort?.timeline || brdPlan.timeline}</strong></td>
-                              <td><strong>{brdPlan.timelineAndEffort?.totalEffort || `${brdPlan.totalEffortHours} Total Hours`}</strong></td>
+                              <td><strong>{safeText(brdPlan.timelineAndEffort?.timeline ?? brdPlan.timeline)}</strong></td>
+                              <td><strong>{safeText(brdPlan.timelineAndEffort?.totalEffort ?? `${brdPlan.totalEffortHours} Total Hours`)}</strong></td>
                             </tr>
                           </tbody>
                         </table>
@@ -1634,23 +1770,23 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                                 <React.Fragment key={pIdx}>
                                   <tr className="brd-phase-header-row">
                                     <td colSpan="4">
-                                      <strong>{phase.phaseName}</strong>
-                                      {phase.milestone && <span> | Milestone: {phase.milestone}</span>}
-                                      {phase.deliverable && <span> | Deliverable: {phase.deliverable}</span>}
+                                      <strong>{safeText(phase?.phaseName ?? phase?.title ?? phase)}</strong>
+                                      {safeText(phase?.milestone) && <span> | Milestone: {safeText(phase.milestone)}</span>}
+                                      {safeText(phase?.deliverable) && <span> | Deliverable: {safeText(phase.deliverable)}</span>}
                                     </td>
                                   </tr>
-                                  {(phase.activities || []).map((act, aIdx) => (
+                                  {safeArray(phase.activities).map((act, aIdx) => (
                                     <tr key={`${pIdx}-${aIdx}`}>
-                                      <td>{act.activity}</td>
-                                      <td style={{ color: '#334155' }}>{act.owner}</td>
+                                      <td>{safeText(act?.activity ?? act?.title ?? act)}</td>
+                                      <td style={{ color: '#334155' }}>{safeText(act?.owner ?? act?.role) || 'Specialist'}</td>
                                       <td>
-                                        {act.workstream && act.workstream !== '-' ? (
-                                          <span className="workstream-id-badge">{act.workstream}</span>
+                                        {safeText(act?.workstream) && safeText(act?.workstream) !== '-' ? (
+                                          <span className="workstream-id-badge">{safeText(act.workstream)}</span>
                                         ) : (
                                           <span style={{ color: '#94a3b8' }}>-</span>
                                         )}
                                       </td>
-                                      <td style={{ whiteSpace: 'nowrap' }}>{act.effort}</td>
+                                      <td style={{ whiteSpace: 'nowrap' }}>{safeText(act?.effort) || '-'}</td>
                                     </tr>
                                   ))}
                                 </React.Fragment>
@@ -1658,7 +1794,7 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                               <tr className="brd-spec-summary-row">
                                 <td colSpan="3"><strong>Total Efforts</strong></td>
                                 <td style={{ whiteSpace: 'nowrap' }}>
-                                  <strong>{brdPlan.totalEffortsDisplay || `${brdPlan.totalEffortHours} Hours`}</strong>
+                                  <strong>{safeText(brdPlan.totalEffortsDisplay || `${brdPlan.totalEffortHours} Hours`)}</strong>
                                 </td>
                               </tr>
                             </tbody>
@@ -1701,9 +1837,9 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                           <tbody>
                             {brdPlan.executionWorkstreams.map((ws, wIdx) => (
                               <tr key={wIdx}>
-                                <td><strong className="workstream-id-badge">{ws.id}</strong></td>
-                                <td>{ws.remediationStep}</td>
-                                <td><span className="fixes-driver-badge">{ws.fixesDrivers}</span></td>
+                                <td><strong className="workstream-id-badge">{safeText(ws?.id)}</strong></td>
+                                <td>{safeText(ws?.remediationStep ?? ws?.step ?? ws?.title)}</td>
+                                <td><span className="fixes-driver-badge">{safeText(Array.isArray(ws?.fixesDrivers) ? ws.fixesDrivers.join(', ') : ws?.fixesDrivers)}</span></td>
                               </tr>
                             ))}
                           </tbody>
@@ -1714,7 +1850,7 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                       {brdPlan.targetOutcome && (
                         <div className="brd-target-outcome-banner">
                           <span className="brd-target-outcome-label">TARGET OUTCOME</span>
-                          <span className="brd-target-outcome-text">{brdPlan.targetOutcome}</span>
+                          <span className="brd-target-outcome-text">{safeText(brdPlan.targetOutcome)}</span>
                         </div>
                       )}
                     </>
@@ -1758,8 +1894,8 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                                 <tbody>
                                   {brdPlan.successCriteria.map((sc, scIdx) => (
                                     <tr key={scIdx}>
-                                      <td><strong>{sc.criterion}</strong></td>
-                                      <td>{sc.target}</td>
+                                      <td><strong>{safeText(sc?.criterion ?? sc?.name ?? sc?.metric ?? sc?.title ?? sc)}</strong></td>
+                                      <td>{safeText(sc?.target ?? sc?.successTarget ?? sc?.threshold ?? sc?.expected ?? sc?.goal)}</td>
                                     </tr>
                                   ))}
                                 </tbody>
@@ -1788,11 +1924,11 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                                     <tr key={arIdx}>
                                       <td>
                                         <span className={`pill-badge ${ar.type === 'Risk' ? 'badge-at-risk' : 'badge-healthy'}`}>
-                                          {ar.type}
+                                          {safeText(ar?.type) || 'Assumption / Risk'}
                                         </span>
                                       </td>
-                                      <td>{ar.description}</td>
-                                      <td>{ar.mitigation}</td>
+                                      <td>{safeText(ar?.description ?? ar?.detail ?? ar)}</td>
+                                      <td>{safeText(ar?.mitigation ?? ar?.mitigationPlan)}</td>
                                     </tr>
                                   ))}
                                 </tbody>
@@ -1804,8 +1940,8 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
 
                       {/* Footnote */}
                       <div className="brd-spec-footnote">
-                        {brdPlan.footnote
-                          ? brdPlan.footnote.replace('Sections 1, 3 and 4', 'Sections 1, 2, 3 and 4').replace('Sections 2 and 5-9', 'Sections 5–8')
+                        {safeText(brdPlan.footnote)
+                          ? safeText(brdPlan.footnote).replace('Sections 1, 3 and 4', 'Sections 1, 2, 3 and 4').replace('Sections 2 and 5-9', 'Sections 5–8')
                           : 'Sections 1, 2, 3 and 4 are rendered directly from telemetry, trend analysis, and configuration audit scans. Sections 5–8 are generated under the system prompt; effort and staffing are indicative estimates.'}
                       </div>
                     </>

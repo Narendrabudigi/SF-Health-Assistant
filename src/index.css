@@ -1261,6 +1261,85 @@ body {
   margin-top: 8px;
 }
 
+.metric-status-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.metric-status-card {
+  min-height: 170px;
+  padding: 18px 16px 16px;
+  border: 1px solid transparent;
+  border-radius: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.metric-status-card > svg {
+  width: 26px;
+  height: 26px;
+  margin-bottom: 4px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.metric-status-count {
+  color: #111827;
+  font-size: 2.35rem;
+  font-weight: 750;
+  line-height: 1.1;
+}
+
+.metric-status-card h2 {
+  margin: 6px 0 2px;
+  color: #172033;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.metric-status-card p {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.metric-status-critical {
+  color: #ef4444;
+  background: #fff1f2;
+  border-color: #ffe4e6;
+}
+
+.metric-status-at-risk {
+  color: #e5a000;
+  background: #fffbeb;
+  border-color: #fef3c7;
+}
+
+.metric-status-healthy {
+  color: #10a879;
+  background: #effcf5;
+  border-color: #dcfce7;
+}
+
+@media (max-width: 640px) {
+  .metric-status-summary {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .metric-status-card {
+    min-height: 145px;
+  }
+}
+
 .analysis-view-grid {
   display: grid;
   grid-template-columns: 1fr 1.35fr;

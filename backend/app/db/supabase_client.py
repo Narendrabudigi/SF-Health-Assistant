@@ -45,58 +45,6 @@ def alphanumeric_key(text: str) -> str:
     return re.sub(r'[^a-zA-Z0-9]', '', clean).lower()
 
 
-def _first_present(row: Dict[str, Any], keys: List[str]) -> Any:
-    """Return the first non-empty value from a benchmark row using common schema aliases."""
-    if not isinstance(row, dict):
-        return None
-    for key in keys:
-        value = row.get(key)
-        if value is not None and value != "":
-            return value
-    return None
-
-
-def normalize_fixed_benchmark_row(row: Dict[str, Any]) -> Dict[str, Any]:
-    """Normalize a row from public.benchmarks without assuming one exact column naming scheme."""
-    normalized = dict(row or {})
-    normalized["metric_code"] = _first_present(row, [
-        "metric_code", "Metric_Code", "code", "metricCode", "MetricCode"
-    ])
-    normalized["metric_name"] = _first_present(row, [
-        "metric_name", "Metric_Name", "metric", "Metric", "name", "Name"
-    ])
-    normalized["standard_value"] = _first_present(row, [
-        "standard_value", "Standard_Value", "benchmark_value", "Benchmark_Value",
-        "industry_standard_value", "industryStandardValue", "standard", "Standard",
-        "benchmark", "Benchmark", "target_value", "target", "value"
-    ])
-    normalized["unit"] = _first_present(row, [
-        "unit", "Unit", "units", "Units"
-    ])
-    normalized["operator"] = _first_present(row, [
-        "operator", "Operator", "comparison_operator", "comparisonOperator"
-    ])
-    normalized["evaluation_direction"] = _first_present(row, [
-        "evaluation_direction", "Evaluation_Direction", "evaluationDirection", "direction"
-    ])
-    normalized["higher_is_better"] = _first_present(row, [
-        "higher_is_better", "Higher_Is_Better", "higherIsBetter", "higher_better"
-    ])
-    return normalized
-
-
-def get_fixed_benchmark(metric_code: str = "", metric_name: str = "") -> Optional[Dict[str, Any]]:
-    """Return the authoritative fixed benchmark from public.benchmarks."""
-    try:
-        benchmark_map = supabase_storage.get_fixed_benchmark_map() if "supabase_storage" in globals() else {}
-        code_key = alphanumeric_key(metric_code)
-        name_key = alphanumeric_key(metric_name)
-        return benchmark_map.get(code_key) or benchmark_map.get(name_key)
-    except Exception as exc:
-        logger.warning("Could not resolve fixed benchmark for %s / %s: %s", metric_code, metric_name, exc)
-        return None
-
-
 def normalize_missing_configurations(raw_cfgs: Any, mod_name: str = "EC", dq_checks: list = None) -> List[Dict[str, Any]]:
     """
     Normalizes any format of missing configuration / fields from Supabase ML pipeline:
@@ -479,31 +427,26 @@ class SupabaseStorageService:
                         
                         jr = row.get("JSON_Result") or row.get("insight_data") or {}
                         
-                        # Process ML Notebook JSON_Result fields.
-                        # IMPORTANT: initialize ML values first, then apply the fixed benchmark
-                        # master last so malformed ML standards (for example "≥ .") can never
-                        # replace the authoritative industry standard.
+                        # Process ML Notebook JSON_Result fields. ML values are used
+                        # for company/diagnostic data, but the fixed benchmark master
+                        # remains authoritative for the industry standard.
                         company_val = jr.get("companyValue")
                         std_val = jr.get("industryStandardValue")
                         health_state = jr.get("healthState")
                         unit_str = str(jr.get("unit") or "").strip()
                         higher_is_better = jr.get("higherIsBetter", False)
+
                         fixed_benchmarks = self.get_fixed_benchmark_map()
                         metric_code_key = alphanumeric_key(row.get("Metric_Code") or row.get("metric_code") or "")
                         metric_name_key = alphanumeric_key(m_name_raw)
                         fixed_benchmark = fixed_benchmarks.get(metric_code_key) or fixed_benchmarks.get(metric_name_key)
                         if fixed_benchmark:
-                            fixed_standard = fixed_benchmark.get("standard_value")
-                            if fixed_standard is not None and str(fixed_standard).strip() != "":
-                                std_val = fixed_standard
-                            fixed_direction = fixed_benchmark.get("evaluation_direction")
-                            if fixed_direction:
-                                higher_is_better = str(fixed_direction).upper() in {"HIGHER_IS_BETTER", "HIGHER", "MAXIMIZE", "HIGHER IS BETTER"}
-                            elif fixed_benchmark.get("higher_is_better") is not None:
-                                higher_is_better = bool(fixed_benchmark.get("higher_is_better"))
+                            std_val = fixed_benchmark.get("standard_value") or std_val
+                            if fixed_benchmark.get("evaluation_direction"):
+                                direction = str(fixed_benchmark.get("evaluation_direction")).upper()
+                                higher_is_better = direction in {"HIGHER_IS_BETTER", "HIGHER", "MAXIMIZE", "TRUE", "1"}
                             if fixed_benchmark.get("unit"):
-                                unit_str = str(fixed_benchmark.get("unit")).strip()
-
+                                unit_str = str(fixed_benchmark.get("unit") or unit_str).strip()
                         variance_obj = jr.get("variance") or {}
                         rca_obj = jr.get("rca") or {}
                         factors_raw = rca_obj.get("factors") or []
@@ -545,8 +488,7 @@ class SupabaseStorageService:
                                 std_clean = f"{s_str} {unit_str}" if unit_str not in s_str else s_str
                             else:
                                 std_clean = s_str
-                            fixed_operator = fixed_benchmark.get("operator") if fixed_benchmark else None
-                            op = str(fixed_operator).strip() if fixed_operator else ("≥" if higher_is_better else "≤")
+                            op = "≥" if higher_is_better else "≤"
                             standard_display = f"{op} {std_clean}" if not std_clean.startswith(('≤', '≥', '<', '>')) else std_clean
                         else:
                             standard_display = "Not yet fetched"
@@ -801,10 +743,13 @@ class SupabaseStorageService:
         return all_overrides
 
     def get_fixed_benchmark_map(self) -> Dict[str, Dict[str, Any]]:
-        """Load authoritative fixed benchmarks from public.benchmarks.
+        """Load the fixed benchmark master from public.benchmarks.
 
-        The benchmark master is authoritative: ML/LLM generated standard values are never
-        allowed to replace a non-empty fixed benchmark value.
+        The benchmark master is authoritative for industry standards. The loader
+        intentionally uses select("*") because the deployed table schema can
+        contain either standard_value/benchmark_value and different direction
+        field names. We normalize those variants into standard_value,
+        evaluation_direction, unit and operator for the rest of the application.
         """
         if not self.is_active():
             return {}
@@ -813,26 +758,42 @@ class SupabaseStorageService:
         if cached is not None:
             return cached
         try:
-            # Use select("*") intentionally because the project currently uses the
-            # `benchmarks` table and its exact column set is managed in Supabase.
-            # normalize_fixed_benchmark_row() handles the supported column aliases.
             res = supabase_client.table("benchmarks").select("*").limit(500).execute()
             rows = res.data or []
             result: Dict[str, Dict[str, Any]] = {}
-            for raw_row in rows:
-                row = normalize_fixed_benchmark_row(raw_row)
-                code = alphanumeric_key(row.get("metric_code"))
-                name = alphanumeric_key(row.get("metric_name"))
-                if code:
-                    result[code] = row
-                if name:
-                    result[name] = row
+
+            def first(row: Dict[str, Any], *names: str):
+                for name in names:
+                    value = row.get(name)
+                    if value is not None and value != "":
+                        return value
+                return None
+
+            for raw in rows:
+                if not isinstance(raw, dict):
+                    continue
+                row = dict(raw)
+                row["metric_code"] = first(raw, "metric_code", "Metric_Code", "code", "metricCode")
+                row["metric_name"] = first(raw, "metric_name", "Metric_Name", "metric", "name", "metricName")
+                row["standard_value"] = first(raw, "standard_value", "benchmark_value", "benchmark", "target", "value", "standard", "industry_standard")
+                row["unit"] = first(raw, "unit", "Unit", "units")
+                row["operator"] = first(raw, "operator", "comparison_operator", "comparisonOperator")
+                row["evaluation_direction"] = first(raw, "evaluation_direction", "direction", "evaluationDirection")
+                if row["evaluation_direction"] is None:
+                    hib = first(raw, "higher_is_better", "higherIsBetter")
+                    if hib is not None:
+                        row["evaluation_direction"] = "HIGHER_IS_BETTER" if bool(hib) else "LOWER_IS_BETTER"
+
+                for value in (row.get("metric_code"), row.get("metric_name")):
+                    key = alphanumeric_key(value)
+                    if key:
+                        result[key] = row
+
             self._set_cache(cache_key, result)
             logger.info("Loaded %s fixed benchmark records from public.benchmarks", len(rows))
             return result
         except Exception as e:
-            logger.warning(f"Could not load fixed benchmark master table 'benchmarks': {e}")
-            self._set_cache(cache_key, {})
+            logger.warning(f"Could not load fixed benchmark master table public.benchmarks: {e}")
             return {}
 
 

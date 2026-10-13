@@ -3,13 +3,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Query
 from typing import List, Dict, Any, Optional
 from app.db.mock_data import DEFAULT_MODULES
-from app.db.supabase_client import (
-    supabase_storage,
-    normalize_slug,
-    alphanumeric_key,
-    normalize_missing_configurations,
-    get_fixed_benchmark,
-)
+from app.db.supabase_client import supabase_storage, normalize_slug, alphanumeric_key, normalize_missing_configurations
 
 router = APIRouter()
 logger = logging.getLogger("sf_health.modules")
@@ -101,8 +95,17 @@ def extract_metric_fields(override: Dict[str, Any], default_b: Optional[Dict[str
     """
     rep_nested = override.get("report") if isinstance(override.get("report"), dict) else {}
     rep = {**rep_nested, **override}
+
+    def first_value(*values):
+        """Keep valid numeric zeroes while skipping unset text fields."""
+        for value in values:
+            if value is not None and not (isinstance(value, str) and not value.strip()):
+                return value
+        return None
+
     diag = rep.get("diagnosis") if isinstance(rep.get("diagnosis"), dict) else {}
-    narrative = str(diag.get("narrative", "") or rep.get("diagnosis_narrative", "") or "")
+    # Keep structured diagnosis points intact for the deep dive UI.
+    narrative = diag.get("narrative") or rep.get("diagnosis_narrative") or ""
     headline = str(diag.get("headline", "") or "")
     biz_impact = rep.get("businessImpact") if isinstance(rep.get("businessImpact"), dict) else {}
     impact_overview = str(biz_impact.get("overview", "") or "")
@@ -227,22 +230,16 @@ def extract_metric_fields(override: Dict[str, Any], default_b: Optional[Dict[str
         return s
 
     # 2. Company Actual Value
-    raw_company = (
-        override.get("company_actual") or
-        override.get("company") or
-        override.get("company_value") or
-        override.get("actual") or
-        override.get("actual_value") or
-        override.get("current_value") or
-        override.get("actual_days") or
-        override.get("current_days") or
-        rep.get("company_actual") or
-        rep.get("company") or
-        rep.get("actual") or
-        rep.get("current_value") or
-        diag.get("current_value") or
-        diag.get("actual") or
-        find_nested_val(override, "company_actual", "company", "actual", "company_value")
+    raw_company = first_value(
+        override.get("company_actual"), override.get("companyValue"),
+        override.get("company"), override.get("company_value"),
+        override.get("actualValue"), override.get("actual"),
+        override.get("actual_value"), override.get("current_value"),
+        override.get("actual_days"), override.get("current_days"),
+        rep.get("company_actual"), rep.get("companyValue"),
+        rep.get("company"), rep.get("actualValue"), rep.get("actual"),
+        rep.get("current_value"), diag.get("current_value"), diag.get("actual"),
+        find_nested_val(override, "company_actual", "companyValue", "company", "actual", "actualValue", "company_value")
     )
     company_val = clean_val(raw_company)
     if not company_val and full_context_text:
@@ -257,17 +254,15 @@ def extract_metric_fields(override: Dict[str, Any], default_b: Optional[Dict[str
                 company_val = m2.group(1).strip()
 
     # 3. Benchmark Standard Target
-    raw_target = (
-        override.get("benchmark_target") or
-        override.get("standard") or
-        override.get("standard_value") or
-        override.get("target") or
-        rep.get("benchmark_target") or
-        rep.get("standard") or
-        rep.get("target") or
-        diag.get("standard") or
-        diag.get("target") or
-        find_nested_val(override, "benchmark_target", "standard", "standard_value", "target")
+    raw_target = first_value(
+        override.get("benchmark_target"), override.get("industryStandardValue"),
+        override.get("benchmarkTarget"), override.get("standard"),
+        override.get("standard_value"), override.get("targetValue"),
+        override.get("target"), rep.get("benchmark_target"),
+        rep.get("industryStandardValue"), rep.get("benchmarkTarget"),
+        rep.get("standard"), rep.get("target"), rep.get("targetValue"),
+        diag.get("standard"), diag.get("target"),
+        find_nested_val(override, "benchmark_target", "industryStandardValue", "benchmarkTarget", "standard", "standard_value", "target", "targetValue")
     )
     target_val = clean_val(raw_target)
     if not target_val and full_context_text:
@@ -284,14 +279,10 @@ def extract_metric_fields(override: Dict[str, Any], default_b: Optional[Dict[str
                 target_val = raw_target_str
 
     # 4. Variance Gap
-    raw_var = (
-        override.get("actual_variance") or
-        override.get("variance") or
-        override.get("variance_percentage") or
-        override.get("gap") or
-        rep.get("actual_variance") or
-        rep.get("variance") or
-        diag.get("gap") or
+    raw_var = first_value(
+        override.get("actual_variance"), override.get("variance"),
+        override.get("variance_percentage"), override.get("gap"),
+        rep.get("actual_variance"), rep.get("variance"), diag.get("gap"),
         find_nested_val(override, "actual_variance", "variance", "variance_percentage")
     )
     variance_val = clean_val(raw_var)
@@ -450,191 +441,242 @@ def apply_module_metric_overrides(
     module_overrides_map: Dict[str, Dict[str, Dict[str, Any]]]
 ) -> List[Dict[str, Any]]:
     """
-    Apply live Supabase metric overrides while keeping public.benchmarks authoritative
-    for industry standards.
+    Merge the static metric catalogue with every live metric payload available in
+    Supabase.  A metric is considered LIVE when *any* usable Supabase payload is
+    found, even when that payload also contains missing configuration fields.
 
-    A metric's company/status/diagnosis/etc. can come from live ML/LLM/storage data,
-    but its industry standard is always resolved from the fixed benchmark master when
-    a matching fixed value exists.
+    Important distinction:
+      - metric data present + missing fields -> show the metric data AND list gaps
+      - no metric payload at all -> show "Not yet fetched"
     """
-    mod_key = mod_id.lower().strip()
+    mod_key = str(mod_id or "").lower().strip()
     valid_aliases = MODULE_ALIASES.get(mod_key, {mod_key, alphanumeric_key(mod_key)})
 
     mod_overrides = module_overrides_map.get(mod_key)
     if not mod_overrides:
         for k, val in module_overrides_map.items():
             clean_k = alphanumeric_key(k)
-            if clean_k in valid_aliases or k.lower() in valid_aliases or normalize_slug(k) in valid_aliases:
+            if clean_k in {alphanumeric_key(a) for a in valid_aliases} or k.lower() in valid_aliases or normalize_slug(k) in valid_aliases:
                 mod_overrides = val
                 break
     mod_overrides = mod_overrides or {}
 
-    def authoritative_benchmark(code: Any = "", metric: Any = "") -> Optional[Dict[str, Any]]:
-        try:
-            return get_fixed_benchmark(str(code or ""), str(metric or ""))
-        except Exception as exc:
-            logger.warning(
-                "Could not resolve fixed benchmark for module=%s code=%s metric=%s: %s",
-                mod_id, code, metric, exc
-            )
+    # Fixed benchmark master is authoritative for the industry standard only.
+    try:
+        fixed_benchmarks = supabase_storage.get_fixed_benchmark_map() or {}
+    except Exception as exc:
+        logger.warning("Could not load fixed benchmark map: %s", exc)
+        fixed_benchmarks = {}
+
+    def identifiers(value: Any) -> set:
+        if value is None:
+            return set()
+        text = str(value).strip()
+        if not text:
+            return set()
+        return {
+            text.lower(),
+            normalize_slug(text),
+            alphanumeric_key(text),
+        }
+
+    def override_identifiers(payload: Dict[str, Any]) -> set:
+        ids = set()
+        if not isinstance(payload, dict):
+            return ids
+        for value in (
+            payload.get("metric"),
+            payload.get("metric_name"),
+            payload.get("Metric_Name"),
+            payload.get("metricName"),
+            payload.get("MetricName"),
+            payload.get("metric_code"),
+            payload.get("Metric_Code"),
+            payload.get("_metric_folder"),
+            payload.get("_metric_name"),
+            (payload.get("report") or {}).get("metricName") if isinstance(payload.get("report"), dict) else None,
+            (payload.get("report") or {}).get("metric_name") if isinstance(payload.get("report"), dict) else None,
+        ):
+            ids.update(identifiers(value))
+        return {x for x in ids if x}
+
+    def find_override(default_b: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        target_ids = identifiers(default_b.get("metric")) | identifiers(default_b.get("code"))
+        if not target_ids:
             return None
 
-    def apply_authoritative_standard(entry: Dict[str, Any], code: Any = "", metric: Any = "") -> Dict[str, Any]:
-        fixed = authoritative_benchmark(code, metric)
-        if fixed:
-            fixed_value = fixed.get("standard_value")
-            if fixed_value is not None and str(fixed_value).strip() != "":
-                entry["standard"] = fixed_value
+        # Fast path: all aliases generated by register_metric_data().
+        for key in (
+            default_b.get("metric"),
+            default_b.get("code"),
+            normalize_slug(default_b.get("metric", "")),
+            normalize_slug(default_b.get("code", "")),
+            alphanumeric_key(default_b.get("metric", "")),
+            alphanumeric_key(default_b.get("code", "")),
+        ):
+            if key and key in mod_overrides and isinstance(mod_overrides[key], dict):
+                return mod_overrides[key]
 
-            if fixed.get("unit"):
-                entry["benchmarkUnit"] = fixed.get("unit")
-            if fixed.get("operator"):
-                entry["benchmarkOperator"] = fixed.get("operator")
-            if fixed.get("evaluation_direction"):
-                entry["benchmarkDirection"] = fixed.get("evaluation_direction")
-            elif fixed.get("higher_is_better") is not None:
-                entry["higherIsBetter"] = bool(fixed.get("higher_is_better"))
+        # Robust fallback: compare the actual metric identifiers contained in
+        # each Supabase payload. This handles renamed folders / display names.
+        best = None
+        best_score = 0
+        seen_payload_ids = set()
+        for payload in mod_overrides.values():
+            if not isinstance(payload, dict):
+                continue
+            marker = id(payload)
+            if marker in seen_payload_ids:
+                continue
+            seen_payload_ids.add(marker)
+            p_ids = override_identifiers(payload)
+            if not p_ids:
+                continue
+            exact = target_ids & p_ids
+            if exact:
+                return payload
+            # Allow strong substring matching only for sufficiently specific keys.
+            for t in target_ids:
+                if len(t) < 8:
+                    continue
+                for q in p_ids:
+                    if len(q) < 8:
+                        continue
+                    if t == q:
+                        return payload
+                    if len(t) >= 12 and (t in q or q in t):
+                        score = min(len(t), len(q))
+                        if score > best_score:
+                            best = payload
+                            best_score = score
+        return best
 
-            entry["benchmarkSource"] = "public.benchmarks"
-        return entry
+    def fixed_benchmark_for(metric: Dict[str, Any], payload: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
+        keys = set()
+        for value in (
+            metric.get("code"), metric.get("metric"),
+            payload.get("metric_code") if isinstance(payload, dict) else None,
+            payload.get("Metric_Code") if isinstance(payload, dict) else None,
+            payload.get("metric_name") if isinstance(payload, dict) else None,
+            payload.get("Metric_Name") if isinstance(payload, dict) else None,
+        ):
+            keys.update(identifiers(value))
+        for key in keys:
+            if key in fixed_benchmarks:
+                return fixed_benchmarks[key]
+        return None
 
-    matched_storage_paths = set()
+    def merge_live_metric(default_b: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
+        extracted = extract_metric_fields(override, default_b=default_b)
+        fixed = fixed_benchmark_for(default_b, override)
+
+        result = dict(default_b)
+        result["company"] = extracted["company"]
+        result["status"] = extracted["status"]
+        result["variance"] = extracted["variance"]
+        result["confidenceScore"] = extracted.get("confidenceScore")
+        result["missingConfigurations"] = extracted.get("missingConfigurations", [])
+        result["moduleOverview"] = extracted["moduleOverview"]
+        result["diagnosis"] = extracted.get("diagnosis") or default_b.get("diagnosis", {})
+        result["businessImpact"] = extracted.get("businessImpact", {})
+        result["detailedAnalysis"] = extracted["detailedAnalysis"]
+
+        # Fixed benchmark wins over ML/LLM generated benchmark text.
+        if fixed and fixed.get("standard_value") not in (None, ""):
+            standard_value = fixed.get("standard_value")
+            operator = fixed.get("operator") or fixed.get("comparison_operator")
+            if not operator:
+                direction = str(fixed.get("evaluation_direction") or fixed.get("higher_is_better") or "").upper()
+                operator = "≥" if direction in {"HIGHER_IS_BETTER", "HIGHER", "MAXIMIZE", "TRUE", "1"} else "≤"
+            unit = str(fixed.get("unit") or "").strip()
+            std = str(standard_value).strip()
+            if unit and unit not in std and not any(x in std for x in ("%", "days", "hours", "weeks", "months")):
+                std = f"{std} {unit}"
+            if operator and not std.startswith(("≤", "≥", "<", ">", "~")):
+                std = f"{operator} {std}"
+            result["standard"] = std
+        else:
+            result["standard"] = extracted["standard"]
+
+        result["_source"] = override.get("_source", "supabase")
+        result["_storage_path"] = override.get("_storage_path")
+        result["isSupabaseLive"] = True
+        return result
+
     updated_benchmarks = []
+    matched_payload_ids = set()
 
-    # 1. Update existing default benchmarks if present in Supabase.
-    for b in benchmarks:
-        b_copy = dict(b)
-        m_name = b_copy.get("metric", "")
-        m_code = b_copy.get("code", "")
-        m_slug = normalize_slug(m_name)
-        c_slug = normalize_slug(m_code)
-        m_alpha = alphanumeric_key(m_name)
-        c_alpha = alphanumeric_key(m_code)
-
-        override = (
-            mod_overrides.get(m_name) or
-            mod_overrides.get(m_code) or
-            mod_overrides.get(m_slug) or
-            mod_overrides.get(c_slug) or
-            mod_overrides.get(m_alpha) or
-            mod_overrides.get(c_alpha)
-        )
-
-        if not override:
-            for k, val in mod_overrides.items():
-                k_alpha = alphanumeric_key(k)
-                if len(k_alpha) >= 8 and (
-                    k_alpha == m_alpha or
-                    k_alpha == c_alpha or
-                    (len(k_alpha) >= 12 and (k_alpha in m_alpha or m_alpha in k_alpha))
-                ):
-                    override = val
-                    break
+    # 1. Merge every default metric with its live Supabase payload when one exists.
+    for default_b in benchmarks:
+        b_copy = dict(default_b)
+        override = find_override(default_b)
 
         if override:
-            storage_path = override.get("_storage_path")
-            if storage_path:
-                matched_storage_paths.add(storage_path)
+            matched_payload_ids.add(id(override))
+            updated_benchmarks.append(merge_live_metric(b_copy, override))
+            continue
 
-            extracted = extract_metric_fields(override, default_b=b_copy)
-            b_copy["company"] = extracted["company"]
-
-            # Never trust the ML/LLM standard if the fixed benchmark master has a value.
-            b_copy["standard"] = extracted["standard"]
-            b_copy["status"] = extracted["status"]
-            b_copy["variance"] = extracted["variance"]
-            b_copy["confidenceScore"] = extracted.get("confidenceScore")
-            b_copy["missingConfigurations"] = extracted.get("missingConfigurations", [])
-            b_copy["moduleOverview"] = extracted["moduleOverview"]
-            b_copy["detailedAnalysis"] = extracted["detailedAnalysis"]
-            b_copy["_source"] = "supabase_storage_metric_folder"
-            b_copy["_storage_path"] = storage_path
-            b_copy["isSupabaseLive"] = True
-
-            b_copy = apply_authoritative_standard(b_copy, m_code, m_name)
-        else:
-            b_copy["company"] = "Not yet fetched"
-            b_copy["standard"] = "Not yet fetched"
-            b_copy["status"] = "Not yet fetched"
-            b_copy["variance"] = "Not yet fetched"
-            b_copy["confidenceScore"] = None
-            b_copy["missingConfigurations"] = []
-            b_copy["moduleOverview"] = {
-                "rootCause": "Data not yet fetched",
-                "affectedArea": "Data not yet fetched",
-                "suggestions": []
-            }
-            b_copy["detailedAnalysis"] = {
-                "whyItHappens": "Data not yet fetched",
-                "whereItHappens": "Data not yet fetched",
-                "trendAnalysis": {"summary": "Data not yet fetched", "points": []},
-                "missingConfigurations": [],
-                "howItEffects": "Data not yet fetched",
-                "howToOvercome": []
-            }
-            b_copy["_source"] = "static_baseline"
-            b_copy["isSupabaseLive"] = False
-
-            # Even without live telemetry, expose a fixed industry standard when one exists.
-            b_copy = apply_authoritative_standard(b_copy, m_code, m_name)
-
+        # No payload at all: this is genuinely not fetched. Do not manufacture
+        # a data gap from missing fields; gaps only come from a live payload.
+        b_copy["company"] = "Not yet fetched"
+        b_copy["standard"] = "Not yet fetched"
+        b_copy["status"] = "Not yet fetched"
+        b_copy["variance"] = "Not yet fetched"
+        b_copy["missingConfigurations"] = []
+        b_copy["moduleOverview"] = {
+            "rootCause": "Data not yet fetched",
+            "affectedArea": "Data not yet fetched",
+            "suggestions": []
+        }
+        b_copy["detailedAnalysis"] = {
+            "whyItHappens": "Data not yet fetched",
+            "whereItHappens": "Data not yet fetched",
+            "trendAnalysis": {"summary": "Data not yet fetched", "points": []},
+            "missingConfigurations": [],
+            "howItEffects": "Data not yet fetched",
+            "howToOvercome": []
+        }
+        b_copy["_source"] = "static_baseline"
+        b_copy["isSupabaseLive"] = False
         updated_benchmarks.append(b_copy)
 
-    # 2. Add extra metrics from Supabase that were not in the default benchmark list.
-    seen_alphas = {alphanumeric_key(b.get("metric", "")) for b in updated_benchmarks}
-    seen_alphas.update({alphanumeric_key(b.get("code", "")) for b in updated_benchmarks})
+    # 2. Preserve additional live metrics that are not part of the static catalogue.
+    seen_ids = set()
+    for b in updated_benchmarks:
+        seen_ids.update(identifiers(b.get("metric")))
+        seen_ids.update(identifiers(b.get("code")))
 
+    seen_payloads = set()
     for override in mod_overrides.values():
         if not isinstance(override, dict):
             continue
-
-        storage_path = override.get("_storage_path")
-        if storage_path and storage_path in matched_storage_paths:
+        payload_id = id(override)
+        if payload_id in seen_payloads or payload_id in matched_payload_ids:
             continue
+        seen_payloads.add(payload_id)
 
         m_folder_name = (
             override.get("_metric_folder") or
             override.get("metric_name") or
-            override.get("metric")
+            override.get("Metric_Name") or
+            override.get("metric") or
+            override.get("metricName")
         )
         if not m_folder_name:
             continue
-
-        m_alpha = alphanumeric_key(m_folder_name)
-        if m_alpha in seen_alphas:
+        if identifiers(m_folder_name) & seen_ids:
             continue
 
-        seen_alphas.add(m_alpha)
-        if storage_path:
-            matched_storage_paths.add(storage_path)
-
-        extracted = extract_metric_fields(override, default_b=None)
-        metric_code = override.get("metric_code") or f"{mod_id}_{normalize_slug(m_folder_name)}"
-        metric_name = override.get("metric_name") or m_folder_name
-
-        new_metric_entry = {
+        metric_code = override.get("metric_code") or override.get("Metric_Code") or f"{mod_id}_{normalize_slug(m_folder_name)}"
+        default_like = {
             "code": metric_code,
-            "metric": metric_name,
-            "category": override.get("category") or "Operational KPI",
-            "company": extracted["company"],
-            "standard": extracted["standard"],
-            "status": extracted["status"],
-            "variance": extracted["variance"],
-            "confidenceScore": extracted.get("confidenceScore"),
-            "missingConfigurations": extracted.get("missingConfigurations", []),
-            "_source": override.get("_source", "supabase_storage_metric_folder"),
-            "_storage_path": storage_path,
-            "isSupabaseLive": True,
-            "moduleOverview": extracted["moduleOverview"],
-            "detailedAnalysis": extracted["detailedAnalysis"]
+            "metric": override.get("metric_name") or override.get("Metric_Name") or m_folder_name,
+            "category": override.get("category") or "Operational KPI"
         }
-
-        new_metric_entry = apply_authoritative_standard(
-            new_metric_entry,
-            metric_code,
-            metric_name
-        )
-        updated_benchmarks.append(new_metric_entry)
+        merged = merge_live_metric(default_like, override)
+        updated_benchmarks.append(merged)
+        seen_ids.update(identifiers(merged.get("metric")))
+        seen_ids.update(identifiers(merged.get("code")))
 
     return updated_benchmarks
 
