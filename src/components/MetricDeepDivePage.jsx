@@ -1611,9 +1611,8 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                           <table className="brd-spec-table" style={{ width: '100%' }}>
                             <thead>
                               <tr>
-                                <th style={{ width: '50%' }}>Root Cause Factor / Driver</th>
-                                <th style={{ width: '20%' }}>Impact / Value</th>
-                                <th style={{ width: '20%' }}>Share of Breach</th>
+                                <th style={{ width: '65%' }}>Root Cause Factor / Driver</th>
+                                <th style={{ width: '25%' }}>Impact / Value</th>
                                 <th style={{ width: '10%', textAlign: 'center' }}>ID</th>
                               </tr>
                             </thead>
@@ -1625,11 +1624,6 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                                   </td>
                                   <td style={{ fontWeight: 600, color: '#334155' }}>
                                     {safeText(driver?.impact)}
-                                  </td>
-                                  <td>
-                                    <span style={{ fontWeight: 700, color: '#b91c1c' }}>
-                                      {safeText(driver?.share)}
-                                    </span>
                                   </td>
                                   <td style={{ textAlign: 'center' }}>
                                     <span className="workstream-id-badge">{safeText(driver?.id)}</span>
