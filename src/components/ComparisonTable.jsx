@@ -1,5 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { getMissingFieldCount } from '../utils/dataGapUtils';
+import { formatBenchmarkDisplay } from '../utils/benchmarkDisplay';
+import { formatDisplayUnits } from '../utils/displayUnits';
 
 const normalizeStatus = (status, variance = '') => {
   const s = String(status || '').toLowerCase().trim();
@@ -212,8 +214,25 @@ export default function ComparisonTable({
                   isCustom && customStdVal
                     ? customStdVal
                     : row.standard;
+                const benchmarkLabel = formatBenchmarkDisplay(displayStandard);
 
                 const dataGapCount = getMissingFieldCount(row);
+                const varianceText = String(row.variance ?? '').trim();
+                const normalizedVariance = varianceText.toLowerCase();
+                const hasDataGaps = Boolean(
+                  dataGapCount > 0 ||
+                  normalizedVariance.includes('data gap') ||
+                  String(row.company || '').toLowerCase().includes('no data') ||
+                  String(row.company || '').toLowerCase() === 'n/a' ||
+                  String(row.dataQuality?.overallRating || '').toLowerCase() === 'poor'
+                );
+                const varianceUnavailable =
+                  !normalizedVariance ||
+                  ['not yet fetched', 'data not yet fetched', 'n/a', 'na', '--', '-', 'unknown'].includes(normalizedVariance) ||
+                  normalizedVariance.includes('data gap');
+                const varianceDisplay = varianceUnavailable
+                  ? (hasDataGaps ? 'Data Gaps' : 'Not yet fetched')
+                  : row.variance;
 
                 return (
                   <tr
@@ -233,24 +252,24 @@ export default function ComparisonTable({
                     <td className="td-metric">
                       <div className="metric-title-cell-wrap">
                         <span className="metric-primary-name">
-                          {row.metric}
+                          {formatDisplayUnits(row.metric)}
                         </span>
                       </div>
                       <div className="metric-category-subtext">
-                        {row.category}
+                        {formatDisplayUnits(row.category)}
                       </div>
                     </td>
 
                     <td className="td-company">
                       <span className="bold-company-val">
-                        {row.company ?? 'Not yet fetched'}
+                        {formatDisplayUnits(row.company) ?? 'Not yet fetched'}
                       </span>
                     </td>
 
                     <td className="td-standard">
                       <div className="standard-cell-wrap">
                         <span className="standard-val">
-                          {displayStandard ?? 'Not yet fetched'}
+                          {formatDisplayUnits(benchmarkLabel) ?? 'Not yet fetched'}
                         </span>
 
                         {isCustom && customStdVal && (
@@ -284,7 +303,7 @@ export default function ComparisonTable({
                           .toLowerCase()
                           .replace(/\s+/g, '-')}`}
                       >
-                        {row.variance ?? 'Not yet fetched'}
+                        {formatDisplayUnits(varianceDisplay)}
                       </span>
                     </td>
 

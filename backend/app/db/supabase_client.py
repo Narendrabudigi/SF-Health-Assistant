@@ -45,6 +45,66 @@ def alphanumeric_key(text: str) -> str:
     return re.sub(r'[^a-zA-Z0-9]', '', clean).lower()
 
 
+def extract_accuracy_score(payload: Any) -> Any:
+    """Read model accuracy from ML Insights, preferring selected RCA model metrics."""
+    accuracy_keys = {
+        "accuracy", "accuracyscore", "accuracyscorepercentage",
+        "accuracypercentage", "modelaccuracy", "modelaccuracyscore"
+    }
+
+    def score_value(value: Any) -> Any:
+        if isinstance(value, dict):
+            for value_key in ("value", "score", "percentage", "accuracy"):
+                if value.get(value_key) is not None:
+                    return value[value_key]
+            return None
+        return value if value is not None and value != "" else None
+
+    def selected_rca_accuracy(node: Any) -> Any:
+        if isinstance(node, dict):
+            for key, value in node.items():
+                if alphanumeric_key(key) == "selectedtrainingmodel" and isinstance(value, dict):
+                    for model_key, model in value.items():
+                        if alphanumeric_key(model_key) == "rcamodel" and isinstance(model, dict):
+                            for metric_key, metric_value in model.items():
+                                if alphanumeric_key(metric_key) == "accuracy":
+                                    found = score_value(metric_value)
+                                    if found is not None:
+                                        return found
+                found = selected_rca_accuracy(value)
+                if found is not None:
+                    return found
+        elif isinstance(node, list):
+            for value in node:
+                found = selected_rca_accuracy(value)
+                if found is not None:
+                    return found
+        return None
+
+    selected_accuracy = selected_rca_accuracy(payload)
+    if selected_accuracy is not None:
+        return selected_accuracy
+
+    if isinstance(payload, dict):
+        for key, value in payload.items():
+            if alphanumeric_key(key) in accuracy_keys and value is not None and value != "":
+                found = score_value(value)
+                if found is not None:
+                    return found
+
+        for value in payload.values():
+            found = extract_accuracy_score(value)
+            if found is not None:
+                return found
+    elif isinstance(payload, list):
+        for value in payload:
+            found = extract_accuracy_score(value)
+            if found is not None:
+                return found
+
+    return None
+
+
 def normalize_missing_configurations(raw_cfgs: Any, mod_name: str = "EC", dq_checks: list = None) -> List[Dict[str, Any]]:
     """
     Normalizes any format of missing configuration / fields from Supabase ML pipeline:
@@ -427,26 +487,13 @@ class SupabaseStorageService:
                         
                         jr = row.get("JSON_Result") or row.get("insight_data") or {}
                         
-                        # Process ML Notebook JSON_Result fields. ML values are used
-                        # for company/diagnostic data, but the fixed benchmark master
-                        # remains authoritative for the industry standard.
+                        # Use the ML Notebook Insights payload as the source for
+                        # company values, industry standards, and diagnostics.
                         company_val = jr.get("companyValue")
                         std_val = jr.get("industryStandardValue")
                         health_state = jr.get("healthState")
                         unit_str = str(jr.get("unit") or "").strip()
                         higher_is_better = jr.get("higherIsBetter", False)
-
-                        fixed_benchmarks = self.get_fixed_benchmark_map()
-                        metric_code_key = alphanumeric_key(row.get("Metric_Code") or row.get("metric_code") or "")
-                        metric_name_key = alphanumeric_key(m_name_raw)
-                        fixed_benchmark = fixed_benchmarks.get(metric_code_key) or fixed_benchmarks.get(metric_name_key)
-                        if fixed_benchmark:
-                            std_val = fixed_benchmark.get("standard_value") or std_val
-                            if fixed_benchmark.get("evaluation_direction"):
-                                direction = str(fixed_benchmark.get("evaluation_direction")).upper()
-                                higher_is_better = direction in {"HIGHER_IS_BETTER", "HIGHER", "MAXIMIZE", "TRUE", "1"}
-                            if fixed_benchmark.get("unit"):
-                                unit_str = str(fixed_benchmark.get("unit") or unit_str).strip()
                         variance_obj = jr.get("variance") or {}
                         rca_obj = jr.get("rca") or {}
                         factors_raw = rca_obj.get("factors") or []
@@ -582,8 +629,9 @@ class SupabaseStorageService:
                                 "whereItHappens": affected_area_display,
                                 "howToOvercome": suggestions,
                                 "trendAnalysis": {
+                                    **trend_obj,
                                     "summary": trend_summary_text,
-                                    "points": trend_obj.get("periods") or []
+                                    "points": trend_obj.get("periods") or trend_obj.get("points") or []
                                 },
                                 "missingConfigurations": normalized_missing_cfgs
                             },
@@ -591,6 +639,7 @@ class SupabaseStorageService:
                             "factors": factors_raw,
                             "stageDrivers": factors_raw,
                             "dataQuality": data_qual,
+                            "accuracyScore": extract_accuracy_score({**row, **jr}),
                             "confidenceScore": (
                                 jr.get("confidenceScore") or jr.get("confidence_score") or jr.get("confidence") or
                                 ((jr.get("diagnosis") or {}).get("confidenceScore") if isinstance(jr.get("diagnosis"), dict) else None)
@@ -743,13 +792,10 @@ class SupabaseStorageService:
         return all_overrides
 
     def get_fixed_benchmark_map(self) -> Dict[str, Dict[str, Any]]:
-        """Load the fixed benchmark master from public.benchmarks.
+        """Load legacy benchmark records from public.benchmarks.
 
-        The benchmark master is authoritative for industry standards. The loader
-        intentionally uses select("*") because the deployed table schema can
-        contain either standard_value/benchmark_value and different direction
-        field names. We normalize those variants into standard_value,
-        evaluation_direction, unit and operator for the rest of the application.
+        Module and deep-dive Industry Standard values are sourced from ML Insights;
+        this loader remains available for diagnostics and legacy callers only.
         """
         if not self.is_active():
             return {}

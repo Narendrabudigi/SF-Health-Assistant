@@ -1,301 +1,181 @@
-// Comprehensive Multi-Tier Trend Drill-Down Data Engine (Yearly -> Quarterly -> Monthly)
-// Generates realistic, mathematically consistent and domain-accurate hierarchical data for SF Health metrics.
+const VALUE_KEYS = ['average', 'value', 'actual', 'actualValue', 'metricValue', 'score', 'result', 'amount'];
+const CONTAINER_KEYS = ['periods', 'points', 'data', 'values', 'yearly', 'annual', 'years', 'quarterly', 'quarters', 'monthly', 'months'];
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-/**
- * Parses numeric value and suffix unit from a formatted string (e.g. "91.4%", "6.8 Days", "14.2 Hrs", "≤ 2.5 Days")
- */
-function parseMetricValue(str) {
-  if (typeof str !== 'string') {
-    const num = Number(str) || 0;
-    return { num, unit: '', isLowerBetter: false, decimals: 1 };
+function numeric(value) {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value !== 'string') return null;
+  const match = value.replace(/,/g, '').match(/[-+]?[0-9]*\.?[0-9]+/);
+  return match ? Number(match[0]) : null;
+}
+
+function parseValue(value) {
+  const num = numeric(value);
+  const text = String(value ?? '');
+  const unit = text.includes('%') ? '%' : /day/i.test(text) ? ' Days' : /hr/i.test(text) ? ' Hrs' : text.includes('$') ? '$' : '';
+  const decimals = (text.match(/\.([0-9]+)/)?.[1] || '').length || 1;
+  return { num, unit, decimals };
+}
+
+function parsePeriod(record, inherited = {}) {
+  const period = String(record.period ?? record.label ?? record.date ?? record.name ?? record.month ?? record.quarter ?? record.year ?? '');
+  const granularity = String(record.granularity ?? record.interval ?? record.level ?? record.frequency ?? inherited.granularity ?? '').toLowerCase();
+  let year = Number(record.year ?? inherited.year) || null;
+  let quarter = String(record.quarter ?? inherited.quarter ?? '').toUpperCase().match(/Q[1-4]/)?.[0] || null;
+  let month = Number(record.monthNumber ?? record.month_index ?? (typeof record.month === 'number' ? record.month : null)) || null;
+  let monthName = String(record.monthName ?? (typeof record.month === 'string' ? record.month : '')).toLowerCase();
+
+  const yearMatch = period.match(/(?:FY\s*)?(20\d{2})/i);
+  if (!year && yearMatch) year = Number(yearMatch[1]);
+  const quarterMatch = period.match(/Q([1-4])/i);
+  if (!quarter && quarterMatch) quarter = `Q${quarterMatch[1]}`;
+  const monthDate = period.match(/(?:^|\D)(20\d{2})[-/](\d{1,2})(?:[-/]\d{1,2})?/);
+  if (monthDate) {
+    year ||= Number(monthDate[1]);
+    month ||= Number(monthDate[2]);
   }
-
-  const isLowerBetter = str.includes('≤') || str.includes('<');
-  // Match digits, optional minus/plus and decimal
-  const match = str.replace(/[≤≥<>~]/g, '').trim().match(/[-+]?[0-9]*\.?[0-9]+/);
-  const num = match ? parseFloat(match[0]) : 0;
-
-  // Extract unit
-  let unit = '';
-  if (str.includes('%')) unit = '%';
-  else if (str.toLowerCase().includes('day')) unit = ' Days';
-  else if (str.toLowerCase().includes('hr')) unit = ' Hrs';
-  else if (str.includes('$')) unit = '$';
-
-  const decimals = (match && match[0].includes('.')) ? match[0].split('.')[1].length : 1;
-
-  return { num, unit, isLowerBetter, decimals };
-}
-
-/**
- * Determines health status based on value, standard, and variance
- */
-function evaluateStatus(valNum, standardNum, isLowerBetter) {
-  if (isLowerBetter) {
-    if (valNum <= standardNum) return 'Healthy';
-    if (valNum <= standardNum * 1.35) return 'At Risk';
-    return 'Critical';
-  } else {
-    if (valNum >= standardNum) return 'Healthy';
-    if (valNum >= standardNum * 0.94) return 'At Risk';
-    return 'Critical';
+  if (!month && monthName) {
+    const idx = MONTHS.findIndex((m) => m.toLowerCase() === monthName.slice(0, 3));
+    if (idx >= 0) month = idx + 1;
   }
+  if (!month) {
+    const names = ['january','february','march','april','may','june','july','august','september','october','november','december'];
+    const shortNames = MONTHS.map((name) => name.toLowerCase());
+    const idx = names.findIndex((name, index) => period.toLowerCase().includes(name) || new RegExp(`\\b${shortNames[index]}\\b`, 'i').test(period));
+    if (idx >= 0) month = idx + 1;
+  }
+  if (!quarter && month) quarter = `Q${Math.ceil(month / 3)}`;
+
+  let value;
+  let hasValue = false;
+  for (const key of VALUE_KEYS) {
+    if (record[key] !== undefined) {
+      value = numeric(record[key]);
+      hasValue = value !== null;
+      if (hasValue) break;
+    }
+  }
+  if (!VALUE_KEYS.some((key) => Object.prototype.hasOwnProperty.call(record, key))) return null;
+  const isMonthly = month || /month|monthly/i.test(granularity);
+  const isQuarterly = quarter || /quarter|quarterly/i.test(granularity);
+  const isYearly = year && !isMonthly && !isQuarterly || /year|annual|yearly/i.test(granularity);
+  if (!year) return null;
+  return { year: String(year), quarter: isMonthly ? quarter : isQuarterly ? quarter : null, month: isMonthly ? month : null, value: hasValue ? value : null, hasValue, isYearly: Boolean(isYearly), raw: record };
 }
 
-/**
- * Formats a number with its unit
- */
-function formatVal(num, unit, decimals = 1) {
-  const rounded = Number(num.toFixed(decimals));
-  if (unit === '$') return `$${rounded.toLocaleString()}`;
-  return `${rounded}${unit}`;
+function collectPeriods(source) {
+  const records = [];
+  const visited = new Set();
+  const walk = (node, context = {}) => {
+    if (!node || typeof node !== 'object' || visited.has(node)) return;
+    visited.add(node);
+    if (Array.isArray(node)) { node.forEach((item) => walk(item, context)); return; }
+
+    const period = parsePeriod(node, context);
+    if (period) records.push(period);
+    const inheritedContext = { ...context };
+    if (period?.year) inheritedContext.year = Number(period.year);
+    else if (Number(node.year)) inheritedContext.year = Number(node.year);
+    if (period?.quarter) inheritedContext.quarter = period.quarter;
+
+    for (const [key, value] of Object.entries(node)) {
+      const lower = key.toLowerCase();
+      if (!CONTAINER_KEYS.includes(lower) && !Array.isArray(value) && (value === null || typeof value !== 'object')) continue;
+      const next = { ...inheritedContext };
+      if (/^20\d{2}$/.test(key)) next.year = Number(key);
+      if (/^q[1-4]$/i.test(key)) next.quarter = key.toUpperCase();
+      if (['yearly', 'annual', 'years'].includes(lower)) next.granularity = 'yearly';
+      if (['quarterly', 'quarters'].includes(lower)) next.granularity = 'quarterly';
+      if (['monthly', 'months'].includes(lower)) next.granularity = 'monthly';
+      if (CONTAINER_KEYS.includes(lower) || typeof value === 'object') walk(value, next);
+    }
+  };
+  walk(source);
+  return records;
 }
 
-const MONTH_NAMES = {
-  Q1: [
-    { short: 'Jan', full: 'January' },
-    { short: 'Feb', full: 'February' },
-    { short: 'Mar', full: 'March' }
-  ],
-  Q2: [
-    { short: 'Apr', full: 'April' },
-    { short: 'May', full: 'May' },
-    { short: 'Jun', full: 'June' }
-  ],
-  Q3: [
-    { short: 'Jul', full: 'July' },
-    { short: 'Aug', full: 'August' },
-    { short: 'Sep', full: 'September' }
-  ],
-  Q4: [
-    { short: 'Oct', full: 'October' },
-    { short: 'Nov', full: 'November' },
-    { short: 'Dec', full: 'December' }
-  ]
-};
+function formatValue(value, unit, decimals) {
+  if (unit === '$') return `$${value.toLocaleString()}`;
+  return `${Number(value.toFixed(decimals))}${unit}`;
+}
 
-/**
- * Builds the complete 3-tier hierarchy (Yearly -> Quarterly -> Monthly) for a metric
- */
+function evaluateStatus(value, standard, lowerIsBetter) {
+  if (lowerIsBetter) return value <= standard ? 'Healthy' : value <= standard * 1.35 ? 'At Risk' : 'Critical';
+  return value >= standard ? 'Healthy' : value >= standard * 0.94 ? 'At Risk' : 'Critical';
+}
+
+/** Build a hierarchy only from ML Insights periods. Aggregations use stored child periods. */
 export function getTrendDrillDownData(metric) {
   if (!metric) return null;
+  const standard = metric.standard ?? '0';
+  const company = metric.company ?? '0';
+  const std = parseValue(standard);
+  const current = parseValue(company);
+  const unit = current.unit || std.unit || '%';
+  const decimals = current.decimals || std.decimals || 1;
+  const lowerIsBetter = /[≤<]/.test(String(standard)) || (metric.status === 'Critical' && current.num > std.num);
+  const source = { ...(metric.detailedAnalysis?.trendAnalysis || {}), ...(metric.trendAnalysis || {}) };
+  const currentYear = new Date().getFullYear();
+  const records = collectPeriods(source).filter((record) => Number(record.year) >= 2024 && Number(record.year) <= currentYear);
+  if (!records.length) return { years: [], standard, standardNumeric: std.num ?? 0, company, unit, isLowerBetter: lowerIsBetter, decimals, defaultYear: null, defaultQuarter: null };
 
-  const {
-    company = '0',
-    standard = '0',
-    status = 'At Risk',
-    variance = '0',
-    detailedAnalysis = {}
-  } = metric;
-
-  const parsedCompany = parseMetricValue(company);
-  const parsedStandard = parseMetricValue(standard);
-  const unit = parsedCompany.unit || parsedStandard.unit || '%';
-  const isLowerBetter = parsedStandard.isLowerBetter || standard.includes('≤') || status === 'Critical' && parsedCompany.num > parsedStandard.num;
-  const decimals = parsedCompany.decimals || 1;
-
-  // Check if existing trend points exist in detailedAnalysis
-  const existingPoints = detailedAnalysis?.trendAnalysis?.points || [];
-  const qVals2026 = {};
-
-  if (existingPoints.length >= 4) {
-    existingPoints.forEach((pt, i) => {
-      const qKey = `Q${i + 1}`;
-      const p = parseMetricValue(pt.value);
-      qVals2026[qKey] = p.num;
-    });
-  } else {
-    // Generate realistic 2026 quarters leading to current company value
-    const cur = parsedCompany.num;
-    if (isLowerBetter) {
-      // Typically deteriorating (increasing)
-      qVals2026.Q1 = Number((cur * 0.86).toFixed(decimals));
-      qVals2026.Q2 = Number((cur * 0.91).toFixed(decimals));
-      qVals2026.Q3 = Number((cur * 0.96).toFixed(decimals));
-      qVals2026.Q4 = cur;
-    } else {
-      // Typically deteriorating (decreasing)
-      qVals2026.Q1 = Number((cur * 1.04).toFixed(decimals));
-      qVals2026.Q2 = Number((cur * 1.025).toFixed(decimals));
-      qVals2026.Q3 = Number((cur * 1.01).toFixed(decimals));
-      qVals2026.Q4 = cur;
-    }
-  }
-
-  // Generate 2025 quarters (historical prior year)
-  const qVals2025 = {};
-  if (isLowerBetter) {
-    qVals2025.Q1 = Number((qVals2026.Q1 * 0.82).toFixed(decimals));
-    qVals2025.Q2 = Number((qVals2026.Q1 * 0.88).toFixed(decimals));
-    qVals2025.Q3 = Number((qVals2026.Q1 * 0.93).toFixed(decimals));
-    qVals2025.Q4 = Number((qVals2026.Q1 * 0.98).toFixed(decimals));
-  } else {
-    qVals2025.Q1 = Number((qVals2026.Q1 * 1.04).toFixed(decimals));
-    qVals2025.Q2 = Number((qVals2026.Q1 * 1.03).toFixed(decimals));
-    qVals2025.Q3 = Number((qVals2026.Q1 * 1.015).toFixed(decimals));
-    qVals2025.Q4 = Number((qVals2026.Q1 * 1.005).toFixed(decimals));
-  }
-
-  // Generate 2024 quarters (historical baseline year)
-  const qVals2024 = {};
-  if (isLowerBetter) {
-    qVals2024.Q1 = Number((qVals2025.Q1 * 0.85).toFixed(decimals));
-    qVals2024.Q2 = Number((qVals2025.Q1 * 0.89).toFixed(decimals));
-    qVals2024.Q3 = Number((qVals2025.Q1 * 0.94).toFixed(decimals));
-    qVals2024.Q4 = Number((qVals2025.Q1 * 0.97).toFixed(decimals));
-  } else {
-    qVals2024.Q1 = Number((qVals2025.Q1 * 1.03).toFixed(decimals));
-    qVals2024.Q2 = Number((qVals2025.Q1 * 1.02).toFixed(decimals));
-    qVals2024.Q3 = Number((qVals2025.Q1 * 1.01).toFixed(decimals));
-    qVals2024.Q4 = Number((qVals2025.Q1 * 1.002).toFixed(decimals));
-  }
-
-  const rawQuarterSets = {
-    '2024': qVals2024,
-    '2025': qVals2025,
-    '2026': qVals2026
+  const yearMap = new Map();
+  const addYear = (year) => {
+    if (!yearMap.has(year)) yearMap.set(year, { year, annualValues: [], quarterMap: new Map() });
+    return yearMap.get(year);
   };
-
-  // Helper to build 3 months for a given year and quarter
-  const buildMonths = (year, qKey, qTargetVal, isCurQuarter) => {
-    const monthsMeta = MONTH_NAMES[qKey];
-    // Slightly vary the 3 months around the quarter value
-    const deltas = isLowerBetter ? [-0.03, 0.0, 0.03] : [0.015, -0.0, -0.015];
-
-    return monthsMeta.map((mMeta, mIdx) => {
-      let mVal;
-      if (year === '2026' && qKey === 'Q4' && mIdx === 2) {
-        // Last month of 2026 Q4 is exactly current company value
-        mVal = parsedCompany.num;
-      } else {
-        const delta = qTargetVal * deltas[mIdx];
-        mVal = Number((qTargetVal + delta).toFixed(decimals));
+  records.forEach((record) => {
+    const y = addYear(record.year);
+    if (record.isYearly && record.hasValue) y.annualValues.push(record.value);
+    else if (record.quarter) {
+      if (!y.quarterMap.has(record.quarter)) y.quarterMap.set(record.quarter, { values: [], monthMap: new Map(), monthMeta: new Map(), hasQuarterRecord: false });
+      const q = y.quarterMap.get(record.quarter);
+      if (record.month) { q.monthMap.set(record.month, record.value); q.monthMeta.set(record.month, record.raw); }
+      else {
+        q.hasQuarterRecord = true;
+        if (record.hasValue) q.values.push(record.value);
       }
-
-      const mStatus = evaluateStatus(mVal, parsedStandard.num, isLowerBetter);
-      const isCurMonth = isCurQuarter && mIdx === 2;
-
-      // Variance vs Standard
-      const varDiff = Number((mVal - parsedStandard.num).toFixed(decimals));
-      const varSign = varDiff > 0 ? '+' : '';
-      const varDisplay = `${varSign}${varDiff}${unit}`;
-
-      // MoM movement
-      const momSign = deltas[mIdx] >= 0 ? '+' : '';
-      const momChange = `${momSign}${(deltas[mIdx] * 100).toFixed(1)}%`;
-
-      return {
-        id: `${year}-${qKey}-${mMeta.short.toLowerCase()}`,
-        month: mMeta.short,
-        fullName: `${mMeta.full} ${year}`,
-        period: `${mMeta.short} ${year}${isCurMonth ? ' (Current)' : ''}`,
-        value: formatVal(mVal, unit, decimals),
-        numericValue: mVal,
-        status: mStatus,
-        variance: varDisplay,
-        momChange,
-        isCurrent: isCurMonth,
-        notes: isCurMonth
-          ? 'Latest monthly audit scan from active SuccessFactors instance'
-          : `Validated operational cycle cadence for ${mMeta.full}`
-      };
-    });
-  };
-
-  // Build the years and quarters
-  const yearsList = ['2024', '2025', '2026'].map((year) => {
-    const isCurrentYear = year === '2026';
-    const qVals = rawQuarterSets[year];
-
-    // Compute quarters for this year
-    const quarters = ['Q1', 'Q2', 'Q3', 'Q4'].map((qKey) => {
-      const qNum = qVals[qKey];
-      const isCurQuarter = isCurrentYear && qKey === 'Q4';
-      const qStatus = evaluateStatus(qNum, parsedStandard.num, isLowerBetter);
-      const months = buildMonths(year, qKey, qNum, isCurQuarter);
-
-      // QoQ change
-      let qoqChange = '-';
-      if (qKey === 'Q2') qoqChange = `${(((qNum - qVals.Q1) / (qVals.Q1 || 1)) * 100).toFixed(1)}%`;
-      else if (qKey === 'Q3') qoqChange = `${(((qNum - qVals.Q2) / (qVals.Q2 || 1)) * 100).toFixed(1)}%`;
-      else if (qKey === 'Q4') qoqChange = `${(((qNum - qVals.Q3) / (qVals.Q3 || 1)) * 100).toFixed(1)}%`;
-      if (qoqChange !== '-' && !qoqChange.startsWith('-') && !qoqChange.startsWith('+')) {
-        qoqChange = `+${qoqChange}`;
-      }
-
-      // Variance vs Standard
-      const varDiff = Number((qNum - parsedStandard.num).toFixed(decimals));
-      const varSign = varDiff > 0 ? '+' : '';
-      const varDisplay = `${varSign}${varDiff}${unit}`;
-
-      return {
-        quarter: qKey,
-        label: `${qKey} ${year}`,
-        period: isCurQuarter ? `${qKey} (Current)` : qKey,
-        year,
-        value: formatVal(qNum, unit, decimals),
-        numericValue: qNum,
-        status: qStatus,
-        variance: varDisplay,
-        qoqChange,
-        isCurrent: isCurQuarter,
-        months,
-        summary: isCurQuarter
-          ? (detailedAnalysis?.trendAnalysis?.summary || `Current operating quarter performance against the ${standard} standard.`)
-          : `Quarterly operational review for ${qKey} ${year}.`
-      };
-    });
-
-    // Compute year average
-    const yearAvg = Number(
-      (quarters.reduce((acc, q) => acc + q.numericValue, 0) / quarters.length).toFixed(decimals)
-    );
-    const yearStatus = evaluateStatus(yearAvg, parsedStandard.num, isLowerBetter);
-
-    let yoyChange = '-';
-    if (year === '2025') {
-      const y24Avg = quarters.reduce((acc, q) => acc + qVals2024[q.quarter], 0) / 4;
-      const pct = (((yearAvg - y24Avg) / (y24Avg || 1)) * 100).toFixed(1);
-      yoyChange = pct > 0 ? `+${pct}%` : `${pct}%`;
-    } else if (year === '2026') {
-      const y25Avg = quarters.reduce((acc, q) => acc + qVals2025[q.quarter], 0) / 4;
-      const pct = (((yearAvg - y25Avg) / (y25Avg || 1)) * 100).toFixed(1);
-      yoyChange = pct > 0 ? `+${pct}%` : `${pct}%`;
     }
-
-    const varDiff = Number((yearAvg - parsedStandard.num).toFixed(decimals));
-    const varSign = varDiff > 0 ? '+' : '';
-    const varDisplay = `${varSign}${varDiff}${unit}`;
-
-    return {
-      year,
-      label: `FY ${year}`,
-      period: isCurrentYear ? `${year} (Current FY)` : year,
-      value: formatVal(yearAvg, unit, decimals),
-      numericValue: yearAvg,
-      status: yearStatus,
-      variance: varDisplay,
-      yoyChange,
-      isCurrent: isCurrentYear,
-      quarters,
-      summary: isCurrentYear
-        ? `FY 2026 Year-to-Date: ${detailedAnalysis?.trendAnalysis?.summary || 'Persistent variance observed across core operating quarters.'}`
-        : year === '2025'
-          ? `FY 2025 Historical Baseline: Preceding annual cycle before major organizational changes.`
-          : `FY 2024 Historical Benchmark: Standard enterprise baseline performance.`
-    };
   });
 
-  return {
-    metricName: metric.metric,
-    standard,
-    standardNumeric: parsedStandard.num,
-    company,
-    unit,
-    isLowerBetter,
-    decimals,
-    years: yearsList,
-    defaultYear: '2026',
-    defaultQuarter: 'Q4'
-  };
+  const years = [...yearMap.values()].sort((a, b) => Number(a.year) - Number(b.year)).map((yearData, yearIndex, allYears) => {
+    const quarterEntries = [...yearData.quarterMap.entries()].sort((a, b) => Number(a[0].slice(1)) - Number(b[0].slice(1)));
+    const quarters = quarterEntries.map(([quarter, qData], quarterIndex) => {
+      const storedMonths = [...qData.monthMap.entries()].sort((a, b) => a[0] - b[0]);
+      const qValues = qData.values.length ? qData.values : storedMonths.map(([, value]) => value).filter(Number.isFinite);
+      const qValue = qValues.length ? qValues.reduce((sum, value) => sum + value, 0) / qValues.length : null;
+      const months = storedMonths.map(([monthNum, value], index) => ({
+        id: `${yearData.year}-${monthNum}`, month: MONTHS[monthNum - 1], fullName: `${MONTHS[monthNum - 1]} ${yearData.year}`,
+        period: `${MONTHS[monthNum - 1]} ${yearData.year}`, value: value === null ? 'Data Gap' : formatValue(value, unit, decimals), numericValue: value,
+        status: value === null ? 'Data Gap' : evaluateStatus(value, std.num ?? 0, lowerIsBetter), variance: value === null ? 'Data Gap' : `${value - (std.num ?? 0) > 0 ? '+' : ''}${Number((value - (std.num ?? 0)).toFixed(decimals))}${unit}`,
+        momChange: index && value !== null && storedMonths[index - 1][1] !== null ? `${(((value - storedMonths[index - 1][1]) / (storedMonths[index - 1][1] || 1)) * 100).toFixed(1)}%` : '-', isCurrent: false, notes: qData.monthMeta?.get(monthNum)?.isPartial ? 'Partial period from ML Insights' : 'Value from ML Insights'
+      }));
+      if (qValue === null && !qData.hasQuarterRecord && !storedMonths.length) return null;
+      const prev = quarterEntries[quarterIndex - 1]?.[1];
+      const prevMonths = prev ? [...prev.monthMap.values()].filter(Number.isFinite) : [];
+      const prevValue = prev && (prev.values.length ? prev.values.reduce((s, v) => s + v, 0) / prev.values.length : prevMonths.length ? prevMonths.reduce((s, v) => s + v, 0) / prevMonths.length : null);
+      return { quarter, label: `${quarter} ${yearData.year}`, period: quarter, year: yearData.year, value: qValue === null ? 'Data Gap' : formatValue(qValue, unit, decimals), numericValue: qValue,
+        status: qValue === null ? 'Data Gap' : evaluateStatus(qValue, std.num ?? 0, lowerIsBetter), variance: qValue === null ? 'Data Gap' : `${qValue - (std.num ?? 0) > 0 ? '+' : ''}${Number((qValue - (std.num ?? 0)).toFixed(decimals))}${unit}`,
+        qoqChange: prevValue && qValue !== null ? `${qValue >= prevValue ? '+' : ''}${(((qValue - prevValue) / prevValue) * 100).toFixed(1)}%` : '-', isCurrent: false, months,
+        summary: source.summary || 'Quarterly value from ML Insights.' };
+    }).filter(Boolean);
+
+    const quarterlyValues = quarters.map((q) => q.numericValue).filter(Number.isFinite);
+    const yearlyValue = yearData.annualValues.length ? yearData.annualValues.reduce((sum, value) => sum + value, 0) / yearData.annualValues.length
+      : quarterlyValues.length ? quarterlyValues.reduce((sum, value) => sum + value, 0) / quarterlyValues.length : null;
+    if (yearlyValue === null) return null;
+    const previous = allYears[yearIndex - 1];
+    const previousAnnual = previous?.annualValues.length ? previous.annualValues.reduce((s, v) => s + v, 0) / previous.annualValues.length : null;
+    const yoy = previousAnnual ? `${yearlyValue >= previousAnnual ? '+' : ''}${(((yearlyValue - previousAnnual) / previousAnnual) * 100).toFixed(1)}%` : '-';
+    return { year: yearData.year, label: `FY ${yearData.year}`, period: yearData.year, value: formatValue(yearlyValue, unit, decimals), numericValue: yearlyValue,
+      status: evaluateStatus(yearlyValue, std.num ?? 0, lowerIsBetter), variance: `${yearlyValue - (std.num ?? 0) > 0 ? '+' : ''}${Number((yearlyValue - (std.num ?? 0)).toFixed(decimals))}${unit}`,
+      yoyChange: yoy, isCurrent: false, quarters, summary: source.summary || 'Yearly value from ML Insights.' };
+  }).filter(Boolean);
+  const latest = years.find((year) => Number(year.year) === currentYear);
+  const defaultYear = latest?.year ?? years[years.length - 1]?.year ?? null;
+  const latestQuarter = latest?.quarters[latest.quarters.length - 1];
+  if (latest) latest.isCurrent = true;
+  if (latestQuarter) latestQuarter.isCurrent = true;
+  return { metricName: metric.metric, standard, standardNumeric: std.num ?? 0, company, unit, isLowerBetter: lowerIsBetter, decimals, years,
+    defaultYear, defaultQuarter: latestQuarter?.quarter ?? null };
 }

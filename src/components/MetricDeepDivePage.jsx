@@ -5,6 +5,8 @@ import { generateMetricBrdPdf } from '../utils/pdfGenerator';
 import TrendDrillDownView from './TrendDrillDownView';
 import { apiService } from '../services/apiService';
 import { getMissingFields } from '../utils/dataGapUtils';
+import { formatBenchmarkDisplay } from '../utils/benchmarkDisplay';
+import { formatDisplayUnits } from '../utils/displayUnits';
 
 
 /**
@@ -13,7 +15,7 @@ import { getMissingFields } from '../utils/dataGapUtils';
  */
 function safeText(value, fallback = '') {
   if (value === null || value === undefined) return fallback;
-  if (typeof value === 'string') return value.trim() || fallback;
+  if (typeof value === 'string') return formatDisplayUnits(value.trim()) || fallback;
   if (typeof value === 'number' || typeof value === 'boolean') return String(value);
   if (Array.isArray(value)) {
     const text = value.map((item) => safeText(item)).filter(Boolean).join(', ');
@@ -516,6 +518,7 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
 
   const company = isMetricLive ? cleanVal(rawCompany) : 'Not yet fetched';
   const standard = isMetricLive ? cleanVal(rawStandard) : 'Not yet fetched';
+  const standardDisplay = formatBenchmarkDisplay(standard);
   const status = isMetricLive ? (isPlaceholder(rawStatus) ? 'Not yet fetched' : safeText(rawStatus, 'Not yet fetched')) : 'Not yet fetched';
   const variance = isMetricLive ? cleanVal(rawVariance) : 'Not yet fetched';
 
@@ -526,12 +529,13 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
   const diagnosisData = isMetricLive
     ? (liveInsight?.diagnosis || liveInsight?.metric?.diagnosis || currentMetric?.diagnosis || {})
     : {};
-  const rawConfidenceScore = liveInsight?.confidenceScore ?? liveInsight?.metric?.confidenceScore ?? currentMetric?.confidenceScore ?? diagnosisData?.confidenceScore ?? diagnosisData?.confidence_score ?? diagnosisData?.confidence ?? liveInsight?.dataQuality?.confidenceScore ?? currentMetric?.dataQuality?.confidenceScore;
-  const parsedConfidence = (() => {
-    if (rawConfidenceScore === null || rawConfidenceScore === undefined || rawConfidenceScore === '') return null;
-    const n = Number.parseFloat(String(rawConfidenceScore).replace('%', ''));
+  const rawAccuracyScore = liveInsight?.accuracyScore ?? liveInsight?.accuracyPercentage ?? liveInsight?.accuracy_percentage ?? liveInsight?.metric?.accuracyScore ?? liveInsight?.metric?.accuracyPercentage ?? currentMetric?.accuracyScore ?? currentMetric?.accuracyPercentage ?? diagnosisData?.accuracyScore ?? diagnosisData?.accuracyPercentage ?? liveInsight?.dataQuality?.accuracyScore ?? liveInsight?.dataQuality?.accuracyPercentage;
+  const parsedAccuracy = (() => {
+    if (rawAccuracyScore === null || rawAccuracyScore === undefined || rawAccuracyScore === '') return null;
+    const n = Number.parseFloat(String(rawAccuracyScore).replace('%', ''));
     if (!Number.isFinite(n)) return null;
-    return Math.round((n <= 1 ? n * 100 : n) * 10) / 10;
+    const percentage = n <= 1 ? n * 100 : n;
+    return Math.round(Math.max(0, Math.min(100, percentage)) * 10) / 10;
   })();
   const diagnosisHeadline = safeText(diagnosisData?.headline ?? detailedAnalysis?.headline);
   const narrativeCandidate = safeText(diagnosisData?.narrative ?? detailedAnalysis?.whyItHappens);
@@ -906,7 +910,7 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
     const list = [];
     (brdPlan?.stageDrivers || []).forEach((sd, idx) => {
       list.push({
-        id: sd.id || `S${idx + 1}`,
+        id: String(sd.id || `S${idx + 1}`).replace(/^S(?=\d)/i, 'F'),
         driver: sd.driver || sd.name || `Stage ${idx + 1}`,
         impact: sd.avgDays || '-',
         share: sd.share || '-'
@@ -1214,9 +1218,9 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
             <div className="deepdive-hero-header">
               <div>
                 <div className="deepdive-hero-eyebrow">
-                  {category} • Root Cause & Technical Diagnostic
+                  {formatDisplayUnits(category)} • Root Cause & Technical Diagnostic
                 </div>
-                <h1 className="deepdive-hero-title">{metricName}</h1>
+                <h1 className="deepdive-hero-title">{formatDisplayUnits(metricName)}</h1>
               </div>
 
               <div className="deepdive-hero-badge-wrap" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -1228,18 +1232,18 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
             <div className="metric-summary-strip deepdive-strip">
               <div className="summary-stat-cell">
                 <span className="stat-cell-label">Current Company Value</span>
-                <span className="stat-cell-value current-val">{company}</span>
+                <span className="stat-cell-value current-val">{formatDisplayUnits(company)}</span>
               </div>
               <div className="summary-stat-divider"></div>
               <div className="summary-stat-cell">
                 <span className="stat-cell-label">Benchmark Standard</span>
-                <span className="stat-cell-value">{standard}</span>
+                <span className="stat-cell-value">{formatDisplayUnits(standardDisplay)}</span>
               </div>
               <div className="summary-stat-divider"></div>
               <div className="summary-stat-cell">
                 <span className="stat-cell-label">Variance Gap</span>
                 <span className={`stat-cell-value ${isCritical ? 'val-critical' : 'val-at-risk'}`}>
-                  {variance}
+                  {formatDisplayUnits(variance)}
                 </span>
               </div>
             </div>
@@ -1247,8 +1251,8 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
             {/* Simple Visual Comparison Bar */}
             <div className="simple-comparison-track">
               <div className="track-label-row">
-                <span className="track-left-label">Actual Performance: <strong>{company}</strong></span>
-                <span className="track-right-label">Target Standard: <strong>{standard}</strong></span>
+                <span className="track-left-label">Actual Performance: <strong>{formatDisplayUnits(company)}</strong></span>
+                <span className="track-right-label">Target Standard: <strong>{formatDisplayUnits(standardDisplay)}</strong></span>
               </div>
               <div className="track-bar-bg">
                 <div
@@ -1271,10 +1275,10 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                   </div>
                   <div
                     className="diagnosis-confidence-badge"
-                    title={parsedConfidence === null ? 'Confidence score was not returned by the analytics pipeline' : 'Confidence score from the analytics pipeline'}
+                    title={parsedAccuracy === null ? 'Accuracy score was not returned by ML Insights' : 'Accuracy score from ML Insights'}
                   >
-                    <span className="confidence-label">Confidence Score</span>
-                    <strong>{parsedConfidence === null ? 'N/A' : `${parsedConfidence}%`}</strong>
+                    <span className="confidence-label">Accuracy</span>
+                    <strong>{parsedAccuracy === null ? 'N/A' : `${parsedAccuracy}%`}</strong>
                   </div>
                 </div>
                 <div className="diagnostic-card-content">
@@ -1674,7 +1678,7 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                       <div className="impact-triad-grid">
                         <div className="impact-triad-card triad-cost">
                           <div className="triad-icon">💰</div>
-                          <div className="triad-title">Financial Exposure</div>
+                          <div className="triad-title">Financial Impact</div>
                           <div className="triad-desc">
                             {safeText(financialExposure) || 'Data not yet fetched'}
                           </div>

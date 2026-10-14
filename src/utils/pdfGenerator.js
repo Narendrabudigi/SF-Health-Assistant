@@ -463,7 +463,7 @@ export async function generateMetricBrdPdf(metric, options = {}) {
           <p class="analysis-text">${detailedAnalysis.howItEffects || ''}</p>
           <div class="impact-triad-grid">
             <div class="impact-triad-card">
-              <div class="triad-title">💰 Financial Exposure</div>
+              <div class="triad-title">💰 Financial Impact</div>
               <div class="triad-desc">Off-cycle adjustments, replacement recruiting fees & lost productivity overhead</div>
             </div>
             <div class="impact-triad-card">

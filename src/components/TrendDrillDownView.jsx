@@ -1,8 +1,10 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { getTrendDrillDownData } from '../utils/trendDrillDownData';
+import { formatDisplayUnits } from '../utils/displayUnits';
 
 export default function TrendDrillDownView({ metric }) {
   const metricName = metric?.metric;
+  const trendData = useMemo(() => getTrendDrillDownData(metric), [metric]);
   const isUnfetched = !metric?.isSupabaseLive || metric?.company === 'Not yet fetched' || ['data not yet fetched', 'data not yet fetched from supabase'].includes(String(metric?.company || '').toLowerCase());
   const isDataGap = Boolean(
     metric?.company === 'N/A' ||
@@ -10,46 +12,22 @@ export default function TrendDrillDownView({ metric }) {
     String(metric?.variance || '').toLowerCase().includes('data gap')
   );
 
-  if (isUnfetched) {
-    return (
-      <div style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>
-        <p style={{ margin: 0, fontWeight: 500 }}>Data not yet fetched.</p>
-      </div>
-    );
-  }
-
-  if (isDataGap && (!metric?.trendAnalysis?.periods || metric.trendAnalysis.periods.length === 0)) {
-    return (
-      <div style={{ padding: '20px 24px', borderRadius: '8px', background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.25)', borderLeft: '4px solid #f59e0b', color: '#92400e' }}>
-        <div style={{ fontWeight: 700, fontSize: '13px', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span>⚠️</span>
-          <span>Data Gap: Historical Trend Trajectory Unavailable</span>
-        </div>
-        <div style={{ fontSize: '12px', color: '#b45309', lineHeight: 1.55 }}>
-          Multi-period trajectory modeling (Yearly › Quarterly › Monthly) requires timestamped historical transaction data. Due to data gaps across the evaluated client records, trend curves could not be plotted.
-        </div>
-      </div>
-    );
-  }
-
-  const trendData = useMemo(() => getTrendDrillDownData(metric), [metricName]);
-
   const currentYearId = useMemo(() => {
-    if (!trendData?.years) return '2026';
+    if (!trendData?.years?.length) return '';
     const cur = trendData.years.find((y) => y.isCurrent);
-    return cur ? cur.year : (trendData.defaultYear || '2026');
+    return cur ? cur.year : (trendData.defaultYear || trendData.years[trendData.years.length - 1].year);
   }, [trendData]);
 
   const currentQuarterId = useMemo(() => {
-    if (!trendData?.years) return 'Q4';
+    if (!trendData?.years?.length) return '';
     const curY = trendData.years.find((y) => y.year === currentYearId);
     const curQ = curY?.quarters.find((q) => q.isCurrent);
-    return curQ ? curQ.quarter : (trendData.defaultQuarter || 'Q4');
+    return curQ ? curQ.quarter : (trendData.defaultQuarter || curY?.quarters?.[curY.quarters.length - 1]?.quarter || '');
   }, [trendData, currentYearId]);
 
   const [level, setLevel] = useState('yearly'); // 'yearly' | 'quarterly' | 'monthly'
-  const [selectedYear, setSelectedYear] = useState('2026');
-  const [selectedQuarter, setSelectedQuarter] = useState('Q4');
+  const [selectedYear, setSelectedYear] = useState(currentYearId);
+  const [selectedQuarter, setSelectedQuarter] = useState(currentQuarterId);
 
   // Guard metric reset with ref to avoid any re-render loops
   const prevMetricRef = useRef(metricName);
@@ -62,15 +40,13 @@ export default function TrendDrillDownView({ metric }) {
     }
   }, [metricName, currentYearId, currentQuarterId]);
 
-  if (!trendData) return null;
-
   const {
     standard,
     standardNumeric,
     unit,
     isLowerBetter,
     years
-  } = trendData;
+  } = trendData || { standard: '', standardNumeric: 0, unit: '', isLowerBetter: false, years: [] };
 
   // Active Year object
   const currentYearObj = useMemo(() => {
@@ -98,8 +74,8 @@ export default function TrendDrillDownView({ metric }) {
         changeLabel: 'YoY',
         isCurrent: y.isCurrent,
         summary: y.summary,
-        canDrill: true,
-        drillPrompt: 'View 4 Quarters'
+        canDrill: y.quarters.length > 0,
+        drillPrompt: `View ${y.quarters.length} Quarters`
       }));
     }
 
@@ -116,8 +92,8 @@ export default function TrendDrillDownView({ metric }) {
         changeLabel: 'QoQ',
         isCurrent: q.isCurrent,
         summary: q.summary,
-        canDrill: true,
-        drillPrompt: 'View 3 Months'
+        canDrill: q.months.length > 0,
+        drillPrompt: `View ${q.months.length} Months`
       }));
     }
 
@@ -142,7 +118,8 @@ export default function TrendDrillDownView({ metric }) {
   // Calculate dynamic bar heights relative to min & max across the active set
   const barHeights = useMemo(() => {
     if (!activeItems || activeItems.length === 0) return {};
-    const values = activeItems.map((i) => i.numericValue);
+    const values = activeItems.map((i) => i.numericValue).filter(Number.isFinite);
+    if (!values.length) return {};
     const minVal = Math.min(...values, standardNumeric);
     const maxVal = Math.max(...values, standardNumeric);
     const range = maxVal - minVal || 1;
@@ -160,12 +137,12 @@ export default function TrendDrillDownView({ metric }) {
   // Aggregate scope summary stats
   const scopeSummary = useMemo(() => {
     if (!activeItems || activeItems.length === 0) return null;
-    const values = activeItems.map((i) => i.numericValue);
-    const avg = (values.reduce((a, b) => a + b, 0) / values.length).toFixed(trendData.decimals);
+    const values = activeItems.map((i) => i.numericValue).filter(Number.isFinite);
+    const avg = values.length ? (values.reduce((a, b) => a + b, 0) / values.length).toFixed(trendData.decimals) : 'Data Gap';
     const isCriticalCount = activeItems.filter((i) => i.status === 'Critical').length;
     const isHealthyCount = activeItems.filter((i) => i.status === 'Healthy').length;
 
-    let overallScopeStatus = 'At Risk';
+    let overallScopeStatus = values.length ? 'At Risk' : 'Data Gap';
     if (isCriticalCount >= activeItems.length / 2) overallScopeStatus = 'Critical';
     else if (isHealthyCount === activeItems.length) overallScopeStatus = 'Healthy';
 
@@ -201,6 +178,19 @@ export default function TrendDrillDownView({ metric }) {
       setLevel('monthly');
     }
   };
+
+  if (isUnfetched) {
+    return <div style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}><p style={{ margin: 0, fontWeight: 500 }}>Data not yet fetched.</p></div>;
+  }
+
+  if (!years.length) {
+    return (
+      <div style={{ padding: '20px 24px', borderRadius: '8px', background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.25)', borderLeft: '4px solid #f59e0b', color: '#92400e' }}>
+        <div style={{ fontWeight: 700, marginBottom: '4px' }}>Historical Trend Data Unavailable</div>
+        <div style={{ fontSize: '12px', lineHeight: 1.55 }}>{isDataGap ? 'The metric has data gaps, and ML Insights has no historical periods to display.' : 'No yearly, quarterly, or monthly periods were found for this metric in ML Insights.'}</div>
+      </div>
+    );
+  }
 
   return (
     <div className="trend-drilldown-container" aria-label="Hierarchical Trend Analysis">
@@ -309,7 +299,7 @@ export default function TrendDrillDownView({ metric }) {
               <div className="trend-filter-row">
                 <span className="trend-filter-label">Select Quarter:</span>
                 <div className="trend-filter-pills">
-                  {['Q1', 'Q2', 'Q3', 'Q4'].map((q) => (
+                  {(currentYearObj?.quarters || []).map(({ quarter: q }) => (
                     <button
                       key={q}
                       type="button"
@@ -350,19 +340,19 @@ export default function TrendDrillDownView({ metric }) {
               {scopeSummary?.status}
             </span>
           </div>
-          <p className="trend-scope-context">{scopeSummary?.context}</p>
+            <p className="trend-scope-context">{formatDisplayUnits(scopeSummary?.context)}</p>
         </div>
 
         {/* Mini KPI metrics */}
         <div className="trend-scope-kpis">
           <div className="trend-kpi-block">
             <span className="trend-kpi-lbl">Period Average</span>
-            <span className="trend-kpi-val">{scopeSummary?.avg}</span>
+            <span className="trend-kpi-val">{formatDisplayUnits(scopeSummary?.avg)}</span>
           </div>
           <div className="trend-kpi-sep" />
           <div className="trend-kpi-block">
             <span className="trend-kpi-lbl">SLA Benchmark</span>
-            <span className="trend-kpi-val val-standard">{standard}</span>
+            <span className="trend-kpi-val val-standard">{formatDisplayUnits(standard)}</span>
           </div>
         </div>
       </div>
@@ -388,7 +378,7 @@ export default function TrendDrillDownView({ metric }) {
                   handleItemClick(item);
                 }
               }}
-              title={item.canDrill ? `Click to drill into ${item.drillPrompt}` : item.period}
+              title={formatDisplayUnits(item.canDrill ? `Click to drill into ${item.drillPrompt}` : item.period)}
             >
               {item.isCurrent && (
                 <div className="trend-active-ribbon">
@@ -398,7 +388,7 @@ export default function TrendDrillDownView({ metric }) {
 
               {/* Card Header */}
               <div className="trend-card-top-row">
-                <span className="trend-card-period-tag">{item.label}</span>
+                <span className="trend-card-period-tag">{formatDisplayUnits(item.label)}</span>
                 <span className={`trend-micro-pill ${isCritical ? 'micro-critical' : isHealthy ? 'micro-healthy' : 'micro-atrisk'}`}>
                   {item.status}
                 </span>
@@ -406,10 +396,10 @@ export default function TrendDrillDownView({ metric }) {
 
               {/* Card Value Display */}
               <div className="trend-card-val-row">
-                <span className="trend-card-primary-val">{item.value}</span>
+                <span className="trend-card-primary-val">{formatDisplayUnits(item.value)}</span>
                 {item.change && item.change !== '-' && (
                   <span className={`trend-change-badge ${item.change.startsWith('+') ? (isLowerBetter ? 'trend-delta-worse' : 'trend-delta-better') : (isLowerBetter ? 'trend-delta-better' : 'trend-delta-worse')}`}>
-                    {item.change.startsWith('+') ? '▲' : '▼'} {item.change} {item.changeLabel}
+                    {item.change.startsWith('+') ? '▲' : '▼'} {formatDisplayUnits(item.change)} {formatDisplayUnits(item.changeLabel)}
                   </span>
                 )}
               </div>
@@ -429,7 +419,7 @@ export default function TrendDrillDownView({ metric }) {
               {/* Card Bottom Meta & Drill Cue */}
               <div className="trend-card-footer">
                 <span className="trend-variance-sub">
-                  Gap: <strong>{item.variance}</strong>
+                  Gap: <strong>{formatDisplayUnits(item.variance)}</strong>
                 </span>
 
                 {item.canDrill ? (

@@ -56,9 +56,6 @@ def get_metric_deep_dive(
     # 2. Fetch data directly from the Supabase metric folder: report/latest/{module}/{metric}
     target_module = module_id or (mod.get("id") if mod else None)
     supabase_data = supabase_storage.get_metric_data(metric_title, module_identifier=target_module)
-    fixed_benchmarks = supabase_storage.get_fixed_benchmark_map()
-    fixed_key = alphanumeric_key(metric_code) or alphanumeric_key(metric_title)
-    fixed_benchmark = fixed_benchmarks.get(fixed_key) or fixed_benchmarks.get(alphanumeric_key(metric_title))
     if supabase_data.get("_source") == "none":
         supabase_data = supabase_storage.get_metric_data(metric_code, module_identifier=target_module)
 
@@ -66,7 +63,7 @@ def get_metric_deep_dive(
     if supabase_data.get("_source") != "none":
         extracted = modules.extract_metric_fields(supabase_data, default_b=metric_obj)
         company_val = supabase_data.get("company") if supabase_data.get("company") and supabase_data.get("company") != "Not yet fetched" else extracted["company"]
-        standard_val = fixed_benchmark.get("standard_value") if fixed_benchmark and fixed_benchmark.get("standard_value") else (supabase_data.get("standard") if supabase_data.get("standard") and supabase_data.get("standard") != "Not yet fetched" else extracted["standard"])
+        standard_val = supabase_data.get("standard") if supabase_data.get("standard") and supabase_data.get("standard") != "Not yet fetched" else extracted["standard"]
         status_val = supabase_data.get("status") if supabase_data.get("status") and supabase_data.get("status") != "Not yet fetched" else extracted["status"]
         variance_val = supabase_data.get("variance") if supabase_data.get("variance") and supabase_data.get("variance") != "Not yet fetched" else extracted["variance"]
         detailed_analysis = extracted["detailedAnalysis"]
@@ -337,6 +334,7 @@ def get_metric_deep_dive(
         supabase_data.get("confidence") or
         (supabase_data.get("dataQuality") or {}).get("confidenceScore") if isinstance(supabase_data.get("dataQuality"), dict) else None
     )
+    accuracy_score = supabase_data.get("accuracyScore")
 
     return {
         "metric": {
@@ -348,6 +346,7 @@ def get_metric_deep_dive(
             "status": status_val,
             "variance": str(variance_val),
             "confidenceScore": confidence_score,
+            "accuracyScore": accuracy_score,
             "moduleOverview": module_overview,
             "detailedAnalysis": detailed_analysis,
             "diagnosis": diagnosis_obj,
@@ -359,6 +358,7 @@ def get_metric_deep_dive(
         "moduleOverview": module_overview,
         "businessImpact": business_impact_obj,
         "confidenceScore": confidence_score,
+        "accuracyScore": accuracy_score,
         "stageDrivers": formatted_stage_drivers,
         "segmentDrivers": formatted_segment_drivers,
         "shapFactors": shap_factors,

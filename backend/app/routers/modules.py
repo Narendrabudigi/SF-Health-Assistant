@@ -3,7 +3,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Query
 from typing import List, Dict, Any, Optional
 from app.db.mock_data import DEFAULT_MODULES
-from app.db.supabase_client import supabase_storage, normalize_slug, alphanumeric_key, normalize_missing_configurations
+from app.db.supabase_client import supabase_storage, normalize_slug, alphanumeric_key, normalize_missing_configurations, extract_accuracy_score
 
 router = APIRouter()
 logger = logging.getLogger("sf_health.modules")
@@ -403,6 +403,9 @@ def extract_metric_fields(override: Dict[str, Any], default_b: Optional[Dict[str
     }
 
     confidence_score = extract_confidence_score(rep) or extract_confidence_score(override)
+    accuracy_score = extract_accuracy_score(rep)
+    if accuracy_score is None:
+        accuracy_score = extract_accuracy_score(override)
 
     return {
         "company": final_company,
@@ -410,6 +413,7 @@ def extract_metric_fields(override: Dict[str, Any], default_b: Optional[Dict[str
         "status": status_val,
         "variance": final_variance,
         "confidenceScore": confidence_score,
+        "accuracyScore": accuracy_score,
         "missingConfigurations": missing_cfg,
         "moduleOverview": module_overview,
         "diagnosis": diagnosis_obj,
@@ -460,13 +464,6 @@ def apply_module_metric_overrides(
                 mod_overrides = val
                 break
     mod_overrides = mod_overrides or {}
-
-    # Fixed benchmark master is authoritative for the industry standard only.
-    try:
-        fixed_benchmarks = supabase_storage.get_fixed_benchmark_map() or {}
-    except Exception as exc:
-        logger.warning("Could not load fixed benchmark map: %s", exc)
-        fixed_benchmarks = {}
 
     def identifiers(value: Any) -> set:
         if value is None:
@@ -551,52 +548,23 @@ def apply_module_metric_overrides(
                             best_score = score
         return best
 
-    def fixed_benchmark_for(metric: Dict[str, Any], payload: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
-        keys = set()
-        for value in (
-            metric.get("code"), metric.get("metric"),
-            payload.get("metric_code") if isinstance(payload, dict) else None,
-            payload.get("Metric_Code") if isinstance(payload, dict) else None,
-            payload.get("metric_name") if isinstance(payload, dict) else None,
-            payload.get("Metric_Name") if isinstance(payload, dict) else None,
-        ):
-            keys.update(identifiers(value))
-        for key in keys:
-            if key in fixed_benchmarks:
-                return fixed_benchmarks[key]
-        return None
-
     def merge_live_metric(default_b: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
         extracted = extract_metric_fields(override, default_b=default_b)
-        fixed = fixed_benchmark_for(default_b, override)
 
         result = dict(default_b)
         result["company"] = extracted["company"]
         result["status"] = extracted["status"]
         result["variance"] = extracted["variance"]
         result["confidenceScore"] = extracted.get("confidenceScore")
+        result["accuracyScore"] = extracted.get("accuracyScore")
         result["missingConfigurations"] = extracted.get("missingConfigurations", [])
         result["moduleOverview"] = extracted["moduleOverview"]
         result["diagnosis"] = extracted.get("diagnosis") or default_b.get("diagnosis", {})
         result["businessImpact"] = extracted.get("businessImpact", {})
         result["detailedAnalysis"] = extracted["detailedAnalysis"]
 
-        # Fixed benchmark wins over ML/LLM generated benchmark text.
-        if fixed and fixed.get("standard_value") not in (None, ""):
-            standard_value = fixed.get("standard_value")
-            operator = fixed.get("operator") or fixed.get("comparison_operator")
-            if not operator:
-                direction = str(fixed.get("evaluation_direction") or fixed.get("higher_is_better") or "").upper()
-                operator = "≥" if direction in {"HIGHER_IS_BETTER", "HIGHER", "MAXIMIZE", "TRUE", "1"} else "≤"
-            unit = str(fixed.get("unit") or "").strip()
-            std = str(standard_value).strip()
-            if unit and unit not in std and not any(x in std for x in ("%", "days", "hours", "weeks", "months")):
-                std = f"{std} {unit}"
-            if operator and not std.startswith(("≤", "≥", "<", ">", "~")):
-                std = f"{operator} {std}"
-            result["standard"] = std
-        else:
-            result["standard"] = extracted["standard"]
+        # Industry standard is extracted from the ML Insights payload.
+        result["standard"] = extracted["standard"]
 
         result["_source"] = override.get("_source", "supabase")
         result["_storage_path"] = override.get("_storage_path")
