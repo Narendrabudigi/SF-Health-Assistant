@@ -16,6 +16,17 @@ ENTERPRISE_MODULE_NAMES = {
     "ecp": "Employee Central Payroll"
 }
 
+# ML Insights and the catalogue use different labels for this same EC KPI.
+# Expand identifiers before matching so its Supabase row updates the catalogue row.
+METRIC_IDENTIFIER_ALIAS_GROUPS = (
+    {"ecdataaccuracy", "employeedataaccuracyrate", "employeedataaccuracy", "dataaccuracyrate", "employeedataqualityaccuracy"},
+)
+METRIC_IDENTIFIER_ALIAS_INDEX = {
+    alias: group
+    for group in METRIC_IDENTIFIER_ALIAS_GROUPS
+    for alias in group
+}
+
 
 def find_nested_val(data: Any, *keys: str) -> Optional[Any]:
     """Recursively search dictionary for any matching key, case-insensitive, ignoring underscores/hyphens."""
@@ -182,26 +193,13 @@ def extract_metric_fields(override: Dict[str, Any], default_b: Optional[Dict[str
     if raw_status and str(raw_status).lower() in ("succeeded", "completed", "success", "done", "finished", "ok"):
         raw_status = None
 
-    status_candidate = str(health_raw or raw_status or "").lower()
-    if not status_candidate and full_context_text:
-        # Check text if health state was not directly in key
-        if re.search(r'\bcritical\b', full_context_text, re.IGNORECASE):
-            status_candidate = "critical"
-        elif re.search(r'\b(?:at-risk|at_risk|at risk|warning)\b', full_context_text, re.IGNORECASE):
-            status_candidate = "at-risk"
-        elif re.search(r'\b(?:healthy|on-track|on track)\b', full_context_text, re.IGNORECASE):
-            status_candidate = "healthy"
-
+    status_candidate = re.sub(r"[_-]+", " ", str(health_raw or raw_status or "").lower())
     if "crit" in status_candidate:
         status_val = "Critical"
     elif "risk" in status_candidate or "warn" in status_candidate or "breach" in status_candidate:
         status_val = "At Risk"
-    elif "health" in status_candidate or "target" in status_candidate or "good" in status_candidate:
+    elif "healthy" in status_candidate or "on track" in status_candidate or "on target" in status_candidate or status_candidate.strip() == "good":
         status_val = "Healthy"
-    elif "unknown" in status_candidate or (isinstance(override.get("dataQuality"), dict) and override.get("dataQuality", {}).get("overallRating") == "poor"):
-        status_val = "At Risk"
-    elif override.get("isSupabaseLive") or override.get("_source", "").startswith("supabase"):
-        status_val = "At Risk" if (isinstance(override.get("dataQuality"), dict) and override.get("dataQuality", {}).get("recordsAnalysed") == 0) else "Healthy"
     else:
         status_val = "Not yet fetched"
 
@@ -412,6 +410,7 @@ def extract_metric_fields(override: Dict[str, Any], default_b: Optional[Dict[str
         "standard": final_target,
         "status": status_val,
         "variance": final_variance,
+        "generatedAt": override.get("generated_at") or override.get("generatedAt"),
         "confidenceScore": confidence_score,
         "accuracyScore": accuracy_score,
         "missingConfigurations": missing_cfg,
@@ -471,11 +470,14 @@ def apply_module_metric_overrides(
         text = str(value).strip()
         if not text:
             return set()
-        return {
+        ids = {
             text.lower(),
             normalize_slug(text),
             alphanumeric_key(text),
         }
+        for identifier in tuple(ids):
+            ids.update(METRIC_IDENTIFIER_ALIAS_INDEX.get(identifier, set()))
+        return ids
 
     def override_identifiers(payload: Dict[str, Any]) -> set:
         ids = set()
@@ -555,6 +557,7 @@ def apply_module_metric_overrides(
         result["company"] = extracted["company"]
         result["status"] = extracted["status"]
         result["variance"] = extracted["variance"]
+        result["generatedAt"] = extracted.get("generatedAt")
         result["confidenceScore"] = extracted.get("confidenceScore")
         result["accuracyScore"] = extracted.get("accuracyScore")
         result["missingConfigurations"] = extracted.get("missingConfigurations", [])
@@ -650,14 +653,15 @@ def apply_module_metric_overrides(
 
 
 @router.get("", response_model=List[Dict[str, Any]])
-def get_all_modules(refresh: bool = Query(True)):
+def get_all_modules(refresh: bool = Query(False)):
     """
     Returns modules overview with real-time values from Supabase Storage:
     report/latest/{module}/{metric}/
-    Always fresh so live pipeline updates reflect instantly.
+    Uses the short in-memory Supabase cache for normal loads. Pass refresh=true
+    after an ML pipeline run to fetch the latest values immediately.
     """
     try:
-        module_overrides_map = supabase_storage.get_all_module_metric_overrides(force_refresh=True)
+        module_overrides_map = supabase_storage.get_all_module_metric_overrides(force_refresh=refresh)
     except Exception as e:
         logger.error(f"Error fetching Supabase overrides: {e}", exc_info=True)
         module_overrides_map = {}
@@ -676,16 +680,31 @@ def get_all_modules(refresh: bool = Query(True)):
         clean_name = ENTERPRISE_MODULE_NAMES.get(mod_id.lower(), mod.get("name", "Recruitment"))
 
         has_live = any(b.get("isSupabaseLive") for b in benchmarks)
-        if not has_live:
-            mod_status = "Not yet fetched"
-            mod_ai_report = {"summary": "Data not yet fetched."}
+        status_totals = (
+            ("Critical", crit_count),
+            ("At Risk", risk_count),
+            ("Healthy", healthy_count),
+        )
+        leading_status, leading_count = max(status_totals, key=lambda item: item[1])
+        process_gap_count = sum(
+            1
+            for benchmark in benchmarks
+            if benchmark.get("isSupabaseLive")
+            and bool(benchmark.get("missingConfigurations"))
+            and (
+                str(benchmark.get("company") or "").strip().lower() in {
+                    "", "not yet fetched", "data not yet fetched", "n/a", "na", "unknown", "--"
+                }
+                or str(benchmark.get("company") or "").strip().lower().startswith("no data")
+            )
+        )
+        if not has_live or leading_count == 0:
+            mod_status = "Process Gaps" if has_live and process_gap_count > 0 else "Not yet fetched"
+            mod_ai_report = {"summary": f"{mod_status}."}
         else:
-            if crit_count > 0:
-                mod_status = "Critical"
-            elif risk_count > 0:
-                mod_status = "At Risk"
-            else:
-                mod_status = "Healthy"
+            # Module health follows the most common explicit metric status.
+            # Tuple order above makes ties resolve by severity.
+            mod_status = leading_status
             live_b = next((b for b in benchmarks if b.get("isSupabaseLive")), None)
             if live_b:
                 root_c = live_b.get("moduleOverview", {}).get("rootCause", "")

@@ -1,4 +1,11 @@
 import React from 'react';
+import { normalizeMetricStatus } from '../utils/metricStatus';
+import { getMissingFieldCount } from '../utils/dataGapUtils';
+
+const isCompanyValueUnavailable = (value) => {
+  const companyValue = String(value ?? '').trim().toLowerCase();
+  return !companyValue || /^(not yet fetched|data not yet fetched|n\/a|na|unknown|--|no data\b|data gaps?|process gaps?)(\b|$)/.test(companyValue);
+};
 
 const CANONICAL_MODULE_NAMES = {
   ec: 'Employee Central',
@@ -57,16 +64,26 @@ const getBadgeClass = (status) => {
 };
 
 export default function HomeDashboard({ modules, onSelectModule }) {
-  // Compute executive metrics for Swiss business summary
-  const criticalCount = modules.filter(m => m.status === 'Critical').length;
-  const atRiskCount = modules.filter(m => m.status === 'At Risk').length;
-  const totalMetrics = modules.reduce((acc, m) => acc + (m.benchmarks ? m.benchmarks.length : 0), 0);
+  // Home alert totals count metrics, not modules. Use the same explicit
+  // Supabase health status normalization as the module analysis table.
+  const metricStatuses = (Array.isArray(modules) ? modules : []).flatMap((module) =>
+    (Array.isArray(module?.benchmarks) ? module.benchmarks : []).map((metric) =>
+      normalizeMetricStatus(metric?.status)
+    )
+  );
+  const criticalCount = metricStatuses.filter((status) => status === 'Critical').length;
+  const atRiskCount = metricStatuses.filter((status) => status === 'At Risk').length;
+  const healthyCount = metricStatuses.filter((status) => status === 'Healthy').length;
+  const totalMetrics = metricStatuses.length;
+  const healthyPercentage = totalMetrics > 0
+    ? ((healthyCount / totalMetrics) * 100).toFixed(1)
+    : '0.0';
 
   return (
     <div className="overview-container">
       {/* Header Area */}
       <div className="overview-heading-wrap">
-        <h2 className="overview-main-title">Module Health Overview<span className="yash-accent-dot">.</span></h2>
+        <h2 className="overview-main-title">SF Health Monitor</h2>
         <p className="overview-sub-title">
           Real-time benchmark comparisons, SLA tracking, and diagnostic insights across your core SAP SuccessFactors modules.
         </p>
@@ -94,7 +111,10 @@ export default function HomeDashboard({ modules, onSelectModule }) {
         <div className="kpi-strip-divider"></div>
         <div className="kpi-strip-cell">
           <span className="kpi-cell-label">Monitored Metrics</span>
-          <span className="kpi-cell-value">{totalMetrics}</span>
+          <span className="kpi-cell-value">
+            {totalMetrics}
+            <span className="kpi-healthy-percentage">{healthyPercentage}% Healthy</span>
+          </span>
           <span className="kpi-cell-sub">Benchmark Comparisons</span>
         </div>
       </div>
@@ -102,12 +122,32 @@ export default function HomeDashboard({ modules, onSelectModule }) {
       {/* 4 Smooth Module Cards Grid */}
       <div className="module-cards-row">
         {modules.map((mod) => {
-          const liveMetricCount = (mod.benchmarks || []).filter(
-            (benchmark) => benchmark.isSupabaseLive
-          ).length;
-          const moduleDescription = liveMetricCount > 0
-            ? `${liveMetricCount} of ${mod.benchmarks.length} benchmark metrics fetched.`
-            : mod.description;
+          const benchmarks = Array.isArray(mod.benchmarks) ? mod.benchmarks : [];
+          const moduleStatusCounts = benchmarks.reduce((counts, metric) => {
+            const status = normalizeMetricStatus(metric?.status);
+            if (status === 'Healthy') counts.healthy += 1;
+            else if (status === 'At Risk') counts.atRisk += 1;
+            else if (status === 'Critical') counts.critical += 1;
+            const hasSupabasePayload = Boolean(
+              metric?.isSupabaseLive || String(metric?._source || '').startsWith('supabase')
+            );
+            if (
+              hasSupabasePayload &&
+              isCompanyValueUnavailable(metric?.company) &&
+              getMissingFieldCount(metric) > 0
+            ) {
+              counts.processGaps += 1;
+            }
+            return counts;
+          }, { healthy: 0, atRisk: 0, critical: 0, processGaps: 0 });
+          const moduleHealthStatus = [
+            ['Critical', moduleStatusCounts.critical],
+            ['At Risk', moduleStatusCounts.atRisk],
+            ['Healthy', moduleStatusCounts.healthy]
+          ].reduce(
+            (leader, [status, count]) => count > leader.count ? { status, count } : leader,
+            { status: moduleStatusCounts.processGaps > 0 ? 'Process Gaps' : 'Not yet fetched', count: 0 }
+          ).status;
 
           return (
             <div 
@@ -128,9 +168,6 @@ export default function HomeDashboard({ modules, onSelectModule }) {
                 </div>
               </div>
 
-              {/* Short Description */}
-              <p className="card-module-desc">{moduleDescription}</p>
-
               {/* KPI Count Micro-pill */}
               <div className="card-kpi-count-tag">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -138,14 +175,29 @@ export default function HomeDashboard({ modules, onSelectModule }) {
                   <line x1="12" y1="20" x2="12" y2="4"></line>
                   <line x1="6" y1="20" x2="6" y2="14"></line>
                 </svg>
-                <span>{mod.benchmarks?.length || 0} Benchmark Metrics</span>
+                <span>{benchmarks.length} Benchmark Metrics</span>
+              </div>
+
+              <div className="module-health-counts" aria-label={`${CANONICAL_MODULE_NAMES[mod.id?.toLowerCase()] || mod.name} metric counts`}>
+                <div className="module-health-count module-health-count-healthy">
+                  <span>Healthy</span><strong>{moduleStatusCounts.healthy}</strong>
+                </div>
+                <div className="module-health-count module-health-count-risk">
+                  <span>At Risk</span><strong>{moduleStatusCounts.atRisk}</strong>
+                </div>
+                <div className="module-health-count module-health-count-critical">
+                  <span>Critical</span><strong>{moduleStatusCounts.critical}</strong>
+                </div>
+                <div className="module-health-count module-health-count-process-gaps">
+                  <span>Process Gaps</span><strong>{moduleStatusCounts.processGaps}</strong>
+                </div>
               </div>
 
               {/* Footer: Status Pill on left, View Analysis link on right */}
               <div className="card-bottom-actions">
-                <span className={`pill-badge ${getBadgeClass(mod.status)}`}>
+                <span className={`pill-badge ${getBadgeClass(moduleHealthStatus)}`}>
                   <span className="badge-dot" aria-hidden="true"></span>
-                  <span>{mod.status}</span>
+                  <span>{moduleHealthStatus}</span>
                 </span>
 
                 <span 

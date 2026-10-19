@@ -1,27 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { getMissingFieldCount } from '../utils/dataGapUtils';
 import { formatBenchmarkDisplay } from '../utils/benchmarkDisplay';
-import { formatDisplayUnits } from '../utils/displayUnits';
-
-const normalizeStatus = (status, variance = '') => {
-  const s = String(status || '').toLowerCase().trim();
-  const v = String(variance || '').toLowerCase().trim();
-
-  if (s.includes('not yet') || s === '--' || s === 'pending') return 'Not yet fetched';
-  if (s.includes('crit')) return 'Critical';
-  if (s.includes('risk') || s.includes('warn') || s.includes('succeed')) return 'At Risk';
-
-  const hasBreach =
-    (v.includes('+') || v.includes('-')) && !v.includes('on target');
-
-  if (hasBreach) return 'At Risk';
-
-  if (s.includes('health') || v.includes('on target') || v === '0%' || v === '0') {
-    return 'Healthy';
-  }
-
-  return 'Not yet fetched';
-};
+import { formatDisplayUnits, formatVarianceDisplay } from '../utils/displayUnits';
+import { normalizeMetricStatus } from '../utils/metricStatus';
 
 const getBadgeClass = (status) => {
   if (status === 'Critical') return 'badge-critical';
@@ -52,7 +33,7 @@ export default function ComparisonTable({
     let healthy = 0;
 
     const processed = benchmarks.map((row) => {
-      const st = normalizeStatus(row?.status, row?.variance);
+      const st = normalizeMetricStatus(row?.status);
 
       if (st === 'Critical') crit++;
       else if (st === 'At Risk') atRisk++;
@@ -91,7 +72,7 @@ export default function ComparisonTable({
 
     onSelectMetric({
       ...row,
-      status: row.normalizedStatus || normalizeStatus(row.status, row.variance),
+      status: row.normalizedStatus || normalizeMetricStatus(row.status),
       standard: displayStandard,
       isCustomStandard: Boolean(isCustom && customStandardsMap[row.metric?.toLowerCase().trim()])
     });
@@ -172,6 +153,7 @@ export default function ComparisonTable({
               <th scope="col" className="th-status text-center">Health Status</th>
               <th scope="col" className="th-data-gaps text-center">Data Gaps Count</th>
               <th scope="col" className="th-variance text-right">Variance</th>
+              <th scope="col" className="th-date text-center">Date</th>
               <th scope="col" className="th-action text-right">Analysis</th>
             </tr>
           </thead>
@@ -187,7 +169,7 @@ export default function ComparisonTable({
               filteredBenchmarks.map((row, idx) => {
                 const currentStatus =
                   row.normalizedStatus ||
-                  normalizeStatus(row.status, row.variance);
+                  normalizeMetricStatus(row.status);
 
                 const hasVarianceBreach = Boolean(
                   row.variance &&
@@ -215,8 +197,19 @@ export default function ComparisonTable({
                     ? customStdVal
                     : row.standard;
                 const benchmarkLabel = formatBenchmarkDisplay(displayStandard);
+                const standardValue = formatDisplayUnits(benchmarkLabel);
 
                 const dataGapCount = getMissingFieldCount(row);
+                const hasSupabasePayload = Boolean(
+                  row.isSupabaseLive ||
+                  String(row._source || '').startsWith('supabase')
+                );
+                const companyValueText = String(row.company ?? '').trim().toLowerCase();
+                const companyValueUnavailable =
+                  !companyValueText ||
+                  /^(not yet fetched|data not yet fetched|n\/a|na|unknown|--|no data\b)/.test(companyValueText);
+                const hasProcessGap =
+                  hasSupabasePayload && companyValueUnavailable && dataGapCount > 0;
                 const varianceText = String(row.variance ?? '').trim();
                 const normalizedVariance = varianceText.toLowerCase();
                 const hasDataGaps = Boolean(
@@ -231,7 +224,7 @@ export default function ComparisonTable({
                   ['not yet fetched', 'data not yet fetched', 'n/a', 'na', '--', '-', 'unknown'].includes(normalizedVariance) ||
                   normalizedVariance.includes('data gap');
                 const varianceDisplay = varianceUnavailable
-                  ? (hasDataGaps ? 'Data Gaps' : 'Not yet fetched')
+                  ? (hasProcessGap ? 'Process Gaps' : (hasDataGaps ? 'Data Gaps' : 'Not yet fetched'))
                   : row.variance;
 
                 return (
@@ -262,14 +255,16 @@ export default function ComparisonTable({
 
                     <td className="td-company">
                       <span className="bold-company-val">
-                        {formatDisplayUnits(row.company) ?? 'Not yet fetched'}
+                        {hasProcessGap ? 'Process Gaps' : (formatDisplayUnits(row.company) ?? 'Not yet fetched')}
                       </span>
                     </td>
 
                     <td className="td-standard">
                       <div className="standard-cell-wrap">
                         <span className="standard-val">
-                          {formatDisplayUnits(benchmarkLabel) ?? 'Not yet fetched'}
+                          {hasProcessGap && (!standardValue || /^(not yet fetched|data not yet fetched|n\/a|na|unknown|--|—|-)$/i.test(String(standardValue).trim()))
+                            ? 'Process Gaps'
+                            : (standardValue ?? 'Not yet fetched')}
                         </span>
 
                         {isCustom && customStdVal && (
@@ -284,9 +279,9 @@ export default function ComparisonTable({
                     </td>
 
                     <td className="td-status text-center">
-                      <span className={`pill-badge ${getBadgeClass(currentStatus)}`}>
+                      <span className={`pill-badge ${getBadgeClass(hasProcessGap ? 'Process Gaps' : currentStatus)}`}>
                         <span className="badge-dot" aria-hidden="true" />
-                        <span>{currentStatus}</span>
+                        <span>{hasProcessGap ? 'Process Gaps' : currentStatus}</span>
                       </span>
                     </td>
 
@@ -303,8 +298,14 @@ export default function ComparisonTable({
                           .toLowerCase()
                           .replace(/\s+/g, '-')}`}
                       >
-                        {formatDisplayUnits(varianceDisplay)}
+                        {formatVarianceDisplay(varianceDisplay)}
                       </span>
+                    </td>
+
+                    <td className="td-date text-center">
+                      {typeof row.generatedAt === 'string' && /^\d{4}-\d{2}-\d{2}/.test(row.generatedAt)
+                        ? row.generatedAt.slice(0, 10)
+                        : '—'}
                     </td>
 
                     <td className="td-action text-right">

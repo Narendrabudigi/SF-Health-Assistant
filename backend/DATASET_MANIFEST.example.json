@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "datasets": [
+    {
+      "module": "ec",
+      "metrics": [
+        "Employee Data Accuracy Rate",
+        "EC_DATA_ACCURACY",
+        "<optional alternate metric name>"
+      ],
+      "path": "<folder>/<employee-data-file>.xlsx",
+      "sheet": "<optional worksheet name>"
+    },
+    {
+      "module": "rcm",
+      "default": true,
+      "path": "<folder>/<recruitment-dataset>.xlsx"
+    },
+    {
+      "module": "onb",
+      "default": true,
+      "path": "<folder>/<onboarding-dataset>.xlsx"
+    },
+    {
+      "module": "ofb",
+      "default": true,
+      "path": "<folder>/<offboarding-dataset>.xlsx"
+    }
+  ]
+}

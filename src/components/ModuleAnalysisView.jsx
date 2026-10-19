@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import ComparisonTable from './ComparisonTable';
 import MetricDeepDivePage from './MetricDeepDivePage';
+import MetricDatasetPage from './MetricDatasetPage';
+import { normalizeMetricStatus } from '../utils/metricStatus';
 
 export default function ModuleAnalysisView({
   module,
@@ -22,6 +24,7 @@ export default function ModuleAnalysisView({
     }
     return null;
   });
+  const [showDataset, setShowDataset] = useState(false);
 
   // Sync deep dive status with parent App component and persist in sessionStorage
   useEffect(() => {
@@ -42,26 +45,32 @@ export default function ModuleAnalysisView({
   // When active module changes (e.g. from ribbon), reset selected metric
   useEffect(() => {
     setSelectedMetric(null);
+    setShowDataset(false);
   }, [module?.id]);
 
   // Handle ESC key to close deep dive
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape' && selectedMetric) {
-        setSelectedMetric(null);
+        if (showDataset) setShowDataset(false);
+        else setSelectedMetric(null);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedMetric]);
+  }, [selectedMetric, showDataset]);
 
   // If a metric is selected, render the dedicated Full-Page Deep Dive with BRD Plan
   if (selectedMetric) {
+    if (showDataset) {
+      return <MetricDatasetPage module={module} metric={selectedMetric} onBack={() => setShowDataset(false)} />;
+    }
     return (
       <MetricDeepDivePage
         metric={selectedMetric}
         module={module}
         onBack={() => setSelectedMetric(null)}
+        onViewDataset={() => setShowDataset(true)}
       />
     );
   }
@@ -70,10 +79,10 @@ export default function ModuleAnalysisView({
 
   const statusCounts = (Array.isArray(module.benchmarks) ? module.benchmarks : []).reduce(
     (counts, benchmark) => {
-      const status = String(benchmark?.status || '').toLowerCase();
-      if (status.includes('crit')) counts.critical += 1;
-      else if (status.includes('risk') || status.includes('warning')) counts.atRisk += 1;
-      else if (status.includes('healthy') || status.includes('on track')) counts.healthy += 1;
+      const status = normalizeMetricStatus(benchmark?.status);
+      if (status === 'Critical') counts.critical += 1;
+      else if (status === 'At Risk') counts.atRisk += 1;
+      else if (status === 'Healthy') counts.healthy += 1;
       return counts;
     },
     { critical: 0, atRisk: 0, healthy: 0 }

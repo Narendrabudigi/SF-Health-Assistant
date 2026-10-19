@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.routers import modules, deepdive, insights
+from app.routers import datasets
 from app.db.supabase_client import supabase_storage
 
 # Configure logging
@@ -52,6 +53,7 @@ def health_check():
 app.include_router(modules.router, prefix="/api/v1/modules", tags=["Modules"])
 app.include_router(deepdive.router, prefix="/api/v1/metrics", tags=["Metrics & Deep Dive"])
 app.include_router(insights.router, prefix="/api/v1/insights", tags=["Supabase Insights & Storage"])
+app.include_router(datasets.router, prefix="/api/v1/datasets", tags=["Supabase Raw Datasets"])
 
 if __name__ == "__main__":
     import uvicorn

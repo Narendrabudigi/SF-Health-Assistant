@@ -6,7 +6,7 @@ import TrendDrillDownView from './TrendDrillDownView';
 import { apiService } from '../services/apiService';
 import { getMissingFields } from '../utils/dataGapUtils';
 import { formatBenchmarkDisplay } from '../utils/benchmarkDisplay';
-import { formatDisplayUnits } from '../utils/displayUnits';
+import { formatDisplayUnits, formatVarianceDisplay } from '../utils/displayUnits';
 
 
 /**
@@ -439,7 +439,7 @@ function _unused_old_getModuleMapping(moduleId, metricName = '') {
   }
 }
 
-export default function MetricDeepDivePage({ metric, initialMetric, module, onBack, onGoHome, onSelectModule }) {
+export default function MetricDeepDivePage({ metric, initialMetric, module, onBack, onGoHome, onSelectModule, onViewDataset }) {
   const hasCurrentMetric = Boolean(metric || initialMetric);
   const currentMetric = metric || initialMetric || {};
   const [activeSection, setActiveSection] = useState('sec-diagnosis');
@@ -485,7 +485,10 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
   // Real-time overrides: Whatever is present in the Supabase metric folder reflects directly!
   const rawCompany = pickNonEmpty(liveInsight?.metric?.company, baseCompany);
   const rawStandard = pickNonEmpty(liveInsight?.metric?.standard, baseStandard);
-  const rawStatus = pickNonEmpty(liveInsight?.metric?.status, baseStatus);
+  // Keep the deep-dive badge aligned with the status shown on the module card.
+  // The module list and deep-dive endpoint can return different raw status
+  // fields, so prefer the already-normalized module metric when available.
+  const rawStatus = pickNonEmpty(baseStatus, liveInsight?.metric?.status);
   const rawVariance = pickNonEmpty(liveInsight?.metric?.variance, baseVariance);
   const detailedAnalysis = liveInsight?.metric?.detailedAnalysis || baseDetailedAnalysis;
 
@@ -516,10 +519,29 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
     return isPlaceholder(text) ? 'Not yet fetched' : text;
   };
 
-  const company = isMetricLive ? cleanVal(rawCompany) : 'Not yet fetched';
+  const companyValueText = safeText(rawCompany, '').trim();
+  const companyValueUnavailable =
+    isPlaceholder(companyValueText) ||
+    /^(?:n\s*\/\s*a|na|unknown|no data\b)/i.test(companyValueText);
+  const processGapFields = new Set([
+    ...getMissingFields(liveInsight?.metric || {}),
+    ...getMissingFields(liveInsight || {}),
+    ...getMissingFields(detailedAnalysis || {}),
+    ...getMissingFields(currentMetric || {})
+  ]);
+  const hasCompanyProcessGaps =
+    isMetricLive && companyValueUnavailable && processGapFields.size > 0;
+  const company = !isMetricLive
+    ? 'Not yet fetched'
+    : (hasCompanyProcessGaps ? 'Process Gaps' : cleanVal(rawCompany));
   const standard = isMetricLive ? cleanVal(rawStandard) : 'Not yet fetched';
   const standardDisplay = formatBenchmarkDisplay(standard);
-  const status = isMetricLive ? (isPlaceholder(rawStatus) ? 'Not yet fetched' : safeText(rawStatus, 'Not yet fetched')) : 'Not yet fetched';
+  const rawStatusText = safeText(rawStatus, '').trim();
+  const status = !isMetricLive
+    ? 'Not yet fetched'
+    : (/^(?:n\s*\/\s*a|na)$/i.test(rawStatusText)
+      ? 'Process Gaps'
+      : (isPlaceholder(rawStatus) ? 'Not yet fetched' : safeText(rawStatus, 'Not yet fetched')));
   const variance = isMetricLive ? cleanVal(rawVariance) : 'Not yet fetched';
 
   const overviewData = isMetricLive
@@ -1243,7 +1265,7 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
               <div className="summary-stat-cell">
                 <span className="stat-cell-label">Variance Gap</span>
                 <span className={`stat-cell-value ${isCritical ? 'val-critical' : 'val-at-risk'}`}>
-                  {formatDisplayUnits(variance)}
+                  {formatVarianceDisplay(variance)}
                 </span>
               </div>
             </div>
@@ -1983,6 +2005,15 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
             <span className="fab-label-text">
               Download BRD Plan (PDF)
             </span>
+          </button>
+          <button
+            type="button"
+            className="fab-dataset-option"
+            onClick={onViewDataset}
+            title={`View the Supabase source dataset for ${safeText(metricName)}`}
+          >
+            <span aria-hidden="true">▦</span>
+            <span>View / Download Dataset</span>
           </button>
         </div>,
         document.body

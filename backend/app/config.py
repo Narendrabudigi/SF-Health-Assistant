@@ -1,5 +1,6 @@
 import os
 import json
+import os
 from typing import List
 from pydantic_settings import BaseSettings
 from dotenv import load_dotenv
@@ -28,6 +29,14 @@ class Settings(BaseSettings):
     # Storage bucket configuration for ML insights
     SUPABASE_BUCKET_NAME: str = os.getenv("SUPABASE_BUCKET_NAME", "Insights and Reports").strip()
     SUPABASE_FOLDER: str = os.getenv("SUPABASE_FOLDER", "").strip()
+
+    # Raw source dataset storage and its optional module/metric-to-file manifest.
+    SUPABASE_DATASET_BUCKET_NAME: str = os.getenv(
+        "SUPABASE_DATASET_BUCKET_NAME", "SF_Health_Raw_Data"
+    ).strip()
+    SUPABASE_DATASET_MANIFEST_PATH: str = os.getenv(
+        "SUPABASE_DATASET_MANIFEST_PATH", "dataset_manifest.json"
+    ).strip().strip("/")
 
     @property
     def RESOLVED_SUPABASE_URL(self) -> str:

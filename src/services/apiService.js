@@ -331,9 +331,12 @@ function mergeDuplicateMetric(existing, incoming) {
    STATUS NORMALIZATION
 ========================================================= */
 
-function normalizeStatus(status, variance = '') {
-  const s = String(status || '').toLowerCase().trim();
-  const v = String(variance || '').toLowerCase().trim();
+function normalizeStatus(status) {
+  const s = String(status || '').toLowerCase().trim().replace(/[_-]+/g, ' ');
+
+  if (/^(?:n\s*\/\s*a|na)$/.test(s)) {
+    return 'Process Gaps';
+  }
 
   if (s.includes('crit')) {
     return 'Critical';
@@ -342,20 +345,15 @@ function normalizeStatus(status, variance = '') {
   if (
     s.includes('risk') ||
     s.includes('warn') ||
-    s.includes('succeed')
+    s.includes('breach')
   ) {
     return 'At Risk';
   }
 
-  if (s.includes('health') || v.includes('on target')) {
+  if (s.includes('healthy') || s.includes('on track') || s.includes('on target') || s === 'good' || s === 'ok') {
     return 'Healthy';
   }
-
-  if (v.includes('+') || v.includes('-')) {
-    return 'At Risk';
-  }
-
-  return 'Healthy';
+  return 'Not yet fetched';
 }
 
 /* =========================================================
@@ -506,18 +504,8 @@ function sanitizeAndMergeModules(rawModules) {
         : 'Not yet fetched';
 
       let statusVal = isFromSupabase
-        ? (benchmark.status || 'At Risk')
+        ? normalizeStatus(benchmark.status)
         : 'Not yet fetched';
-
-      if (
-        statusVal === 'succeeded' ||
-        statusVal === 'completed'
-      ) {
-        statusVal = normalizeStatus(
-          null,
-          varianceVal
-        );
-      }
 
       const overview =
         benchmark.moduleOverview ||
@@ -799,17 +787,17 @@ function sanitizeAndMergeModules(rawModules) {
       }
     }
 
-    const criticalCount = mergedBenchmarks.filter(
-      (benchmark) => benchmark.status === 'Critical'
-    ).length;
+    const statusCounts = mergedBenchmarks.reduce((counts, benchmark) => {
+      const status = normalizeStatus(benchmark.status);
+      if (status === 'Critical') counts.critical += 1;
+      else if (status === 'At Risk') counts.atRisk += 1;
+      else if (status === 'Healthy') counts.healthy += 1;
+      return counts;
+    }, { critical: 0, atRisk: 0, healthy: 0 });
 
-    const atRiskCount = mergedBenchmarks.filter(
-      (benchmark) => benchmark.status === 'At Risk'
-    ).length;
-
-    const healthyCount = mergedBenchmarks.filter(
-      (benchmark) => benchmark.status === 'Healthy'
-    ).length;
+    const criticalCount = statusCounts.critical;
+    const atRiskCount = statusCounts.atRisk;
+    const healthyCount = statusCounts.healthy;
 
     const hasLive = mergedBenchmarks.some(
       (benchmark) => benchmark.isSupabaseLive
@@ -818,13 +806,21 @@ function sanitizeAndMergeModules(rawModules) {
     let computedModuleStatus = 'Not yet fetched';
 
     if (hasLive) {
-      if (criticalCount > 0) {
-        computedModuleStatus = 'Critical';
-      } else if (atRiskCount > 0) {
-        computedModuleStatus = 'At Risk';
-      } else {
-        computedModuleStatus = 'Healthy';
-      }
+      computedModuleStatus = [
+        ['Critical', criticalCount],
+        ['At Risk', atRiskCount],
+        ['Healthy', healthyCount]
+      ].reduce(
+        (leader, [status, count]) => count > leader.count ? { status, count } : leader,
+        {
+          status: mergedBenchmarks.some((benchmark) =>
+            benchmark.isSupabaseLive &&
+            isMissingMetricValue(benchmark.company) &&
+            getMetricMissingFields(benchmark).length > 0
+          ) ? 'Process Gaps' : 'Not yet fetched',
+          count: 0
+        }
+      ).status;
     }
 
     const computedAiReport = hasLive
@@ -1701,9 +1697,9 @@ function normalizeSupabaseInsightPayload(
     rep.healthState ||
     rep.health_state ||
     ''
-  ).toLowerCase();
+  ).toLowerCase().trim().replace(/[_-]+/g, ' ');
 
-  let statusVal = 'At Risk';
+  let statusVal = 'Not yet fetched';
 
   if (statusCandidate.includes('crit')) {
     statusVal = 'Critical';
@@ -1714,23 +1710,13 @@ function normalizeSupabaseInsightPayload(
   ) {
     statusVal = 'At Risk';
   } else if (
-    statusCandidate.includes('health') ||
-    statusCandidate.includes('target') ||
-    statusCandidate.includes('good')
+    statusCandidate.includes('healthy') ||
+    statusCandidate.includes('on track') ||
+    statusCandidate.includes('on target') ||
+    statusCandidate === 'good' ||
+    statusCandidate === 'ok'
   ) {
     statusVal = 'Healthy';
-  } else if (fullText) {
-    if (/\bcritical\b/i.test(fullText)) {
-      statusVal = 'Critical';
-    } else if (
-      /\b(?:at-risk|at_risk|at risk|warning)\b/i.test(fullText)
-    ) {
-      statusVal = 'At Risk';
-    } else if (
-      /\b(?:healthy|on-track|on track)\b/i.test(fullText)
-    ) {
-      statusVal = 'Healthy';
-    }
   }
 
   companyVal = companyVal || 'Not yet fetched';
@@ -2429,6 +2415,42 @@ function parseMetricDeepDivePayload(
 ========================================================= */
 
 export const apiService = {
+  async getMetricDataset(moduleId, metricName, metricCode = '', moduleName = '', offset = 0, limit = 100, dateColumn = '', dateFrom = '', dateTo = '') {
+    const params = new URLSearchParams({
+      module_id: moduleId || '',
+      metric_name: metricName || '',
+      metric_code: metricCode || '',
+      module_name: moduleName || '',
+      offset: String(offset),
+      limit: String(limit)
+    });
+    if (dateColumn) params.set('date_column', dateColumn);
+    if (dateFrom) params.set('date_from', dateFrom);
+    if (dateTo) params.set('date_to', dateTo);
+    let response;
+    try {
+      response = await fetchWithTimeout(
+        `${BASE_URL}/datasets/preview?${params.toString()}`,
+        { method: 'GET' },
+        30000
+      );
+    } catch (error) {
+      const rootUrl = BASE_URL.replace(/\/api\/v1\/?$/, '');
+      const reason = error?.name === 'AbortError'
+        ? 'The dataset request timed out.'
+        : 'The browser could not connect to the dataset API.';
+      throw new Error(`${reason} Check that the backend is running at ${rootUrl} and that VITE_API_BASE_URL points to it. (${error?.message || 'Network error'})`);
+    }
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload.detail || `Dataset request failed (HTTP ${response.status})`);
+    }
+    return {
+      ...payload,
+      downloadUrl: payload.downloadUrl ? `${BASE_URL.replace('/api/v1', '')}${payload.downloadUrl}` : null
+    };
+  },
+
   /**
    * Check whether FastAPI is reachable.
    */
@@ -2572,10 +2594,10 @@ export const apiService = {
    * Previously getModules() returned the raw backend array,
    * allowing duplicate metric identifiers to reach the UI.
    */
-  async getModules() {
+  async getModules(forceRefresh = false) {
     try {
       const response = await fetchWithTimeout(
-        `${BASE_URL}/modules`,
+        `${BASE_URL}/modules${forceRefresh ? '?refresh=true' : ''}`,
         { method: 'GET' },
         8000
       );

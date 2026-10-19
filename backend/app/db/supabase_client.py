@@ -45,6 +45,58 @@ def alphanumeric_key(text: str) -> str:
     return re.sub(r'[^a-zA-Z0-9]', '', clean).lower()
 
 
+def _coerce_ml_insight_payload(value: Any) -> Dict[str, Any]:
+    """Decode JSONB/string ML Insights values and unwrap common API containers."""
+    current = value
+    for _ in range(4):
+        if isinstance(current, str):
+            try:
+                current = json.loads(current)
+            except (TypeError, ValueError):
+                return {}
+        if not isinstance(current, dict):
+            return {}
+
+        # Do not unwrap a real metric insight which already has metric fields.
+        if any(alphanumeric_key(str(key)) in {"companyvalue", "industrystandardvalue", "healthstate", "trendanalysis", "executivesummary"} for key in current):
+            return current
+
+        wrapped = next((current.get(key) for key in ("JSON_Result", "json_result", "insight_data", "payload", "result", "data", "report", "metric", "insights", "executive_summary", "executiveSummary") if isinstance(current.get(key), (dict, str))), None)
+        if wrapped is None:
+            return current
+        current = wrapped
+    return current if isinstance(current, dict) else {}
+
+
+def _find_ml_health_state(payload: Dict[str, Any]) -> Any:
+    """Find an explicit health-status field in the ML Insights object hierarchy."""
+    health_keys = {"healthstate", "healthstatus", "actualhealthstatus"}
+    containers = {"report", "metric", "result", "data", "payload", "insights", "executivesummary", "diagnosis", "jsonresult", "insightdata"}
+    queue = [(payload, 0)]
+    while queue:
+        node, depth = queue.pop(0)
+        if not isinstance(node, dict):
+            continue
+        for key, value in node.items():
+            normalized_key = alphanumeric_key(str(key))
+            if normalized_key in health_keys and value not in (None, ""):
+                return value
+        if depth < 5:
+            for key, value in node.items():
+                if alphanumeric_key(str(key)) in containers and isinstance(value, dict):
+                    queue.append((value, depth + 1))
+    return None
+
+
+def _ml_payload_value(payload: Dict[str, Any], *names: str, default: Any = None) -> Any:
+    """Read a top-level ML Insights field without depending on key casing or separators."""
+    wanted = {alphanumeric_key(name) for name in names}
+    for key, value in payload.items():
+        if alphanumeric_key(str(key)) in wanted and value is not None:
+            return value
+    return default
+
+
 def extract_accuracy_score(payload: Any) -> Any:
     """Read model accuracy from ML Insights, preferring selected RCA model metrics."""
     accuracy_keys = {
@@ -480,30 +532,30 @@ class SupabaseStorageService:
                         continue
                     logger.info(f"Loaded {len(ml_rows)} rows from Supabase table '{tbl_name}'")
                     for row in ml_rows:
-                        mod_raw = row.get("Module_Name") or row.get("module") or "EC"
-                        m_name_raw = row.get("Metric_Name") or row.get("metric_name") or ""
+                        mod_raw = _ml_payload_value(row, "Module_Name", "module", "module_name", "moduleName", default="EC")
+                        m_name_raw = _ml_payload_value(row, "Metric_Name", "metric_name", "metricName", "MetricName", "metric", "metric_code", default="")
                         if not m_name_raw:
                             continue
                         
-                        jr = row.get("JSON_Result") or row.get("insight_data") or {}
+                        jr = _coerce_ml_insight_payload(row.get("JSON_Result") or row.get("json_result") or row.get("insight_data") or {})
                         
                         # Use the ML Notebook Insights payload as the source for
                         # company values, industry standards, and diagnostics.
-                        company_val = jr.get("companyValue")
-                        std_val = jr.get("industryStandardValue")
-                        health_state = jr.get("healthState")
-                        unit_str = str(jr.get("unit") or "").strip()
-                        higher_is_better = jr.get("higherIsBetter", False)
-                        variance_obj = jr.get("variance") or {}
-                        rca_obj = jr.get("rca") or {}
-                        factors_raw = rca_obj.get("factors") or []
-                        data_qual = jr.get("dataQuality") or {}
-                        trend_obj = jr.get("trendAnalysis") or {}
-                        forecast_obj = jr.get("forecast") or {}
-                        missing_cfgs = jr.get("missingConfigurations") or jr.get("missingConfiguration") or {}
+                        company_val = _ml_payload_value(jr, "companyValue", "company_value", "actualValue", "actual_value")
+                        std_val = _ml_payload_value(jr, "industryStandardValue", "industry_standard_value", "industryBenchmark", "industry_benchmark")
+                        health_state = _find_ml_health_state(jr) or _find_ml_health_state(row)
+                        unit_str = str(_ml_payload_value(jr, "unit", "metricUnit") or "").strip()
+                        higher_is_better = _ml_payload_value(jr, "higherIsBetter", "higher_is_better", default=False)
+                        variance_obj = _ml_payload_value(jr, "variance", "varianceAnalysis", default={}) or {}
+                        rca_obj = _ml_payload_value(jr, "rca", "rootCauseAnalysis", default={}) or {}
+                        factors_raw = _ml_payload_value(rca_obj, "factors", "drivers", default=[]) or [] if isinstance(rca_obj, dict) else []
+                        data_qual = _ml_payload_value(jr, "dataQuality", "data_quality", default={}) or {}
+                        trend_obj = _ml_payload_value(jr, "trendAnalysis", "trend_analysis", default={}) or {}
+                        forecast_obj = _ml_payload_value(jr, "forecast", "forecastAnalysis", default={}) or {}
+                        missing_cfgs = _ml_payload_value(jr, "missingConfigurations", "missingConfiguration", "missing_configurations", default={}) or {}
 
                         # Older ml_insights schema fallback (executive_summary)
-                        exec_summ = jr.get("executive_summary") or {}
+                        exec_summ = _ml_payload_value(jr, "executive_summary", "executiveSummary", default={}) or {}
                         if company_val is None and exec_summ:
                             company_val = exec_summ.get("actual_cycle_time") or exec_summ.get("actual_time_to_hire")
                         if std_val is None and exec_summ:
@@ -541,17 +593,17 @@ class SupabaseStorageService:
                             standard_display = "Not yet fetched"
 
                         # Status formatting
-                        h_lower = str(health_state or "").lower()
+                        h_lower = re.sub(r"[_-]+", " ", str(health_state or "").lower())
                         if "crit" in h_lower:
                             status_display = "Critical"
                         elif "risk" in h_lower or "warn" in h_lower or "breach" in h_lower:
                             status_display = "At Risk"
-                        elif "health" in h_lower or "track" in h_lower or "ok" in h_lower or "good" in h_lower:
+                        elif "healthy" in h_lower or "on track" in h_lower or "on target" in h_lower or h_lower.strip() in {"good", "ok"}:
                             status_display = "Healthy"
-                        elif "unknown" in h_lower or company_val is None:
-                            status_display = "At Risk" if data_qual.get("overallRating") == "poor" else "Unknown"
                         else:
-                            status_display = "Healthy"
+                            # Health status must come from ML Insights healthState.
+                            # Missing/unknown status is not inferred from metric values or data quality.
+                            status_display = "Not yet fetched"
 
                         # Variance formatting
                         if isinstance(variance_obj, dict):
@@ -698,6 +750,10 @@ class SupabaseStorageService:
                         if not current_entry:
                             register_metric_data(mod_dict, m_name_raw, combined)
                         else:
+                            # Keep the LLM_Reports row's generation date with
+                            # the merged metric so the UI can show when it was stored.
+                            if row.get("generated_at"):
+                                current_entry["generated_at"] = row.get("generated_at")
                             # Intelligently merge LLM plan and ML notebook insights, giving precedence to direct storage files
                             cur_rep = current_entry.get("report") if isinstance(current_entry.get("report"), dict) else current_entry
                             comb_rep = combined.get("report") if isinstance(combined.get("report"), dict) else combined
@@ -858,6 +914,11 @@ class SupabaseStorageService:
         target_norm = metric_identifier.lower().strip()
         target_slug = normalize_slug(metric_identifier)
         target_alpha = alphanumeric_key(metric_identifier)
+        accuracy_metric_aliases = {
+            "ecdataaccuracy", "employeedataaccuracyrate", "employeedataaccuracy",
+            "dataaccuracyrate", "employeedataqualityaccuracy"
+        }
+        target_aliases = accuracy_metric_aliases if target_alpha in accuracy_metric_aliases else {target_alpha}
 
         # Check in specified module or across all modules
         mod_keys = []
@@ -904,6 +965,9 @@ class SupabaseStorageService:
             # 3. Alphanumeric match (case & whitespace insensitive)
             if target_alpha in mod_dict:
                 return mod_dict[target_alpha]
+            for key, value in mod_dict.items():
+                if alphanumeric_key(key) in target_aliases:
+                    return value
             # 4. High-confidence specific match
             for k, val in mod_dict.items():
                 k_slug = normalize_slug(k)
@@ -925,7 +989,7 @@ class SupabaseStorageService:
         }
 
     def check_connection(self) -> Dict[str, Any]:
-        """Diagnostic summary of connection and discovered modules/metrics under report/latest."""
+        """Lightweight Supabase Storage connectivity check."""
         if not self.is_active():
             return {
                 "status": "unconfigured",
@@ -939,19 +1003,6 @@ class SupabaseStorageService:
         try:
             root = self.get_latest_root()
             modules = self.list_available_modules()
-            module_summary = []
-            total_metrics_count = 0
-
-            for mod in modules:
-                metrics = self.list_metrics_for_module(mod)
-                metric_names = [m.get("name") for m in metrics if isinstance(m, dict) and not m.get("name", "").startswith(".")]
-                m_count = len(metric_names)
-                total_metrics_count += m_count
-                module_summary.append({
-                    "module": mod,
-                    "metrics_count": m_count,
-                    "metrics": metric_names
-                })
 
             return {
                 "status": "connected",
@@ -960,8 +1011,7 @@ class SupabaseStorageService:
                 "bucket_name": self.bucket_name,
                 "latest_root": root,
                 "modules_count": len(modules),
-                "files_count": total_metrics_count,
-                "modules": module_summary
+                "modules": modules
             }
         except Exception as e:
             logger.error(f"Supabase connection test failed: {e}")

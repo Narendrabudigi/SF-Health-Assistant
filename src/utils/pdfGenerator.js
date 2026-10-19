@@ -1,3 +1,5 @@
+import { formatVarianceDisplay } from './displayUnits';
+
 /**
  * Enterprise BRD PDF Generator for SAP SuccessFactors Diagnostic Intelligence
  * Exports the complete 8-Section Business Requirements Document (BRD) Plan of Action
@@ -237,7 +239,7 @@ export async function generateMetricBrdPdf(metric, options = {}) {
         <div class="kpi-divider"></div>
         <div class="kpi-cell">
           <div class="kpi-cell-label">Variance Gap</div>
-          <div class="kpi-cell-value ${isCritical ? 'critical' : 'at-risk'}">${variance || 'N/A'}</div>
+          <div class="kpi-cell-value ${isCritical ? 'critical' : 'at-risk'}">${formatVarianceDisplay(variance || 'N/A')}</div>
         </div>
         <div class="kpi-divider"></div>
         <div class="kpi-cell">

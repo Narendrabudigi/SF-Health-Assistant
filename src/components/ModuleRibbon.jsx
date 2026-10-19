@@ -100,9 +100,9 @@ export default function ModuleRibbon({
           {activeModule && (
             <div className="ribbon-status-area">
               <span className="ribbon-status-label">Status:</span>
-              <span className={`pill-badge ${getBadgeClass(activeModule.status)}`}>
+              <span className={`pill-badge ${getBadgeClass(/^n\s*\/\s*a$/i.test(String(activeModule.status || '').trim()) ? 'Process Gaps' : activeModule.status)}`}>
                 <span className="badge-dot" aria-hidden="true"></span>
-                <span>{activeModule.status}</span>
+                <span>{/^n\s*\/\s*a$/i.test(String(activeModule.status || '').trim()) ? 'Process Gaps' : activeModule.status}</span>
               </span>
             </div>
           )}

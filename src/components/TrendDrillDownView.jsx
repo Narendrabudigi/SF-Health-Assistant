@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { getTrendDrillDownData } from '../utils/trendDrillDownData';
-import { formatDisplayUnits } from '../utils/displayUnits';
+import { formatDisplayUnits, formatVarianceDisplay } from '../utils/displayUnits';
 
 export default function TrendDrillDownView({ metric }) {
   const metricName = metric?.metric;
@@ -419,7 +419,7 @@ export default function TrendDrillDownView({ metric }) {
               {/* Card Bottom Meta & Drill Cue */}
               <div className="trend-card-footer">
                 <span className="trend-variance-sub">
-                  Gap: <strong>{formatDisplayUnits(item.variance)}</strong>
+                  Gap: <strong>{formatVarianceDisplay(item.variance)}</strong>
                 </span>
 
                 {item.canDrill ? (

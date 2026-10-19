@@ -64,7 +64,10 @@ def get_metric_deep_dive(
         extracted = modules.extract_metric_fields(supabase_data, default_b=metric_obj)
         company_val = supabase_data.get("company") if supabase_data.get("company") and supabase_data.get("company") != "Not yet fetched" else extracted["company"]
         standard_val = supabase_data.get("standard") if supabase_data.get("standard") and supabase_data.get("standard") != "Not yet fetched" else extracted["standard"]
-        status_val = supabase_data.get("status") if supabase_data.get("status") and supabase_data.get("status") != "Not yet fetched" else extracted["status"]
+        # Use the same status normalizer as /modules. The raw payload can carry
+        # a stale top-level status while its report/healthState has the status
+        # used by the module card, which caused the deep dive to disagree.
+        status_val = extracted["status"]
         variance_val = supabase_data.get("variance") if supabase_data.get("variance") and supabase_data.get("variance") != "Not yet fetched" else extracted["variance"]
         detailed_analysis = extracted["detailedAnalysis"]
         supa_cfgs = supabase_data.get("missingConfigurations") or []

@@ -153,7 +153,7 @@ export default function App() {
 
   const handlePipelineCompleted = async () => {
     try {
-      const refreshed = await apiService.getModules();
+      const refreshed = await apiService.getModules(true);
       if (refreshed && refreshed.length > 0) {
         setModulesData(refreshed);
       }
