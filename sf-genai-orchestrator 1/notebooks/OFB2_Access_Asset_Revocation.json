@@ -1,0 +1,419 @@
+{
+  "generatedAt": "2026-10-22T16:06:48.318072+05:30",
+  "module": "OFB2",
+  "reportVersion": "2.2",
+  "metricName": "AccessAssetRevocationTimeliness",
+  "unit": "percent",
+  "higherIsBetter": true,
+  "companyValue": 63.79,
+  "industryStandardValue": 100.0,
+  "healthState": "at-risk",
+  "variance": {
+    "value": -36.21,
+    "percentage": -36.21
+  },
+  "trendAnalysis": {
+    "direction": "up",
+    "granularity": "yearly",
+    "periods": [
+      {
+        "period": "2024",
+        "year": 2024,
+        "average": 64.39,
+        "isPartial": false,
+        "children": {
+          "granularity": "quarterly",
+          "periods": [
+            {
+              "period": "2024-Q4",
+              "quarter": 4,
+              "average": 64.39,
+              "isPartial": false,
+              "children": {
+                "granularity": "monthly",
+                "periods": [
+                  {
+                    "period": "2024-10",
+                    "month": 10,
+                    "average": 59.09,
+                    "isPartial": false
+                  },
+                  {
+                    "period": "2024-11",
+                    "month": 11,
+                    "average": 58.82,
+                    "isPartial": false
+                  },
+                  {
+                    "period": "2024-12",
+                    "month": 12,
+                    "average": 71.19,
+                    "isPartial": false
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "period": "2025",
+        "year": 2025,
+        "average": 62.26,
+        "isPartial": false,
+        "children": {
+          "granularity": "quarterly",
+          "periods": [
+            {
+              "period": "2025-Q1",
+              "quarter": 1,
+              "average": 67.63,
+              "isPartial": false,
+              "children": {
+                "granularity": "monthly",
+                "periods": [
+                  {
+                    "period": "2025-01",
+                    "month": 1,
+                    "average": 57.69,
+                    "isPartial": false
+                  },
+                  {
+                    "period": "2025-02",
+                    "month": 2,
+                    "average": 67.35,
+                    "isPartial": false
+                  },
+                  {
+                    "period": "2025-03",
+                    "month": 3,
+                    "average": 81.58,
+                    "isPartial": false
+                  }
+                ]
+              }
+            },
+            {
+              "period": "2025-Q2",
+              "quarter": 2,
+              "average": 54.23,
+              "isPartial": false,
+              "children": {
+                "granularity": "monthly",
+                "periods": [
+                  {
+                    "period": "2025-04",
+                    "month": 4,
+                    "average": 51.92,
+                    "isPartial": false
+                  },
+                  {
+                    "period": "2025-05",
+                    "month": 5,
+                    "average": 55.74,
+                    "isPartial": false
+                  },
+                  {
+                    "period": "2025-06",
+                    "month": 6,
+                    "average": 54.55,
+                    "isPartial": false
+                  }
+                ]
+              }
+            },
+            {
+              "period": "2025-Q3",
+              "quarter": 3,
+              "average": 62.5,
+              "isPartial": false,
+              "children": {
+                "granularity": "monthly",
+                "periods": [
+                  {
+                    "period": "2025-07",
+                    "month": 7,
+                    "average": 65.15,
+                    "isPartial": false
+                  },
+                  {
+                    "period": "2025-08",
+                    "month": 8,
+                    "average": 58.46,
+                    "isPartial": false
+                  },
+                  {
+                    "period": "2025-09",
+                    "month": 9,
+                    "average": 64.44,
+                    "isPartial": false
+                  }
+                ]
+              }
+            },
+            {
+              "period": "2025-Q4",
+              "quarter": 4,
+              "average": 67.05,
+              "isPartial": false,
+              "children": {
+                "granularity": "monthly",
+                "periods": [
+                  {
+                    "period": "2025-10",
+                    "month": 10,
+                    "average": 55.77,
+                    "isPartial": false
+                  },
+                  {
+                    "period": "2025-11",
+                    "month": 11,
+                    "average": 66.0,
+                    "isPartial": false
+                  },
+                  {
+                    "period": "2025-12",
+                    "month": 12,
+                    "average": 76.06,
+                    "isPartial": false
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "period": "2026",
+        "year": 2026,
+        "average": 66.77,
+        "isPartial": true,
+        "children": {
+          "granularity": "quarterly",
+          "periods": [
+            {
+              "period": "2026-Q1",
+              "quarter": 1,
+              "average": 61.79,
+              "isPartial": false,
+              "children": {
+                "granularity": "monthly",
+                "periods": [
+                  {
+                    "period": "2026-01",
+                    "month": 1,
+                    "average": 62.5,
+                    "isPartial": false
+                  },
+                  {
+                    "period": "2026-02",
+                    "month": 2,
+                    "average": 65.38,
+                    "isPartial": false
+                  },
+                  {
+                    "period": "2026-03",
+                    "month": 3,
+                    "average": 58.54,
+                    "isPartial": false
+                  }
+                ]
+              }
+            },
+            {
+              "period": "2026-Q2",
+              "quarter": 2,
+              "average": 67.21,
+              "isPartial": false,
+              "children": {
+                "granularity": "monthly",
+                "periods": [
+                  {
+                    "period": "2026-04",
+                    "month": 4,
+                    "average": 57.89,
+                    "isPartial": false
+                  },
+                  {
+                    "period": "2026-05",
+                    "month": 5,
+                    "average": 70.45,
+                    "isPartial": false
+                  },
+                  {
+                    "period": "2026-06",
+                    "month": 6,
+                    "average": 72.5,
+                    "isPartial": false
+                  }
+                ]
+              }
+            },
+            {
+              "period": "2026-Q3",
+              "quarter": 3,
+              "average": 73.75,
+              "isPartial": false,
+              "children": {
+                "granularity": "monthly",
+                "periods": [
+                  {
+                    "period": "2026-07",
+                    "month": 7,
+                    "average": 72.34,
+                    "isPartial": false
+                  },
+                  {
+                    "period": "2026-08",
+                    "month": 8,
+                    "average": 76.67,
+                    "isPartial": false
+                  },
+                  {
+                    "period": "2026-09",
+                    "month": 9,
+                    "average": 66.67,
+                    "isPartial": false
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "forecast": {
+    "nextMonth": {
+      "period": "2026-10",
+      "predictedValue": 71.84,
+      "lowerBound": 61.89,
+      "upperBound": 81.78,
+      "predictedHealthState": "At-risk"
+    },
+    "nextQuarter": {
+      "period": "2026-Q4",
+      "predictedValue": 71.84,
+      "lowerBound": 61.89,
+      "upperBound": 81.78,
+      "predictedHealthState": "At-risk"
+    },
+    "nextYear": {
+      "period": "2027",
+      "predictedValue": 71.84,
+      "lowerBound": 61.89,
+      "upperBound": 81.78,
+      "predictedHealthState": "At-risk"
+    }
+  },
+  "rca": {
+    "applicable": true,
+    "breachValue": 63.79,
+    "factors": [
+      {
+        "rank": 1,
+        "factorName": "cat__assetReturnStatus",
+        "segment": null,
+        "avgFactorValue": null,
+        "segmentAvgValue": null,
+        "impactValue": 0.9,
+        "impactPct": 10.02
+      },
+      {
+        "rank": 2,
+        "factorName": "cat__costCenterId",
+        "segment": null,
+        "avgFactorValue": null,
+        "segmentAvgValue": null,
+        "impactValue": 0.79,
+        "impactPct": 8.8
+      },
+      {
+        "rank": 3,
+        "factorName": "cat__divisionName",
+        "segment": null,
+        "avgFactorValue": null,
+        "segmentAvgValue": null,
+        "impactValue": 0.68,
+        "impactPct": 7.57
+      }
+    ]
+  },
+  "dataQuality": {
+    "overallRating": "good",
+    "dataPeriod": {
+      "from": "2024-10-14",
+      "to": "2026-09-08"
+    },
+    "recordsAnalysed": 1146,
+    "checks": [
+      {
+        "checkName": "MissingValues",
+        "category": "Completeness",
+        "failedRecords": 0,
+        "failedPct": 0.0,
+        "affectedColumns": null,
+        "affectedCells": 0
+      },
+      {
+        "checkName": "InvalidValues",
+        "category": "Validity",
+        "checkedRecords": 1146,
+        "failedRecords": 0,
+        "failedPct": 0.0,
+        "affectedColumns": null
+      },
+      {
+        "checkName": "DuplicateRecords",
+        "category": "Uniqueness",
+        "checkedRecords": 1146,
+        "failedRecords": 0,
+        "failedPct": 0.0,
+        "affectedColumns": null
+      },
+      {
+        "checkName": "Staleness",
+        "category": "Staleness",
+        "checkedRecords": 1146,
+        "failedRecords": 0,
+        "failedPct": 0.0,
+        "affectedColumns": null,
+        "staleRange": null
+      }
+    ]
+  },
+  "selectedTrainingModel": {
+    "rcaModel": {
+      "modelName": "XGBoost Classifier",
+      "rocAuc": 0.93,
+      "prAuc": 0.97,
+      "trainRocAuc": 1.0,
+      "cvRocAuc": 0.88,
+      "cvPrAuc": 0.91,
+      "accuracy": 0.88,
+      "balancedAccuracy": 0.86,
+      "precision": 0.92,
+      "recall": 0.91,
+      "f1": 0.92,
+      "specificity": 0.81,
+      "brierScore": 0.1,
+      "trainTestAucGap": 0.07,
+      "rating": "good",
+      "trainingPerformed": true
+    },
+    "forecastModel": {
+      "modelName": "HistGradientBoosting",
+      "r2": 0.17,
+      "mae": 4.17,
+      "rmse": 5.07,
+      "mape": 5.94,
+      "accuracy": 0.67,
+      "accuracyTolerancePct": 10.0,
+      "rating": "good"
+    }
+  },
+  "missingConfigurations": {
+    "mandatoryFieldsMissing": [],
+    "otherFieldsMissing": []
+  }
+}

@@ -1,0 +1,509 @@
+{
+  "generatedAt": "2026-09-29T02:00:00Z",
+  "module": "RCM",
+  "metricName": "TimeToHire",
+  "unit": "days",
+  "higherIsBetter": false,
+  "companyValue": 25.6,
+  "industryStandardValue": 20,
+  "healthState": "at-risk",
+  "variance": {
+    "value": 5.6,
+    "percentage": 28.0
+  },
+  "trendAnalysis": {
+    "direction": "up",
+    "granularity": "yearly",
+    "periods": [
+      {
+        "period": "2024",
+        "year": 2024,
+        "average": 22.8,
+        "isPartial": true,
+        "children": {
+          "granularity": "quarterly",
+          "periods": [
+            {
+              "period": "2024-Q1",
+              "quarter": 1,
+              "average": null,
+              "isPartial": true,
+              "children": {
+                "granularity": "monthly",
+                "periods": [
+                  {
+                    "period": "2024-01",
+                    "month": 1,
+                    "average": null,
+                    "isPartial": true
+                  },
+                  {
+                    "period": "2024-02",
+                    "month": 2,
+                    "average": null,
+                    "isPartial": true
+                  },
+                  {
+                    "period": "2024-03",
+                    "month": 3,
+                    "average": null,
+                    "isPartial": true
+                  }
+                ]
+              }
+            },
+            {
+              "period": "2024-Q2",
+              "quarter": 2,
+              "average": null,
+              "isPartial": true,
+              "children": {
+                "granularity": "monthly",
+                "periods": [
+                  {
+                    "period": "2024-04",
+                    "month": 4,
+                    "average": null,
+                    "isPartial": true
+                  },
+                  {
+                    "period": "2024-05",
+                    "month": 5,
+                    "average": null,
+                    "isPartial": true
+                  },
+                  {
+                    "period": "2024-06",
+                    "month": 6,
+                    "average": null,
+                    "isPartial": true
+                  }
+                ]
+              }
+            },
+            {
+              "period": "2024-Q3",
+              "quarter": 3,
+              "average": null,
+              "isPartial": true,
+              "children": {
+                "granularity": "monthly",
+                "periods": [
+                  {
+                    "period": "2024-07",
+                    "month": 7,
+                    "average": null,
+                    "isPartial": true
+                  },
+                  {
+                    "period": "2024-08",
+                    "month": 8,
+                    "average": null,
+                    "isPartial": true
+                  },
+                  {
+                    "period": "2024-09",
+                    "month": 9,
+                    "average": null,
+                    "isPartial": true
+                  }
+                ]
+              }
+            },
+            {
+              "period": "2024-Q4",
+              "quarter": 4,
+              "average": 22.8,
+              "isPartial": true,
+              "children": {
+                "granularity": "monthly",
+                "periods": [
+                  {
+                    "period": "2024-10",
+                    "month": 10,
+                    "average": null,
+                    "isPartial": true
+                  },
+                  {
+                    "period": "2024-11",
+                    "month": 11,
+                    "average": 22.5,
+                    "isPartial": true
+                  },
+                  {
+                    "period": "2024-12",
+                    "month": 12,
+                    "average": 23.1,
+                    "isPartial": false
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "period": "2025",
+        "year": 2025,
+        "average": 25.5,
+        "isPartial": false,
+        "children": {
+          "granularity": "quarterly",
+          "periods": [
+            {
+              "period": "2025-Q1",
+              "quarter": 1,
+              "average": 24.1,
+              "isPartial": false,
+              "children": {
+                "granularity": "monthly",
+                "periods": [
+                  {
+                    "period": "2025-01",
+                    "month": 1,
+                    "average": 23.0,
+                    "isPartial": false
+                  },
+                  {
+                    "period": "2025-02",
+                    "month": 2,
+                    "average": 24.5,
+                    "isPartial": false
+                  },
+                  {
+                    "period": "2025-03",
+                    "month": 3,
+                    "average": 24.8,
+                    "isPartial": false
+                  }
+                ]
+              }
+            },
+            {
+              "period": "2025-Q2",
+              "quarter": 2,
+              "average": 26.1,
+              "isPartial": false,
+              "children": {
+                "granularity": "monthly",
+                "periods": [
+                  {
+                    "period": "2025-04",
+                    "month": 4,
+                    "average": 25.2,
+                    "isPartial": false
+                  },
+                  {
+                    "period": "2025-05",
+                    "month": 5,
+                    "average": 26.0,
+                    "isPartial": false
+                  },
+                  {
+                    "period": "2025-06",
+                    "month": 6,
+                    "average": 27.1,
+                    "isPartial": false
+                  }
+                ]
+              }
+            },
+            {
+              "period": "2025-Q3",
+              "quarter": 3,
+              "average": 27.4,
+              "isPartial": false,
+              "children": {
+                "granularity": "monthly",
+                "periods": [
+                  {
+                    "period": "2025-07",
+                    "month": 7,
+                    "average": 28.4,
+                    "isPartial": false
+                  },
+                  {
+                    "period": "2025-08",
+                    "month": 8,
+                    "average": 27.6,
+                    "isPartial": false
+                  },
+                  {
+                    "period": "2025-09",
+                    "month": 9,
+                    "average": 26.3,
+                    "isPartial": false
+                  }
+                ]
+              }
+            },
+            {
+              "period": "2025-Q4",
+              "quarter": 4,
+              "average": 24.2,
+              "isPartial": false,
+              "children": {
+                "granularity": "monthly",
+                "periods": [
+                  {
+                    "period": "2025-10",
+                    "month": 10,
+                    "average": 25.0,
+                    "isPartial": false
+                  },
+                  {
+                    "period": "2025-11",
+                    "month": 11,
+                    "average": 24.2,
+                    "isPartial": false
+                  },
+                  {
+                    "period": "2025-12",
+                    "month": 12,
+                    "average": 23.5,
+                    "isPartial": false
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "period": "2026",
+        "year": 2026,
+        "average": 26.0,
+        "isPartial": true,
+        "children": {
+          "granularity": "quarterly",
+          "periods": [
+            {
+              "period": "2026-Q1",
+              "quarter": 1,
+              "average": 24.6,
+              "isPartial": false,
+              "children": {
+                "granularity": "monthly",
+                "periods": [
+                  {
+                    "period": "2026-01",
+                    "month": 1,
+                    "average": 24.0,
+                    "isPartial": false
+                  },
+                  {
+                    "period": "2026-02",
+                    "month": 2,
+                    "average": 24.6,
+                    "isPartial": false
+                  },
+                  {
+                    "period": "2026-03",
+                    "month": 3,
+                    "average": 25.3,
+                    "isPartial": false
+                  }
+                ]
+              }
+            },
+            {
+              "period": "2026-Q2",
+              "quarter": 2,
+              "average": 26.4,
+              "isPartial": false,
+              "children": {
+                "granularity": "monthly",
+                "periods": [
+                  {
+                    "period": "2026-04",
+                    "month": 4,
+                    "average": 25.9,
+                    "isPartial": false
+                  },
+                  {
+                    "period": "2026-05",
+                    "month": 5,
+                    "average": 26.4,
+                    "isPartial": false
+                  },
+                  {
+                    "period": "2026-06",
+                    "month": 6,
+                    "average": 27.0,
+                    "isPartial": false
+                  }
+                ]
+              }
+            },
+            {
+              "period": "2026-Q3",
+              "quarter": 3,
+              "average": 27.0,
+              "isPartial": true,
+              "children": {
+                "granularity": "monthly",
+                "periods": [
+                  {
+                    "period": "2026-07",
+                    "month": 7,
+                    "average": 27.8,
+                    "isPartial": false
+                  },
+                  {
+                    "period": "2026-08",
+                    "month": 8,
+                    "average": 27.2,
+                    "isPartial": false
+                  },
+                  {
+                    "period": "2026-09",
+                    "month": 9,
+                    "average": 26.1,
+                    "isPartial": true
+                  }
+                ]
+              }
+            },
+            {
+              "period": "2026-Q4",
+              "quarter": 4,
+              "average": null,
+              "isPartial": true,
+              "children": {
+                "granularity": "monthly",
+                "periods": [
+                  {
+                    "period": "2026-10",
+                    "month": 10,
+                    "average": null,
+                    "isPartial": true
+                  },
+                  {
+                    "period": "2026-11",
+                    "month": 11,
+                    "average": null,
+                    "isPartial": true
+                  },
+                  {
+                    "period": "2026-12",
+                    "month": 12,
+                    "average": null,
+                    "isPartial": true
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "forecast": {
+    "nextMonth": {
+      "period": "2026-10",
+      "predictedValue": 25.9,
+      "lowerBound": 23.8,
+      "upperBound": 28.0,
+      "predictedHealthState": "at-risk"
+    },
+    "nextQuarter": {
+      "period": "2026-Q4",
+      "predictedValue": 26.2,
+      "lowerBound": 22.9,
+      "upperBound": 29.5,
+      "predictedHealthState": "at-risk"
+    },
+    "nextYear": {
+      "period": "2027",
+      "predictedValue": 26.8,
+      "lowerBound": 21.5,
+      "upperBound": 32.1,
+      "predictedHealthState": "at-risk"
+    }
+  },
+  "rca": {
+    "applicable": true,
+    "breachValue": 5.6,
+    "factors": [
+      {
+        "rank": 1,
+        "factorName": "ApplicationToInterviewDuration",
+        "segment": null,
+        "avgFactorValue": 18.4,
+        "segmentAvgValue": null,
+        "impactValue": 2.46,
+        "impactPct": 43.9
+      },
+      {
+        "rank": 2,
+        "factorName": "RequisitionToApplicationDuration",
+        "segment": null,
+        "avgFactorValue": 14.2,
+        "segmentAvgValue": null,
+        "impactValue": 1.77,
+        "impactPct": 31.6
+      },
+      {
+        "rank": 3,
+        "factorName": "JobRole",
+        "segment": "DataEngineer",
+        "avgFactorValue": null,
+        "segmentAvgValue": 31.0,
+        "impactValue": 1.37,
+        "impactPct": 24.5
+      }
+    ]
+  },
+  "dataQuality": {
+    "overallRating": "fair",
+    "dataPeriod": {
+      "from": "2024-11-23",
+      "to": "2026-09-21"
+    },
+    "recordsAnalysed": 980,
+    "checks": [
+      {
+        "checkName": "MandatoryFieldsMissing",
+        "category": "Completeness",
+        "checkedRecords": 980,
+        "failedRecords": 9,
+        "failedPct": 0.9,
+        "affectedColumns": [
+          "INTERVIEW_DATE"
+        ],
+        "staleRange": null
+      },
+      {
+        "checkName": "StaleApplicationsInOpenRequisitions",
+        "category": "Staleness",
+        "checkedRecords": 410,
+        "failedRecords": 63,
+        "failedPct": 15.4,
+        "affectedColumns": null,
+        "staleRange": {
+          "from": "2024-12-03",
+          "to": "2026-06-14"
+        }
+      }
+    ]
+  },
+  "modelAccuracy": {
+    "rcaModel": {
+      "modelName": "HistGradientBoostingRegressor",
+      "r2": 0.9,
+      "mae": 3.7,
+      "rmse": 4.6,
+      "rating": "good"
+    },
+    "forecastModel": {
+      "modelName": "DampedTrend",
+      "r2": null,
+      "mae": 2.1,
+      "rmse": 2.6,
+      "rating": "fair"
+    }
+  },
+  "missingConfigurations": [
+    "SIGNING_BONUS"
+  ]
+}

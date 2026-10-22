@@ -28,18 +28,23 @@ export default function App() {
   useEffect(() => {
     let isMounted = true;
     async function loadLiveBackendData() {
-      try {
-        const status = await apiService.checkHealthWithSupabase();
-        if (isMounted) {
-          setBackendStatus(status);
-        }
+      const [statusResult, modulesResult] = await Promise.allSettled([
+        apiService.checkHealthWithSupabase(),
+        apiService.getModules()
+      ]);
 
-        const liveModules = await apiService.getModules();
-        if (isMounted && liveModules && liveModules.length > 0) {
-          setModulesData(liveModules);
-        }
-      } catch (err) {
-        console.warn('Backend sync failed, using default cached modules:', err);
+      if (!isMounted) return;
+
+      if (statusResult.status === 'fulfilled') {
+        setBackendStatus(statusResult.value);
+      } else {
+        console.warn('Backend health check failed:', statusResult.reason);
+      }
+
+      if (modulesResult.status === 'fulfilled' && modulesResult.value?.length > 0) {
+        setModulesData(modulesResult.value);
+      } else if (modulesResult.status === 'rejected') {
+        console.warn('Backend module fetch failed, using default cached modules:', modulesResult.reason);
       }
     }
     loadLiveBackendData();

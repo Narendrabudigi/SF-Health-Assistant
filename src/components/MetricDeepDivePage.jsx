@@ -551,14 +551,19 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
   const diagnosisData = isMetricLive
     ? (liveInsight?.diagnosis || liveInsight?.metric?.diagnosis || currentMetric?.diagnosis || {})
     : {};
-  const rawAccuracyScore = liveInsight?.accuracyScore ?? liveInsight?.accuracyPercentage ?? liveInsight?.accuracy_percentage ?? liveInsight?.metric?.accuracyScore ?? liveInsight?.metric?.accuracyPercentage ?? currentMetric?.accuracyScore ?? currentMetric?.accuracyPercentage ?? diagnosisData?.accuracyScore ?? diagnosisData?.accuracyPercentage ?? liveInsight?.dataQuality?.accuracyScore ?? liveInsight?.dataQuality?.accuracyPercentage;
+  const rawAccuracyScore = liveInsight?.accuracyScore ?? liveInsight?.accuracyPercentage ?? liveInsight?.accuracy_percentage ?? liveInsight?.metric?.accuracyScore ?? liveInsight?.metric?.accuracyPercentage ?? liveInsight?.selectedTrainingModel?.rcaModel?.accuracy ?? liveInsight?.selectedTrainingModel?.rcaModel?.r2 ?? liveInsight?.metric?.selectedTrainingModel?.rcaModel?.accuracy ?? liveInsight?.metric?.selectedTrainingModel?.rcaModel?.r2 ?? currentMetric?.accuracyScore ?? currentMetric?.accuracyPercentage ?? currentMetric?.selectedTrainingModel?.rcaModel?.accuracy ?? currentMetric?.selectedTrainingModel?.rcaModel?.r2 ?? diagnosisData?.accuracyScore ?? diagnosisData?.accuracyPercentage ?? liveInsight?.dataQuality?.accuracyScore ?? liveInsight?.dataQuality?.accuracyPercentage;
   const parsedAccuracy = (() => {
     if (rawAccuracyScore === null || rawAccuracyScore === undefined || rawAccuracyScore === '') return null;
-    const n = Number.parseFloat(String(rawAccuracyScore).replace('%', ''));
+    const rawText = String(rawAccuracyScore).trim();
+    const hasPercentSign = rawText.includes('%');
+    const n = Number.parseFloat(rawText.replace('%', ''));
     if (!Number.isFinite(n)) return null;
-    const percentage = n <= 1 ? n * 100 : n;
-    return Math.round(Math.max(0, Math.min(100, percentage)) * 10) / 10;
+    const percentage = !hasPercentSign && Math.abs(n) <= 1 ? n * 100 : n;
+    return Math.round(percentage * 100) / 100;
   })();
+  const accuracyDisplay = parsedAccuracy === null
+    ? 'N/A'
+    : `${Number(parsedAccuracy.toFixed(2)).toString()}%`;
   const diagnosisHeadline = safeText(diagnosisData?.headline ?? detailedAnalysis?.headline);
   const narrativeCandidate = safeText(diagnosisData?.narrative ?? detailedAnalysis?.whyItHappens);
   const diagnosisPoints = toDiagnosisPoints(firstUsableValue(
@@ -589,7 +594,69 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
     ? (liveInsight?.businessImpact || liveInsight?.metric?.businessImpact || detailedAnalysis?.businessImpact || currentMetric?.businessImpact || {})
     : {};
   const businessImpactOverview = safeText(businessImpactData?.overview ?? detailedAnalysis?.howItEffects);
-  const financialExposure = safeText(businessImpactData?.financialExposure);
+  const financialExposureValue = [
+    businessImpactData?.financialExposure,
+    businessImpactData?.financial_exposure,
+    businessImpactData?.financialImpact,
+    businessImpactData?.financial_impact,
+    businessImpactData?.estimatedFinancialImpact,
+    businessImpactData?.costImpact,
+    detailedAnalysis?.financialExposure,
+    detailedAnalysis?.financialImpact,
+    liveInsight?.financialImpact,
+    liveInsight?.financial_impact,
+    liveInsight?.financialExposure,
+    currentMetric?.financialImpact
+  ].find((value) => value !== null && value !== undefined && value !== '');
+  const financialExposure = (() => {
+    if (financialExposureValue && typeof financialExposureValue === 'object' && !Array.isArray(financialExposureValue)) {
+      const amount = financialExposureValue.amount ?? financialExposureValue.value ?? financialExposureValue.estimatedAmount ?? financialExposureValue.exposure ?? financialExposureValue.total;
+      const currency = financialExposureValue.currency ?? financialExposureValue.currencyCode ?? financialExposureValue.unit;
+      if (amount !== null && amount !== undefined && amount !== '') {
+        return [safeText(currency), safeText(amount)].filter(Boolean).join(' ');
+      }
+    }
+    return safeText(financialExposureValue);
+  })();
+  const financialImpactPoints = (() => {
+    const formatPoint = (item) => {
+      if (item && typeof item === 'object' && !Array.isArray(item)) {
+        const amount = item.amount ?? item.value ?? item.estimatedAmount ?? item.exposure ?? item.total;
+        const currency = item.currency ?? item.currencyCode ?? item.unit;
+        if (amount !== null && amount !== undefined && amount !== '') {
+          return [safeText(currency), safeText(amount)].filter(Boolean).join(' ');
+        }
+        const label = safeText(item.title ?? item.name ?? item.category ?? item.type);
+        const detail = safeText(item.impact ?? item.description ?? item.detail ?? item.value ?? item.amount);
+        if (label && detail && label !== detail) return `${label}: ${detail}`;
+        return detail || label || '';
+      }
+      return safeText(item);
+    };
+
+    if (Array.isArray(financialExposureValue)) {
+      return financialExposureValue.map(formatPoint).filter(Boolean);
+    }
+    if (financialExposureValue && typeof financialExposureValue === 'object') {
+      const structuredPoint = formatPoint(financialExposureValue);
+      if (structuredPoint) return [structuredPoint];
+      return Object.entries(financialExposureValue)
+        .map(([label, value]) => {
+          const detail = formatPoint(value);
+          return detail ? `${label}: ${detail}` : '';
+        })
+        .filter(Boolean);
+    }
+
+    const text = safeText(financialExposureValue);
+    if (!text) return [];
+    const chunks = text
+      .split(/\r?\n|\s*[;•●▪]\s*/)
+      .map((point) => point.replace(/^\s*(?:[-*]|\d+[.)])\s*/, '').trim())
+      .filter(Boolean);
+    if (chunks.length > 1) return chunks;
+    return text.split(/(?<=[.!?])\s+(?=[A-Z0-9])/).map((point) => point.trim()).filter(Boolean);
+  })();
   const slaAndTurnaround = safeText(businessImpactData?.slaAndTurnaround);
   const governanceAndAudit = safeText(businessImpactData?.governanceAndAudit);
 
@@ -607,6 +674,11 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
     .map((item) => safeText(item))
     .filter(Boolean);
 
+  const isHealthy = status === 'Healthy';
+  const visibleSections = useMemo(
+    () => isHealthy ? CATALOG_SECTIONS.slice(0, 3) : CATALOG_SECTIONS,
+    [isHealthy]
+  );
   const isCritical = status === 'Critical';
   const badgeClass = isCritical
     ? 'badge-critical'
@@ -951,13 +1023,19 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
 
   // Compute active section progress for catalog
   const activeSectionIndex = useMemo(
-    () => Math.max(0, CATALOG_SECTIONS.findIndex(s => s.id === activeSection)),
-    [activeSection]
+    () => Math.max(0, visibleSections.findIndex(s => s.id === activeSection)),
+    [activeSection, visibleSections]
   );
   const progressPercent = useMemo(
-    () => Math.round(((activeSectionIndex + 1) / CATALOG_SECTIONS.length) * 100),
-    [activeSectionIndex]
+    () => Math.round(((activeSectionIndex + 1) / visibleSections.length) * 100),
+    [activeSectionIndex, visibleSections]
   );
+
+  useEffect(() => {
+    if (!visibleSections.some((section) => section.id === activeSection)) {
+      setActiveSection(visibleSections[0]?.id || 'sec-diagnosis');
+    }
+  }, [activeSection, visibleSections]);
 
   const currentSectionRef = useRef('sec-diagnosis');
 
@@ -983,14 +1061,14 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
 
   useEffect(() => {
     const updateElements = () => {
-      renderedSectionsRef.current = CATALOG_SECTIONS
+      renderedSectionsRef.current = visibleSections
         .map((s) => ({ id: s.id, el: document.getElementById(s.id) }))
         .filter((s) => s.el !== null);
     };
     updateElements();
     const timer = setTimeout(updateElements, 120);
     return () => clearTimeout(timer);
-  }, [metricName]);
+  }, [metricName, visibleSections]);
 
   // Rock-solid hysteresis scroll spy that NEVER flickers or jumps backward when scrolling slowly
   useEffect(() => {
@@ -1011,7 +1089,7 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
           // Retrieve cached section elements (with fallback)
           let renderedSections = (renderedSectionsRef.current || []).filter(s => s && s.el);
           if (renderedSections.length === 0) {
-            renderedSections = CATALOG_SECTIONS
+            renderedSections = visibleSections
               .map((s) => ({ id: s.id, el: document.getElementById(s.id) }))
               .filter((s) => s.el !== null);
             renderedSectionsRef.current = renderedSections;
@@ -1087,7 +1165,7 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
 
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
-  }, [metricName]);
+  }, [metricName, visibleSections]);
 
   const handleDownloadPDF = useCallback(async () => {
     setIsDownloading(true);
@@ -1192,7 +1270,7 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
               {/* Step Progress Tracker */}
               <div className="catalog-progress-box">
                 <div className="catalog-progress-info">
-                  <span className="catalog-progress-label">Section {activeSectionIndex + 1} of {CATALOG_SECTIONS.length}</span>
+                  <span className="catalog-progress-label">Section {activeSectionIndex + 1} of {visibleSections.length}</span>
                 </div>
                 <div className="catalog-progress-track">
                   <div
@@ -1205,7 +1283,7 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
 
             {/* Catalog Section Navigation Items */}
             <nav className="catalog-nav-list" aria-label="Diagnostic Sections">
-              {CATALOG_SECTIONS.map((sec) => {
+              {visibleSections.map((sec) => {
                 const isActive = activeSection === sec.id;
                 return (
                   <button
@@ -1285,7 +1363,7 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
             </div>
           </div>
 
-          {detailedAnalysis ? (
+          {detailedAnalysis || isHealthy ? (
             <div className="deepdive-cards-stack">
 
               {/* SECTION 01: DIAGNOSIS (MERGED & AUTHORITATIVE - ELIMINATING DUPLICATE WHERE/WHY) */}
@@ -1300,7 +1378,7 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                     title={parsedAccuracy === null ? 'Accuracy score was not returned by ML Insights' : 'Accuracy score from ML Insights'}
                   >
                     <span className="confidence-label">Accuracy</span>
-                    <strong>{parsedAccuracy === null ? 'N/A' : `${parsedAccuracy}%`}</strong>
+                    <strong>{accuracyDisplay}</strong>
                   </div>
                 </div>
                 <div className="diagnostic-card-content">
@@ -1472,7 +1550,25 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                       <p style={{ margin: 0, fontWeight: 500 }}>Data not yet fetched.</p>
                     </div>
                   ) : (
-                    <TrendDrillDownView metric={{ ...currentMetric, company, standard, status, variance, isSupabaseLive }} />
+                    <TrendDrillDownView metric={{
+                      ...currentMetric,
+                      company,
+                      standard,
+                      status,
+                      variance,
+                      isSupabaseLive,
+                      forecastAccuracyScore: liveInsight?.forecastAccuracyScore ??
+                        liveInsight?.metric?.forecastAccuracyScore ??
+                        currentMetric?.forecastAccuracyScore,
+                      detailedAnalysis: {
+                        ...(detailedAnalysis || {}),
+                        forecast: liveInsight?.metric?.detailedAnalysis?.forecast ??
+                          liveInsight?.metric?.forecast ??
+                          liveInsight?.forecast ??
+                          detailedAnalysis?.forecast ??
+                          currentMetric?.forecast
+                      }
+                    }} />
                   )}
                 </div>
               </div>
@@ -1519,6 +1615,9 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                     </div>
                   ) : (
                     <>
+                      <div className="data-gaps-guidance">
+                        Configure attribute mapping and migrate historical data for all the below mentioned fields in Manage Business Configuration (BCUI).
+                      </div>
                       {/* Summary Banner */}
                       <div className="cfg-summary-banner">
                         <div className="cfg-banner-info">
@@ -1547,56 +1646,40 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
 
                       {/* Specification Table */}
                       <div className="brd-spec-table-container" style={{ marginTop: '16px' }}>
-                        <table className="brd-spec-table">
+                        <table className="brd-spec-table missing-config-table">
                           <thead>
                             <tr>
-                              <th style={{ width: '9%' }}>ID</th>
-                              <th style={{ width: '23%' }}>Configuration Component</th>
-                              <th style={{ width: '30%' }}>Data Gap / Unpopulated Field</th>
-                              <th style={{ width: '13%' }}>Severity</th>
-                              <th style={{ width: '25%' }}>Recommended Target Configuration</th>
+                              <th style={{ width: '18%' }}>ID</th>
+                              <th style={{ width: '52%' }}>Data Gap / Unpopulated Field</th>
+                              <th style={{ width: '30%' }}>Severity</th>
                             </tr>
                           </thead>
                           <tbody>
                             {missingConfigs.map((cfg, cIdx) => (
                               <tr key={cIdx}>
                                 <td><span className="workstream-id-badge">{cfg.id}</span></td>
-                                <td><strong>{safeText(cfg?.component)}</strong></td>
                                 <td>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', flexWrap: 'wrap' }}>
-                                    <span
-                                      style={{
-                                        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                                        fontSize: '0.84rem',
-                                        fontWeight: 700,
-                                        color: cfg.severity === 'Critical' ? '#991b1b' : '#0369a1',
-                                        background: cfg.severity === 'Critical' ? '#fef2f2' : '#f0f9ff',
-                                        border: `1px solid ${cfg.severity === 'Critical' ? '#fecaca' : '#bae6fd'}`,
-                                        padding: '2px 8px',
-                                        borderRadius: '4px',
-                                        letterSpacing: '0.01em'
-                                      }}
-                                    >
-                                      {safeText(cfg.field || cfg.fieldName || safeText(cfg.title).replace(/^(Mandatory\s+Field\s+Missing:\s*|Missing\s+Field:\s*)/i, '').trim())}
-                                    </span>
-                                    {cfg.severity === 'Critical' && (
-                                      <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#b91c1c', background: '#fee2e2', border: '1px solid #fca5a5', padding: '1px 6px', borderRadius: '3px', textTransform: 'uppercase' }}>
-                                        Mandatory
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div style={{ fontWeight: 600, fontSize: '0.82rem', color: '#1e293b' }}>{safeText(cfg?.title)}</div>
-                                  <div style={{ fontSize: '0.76rem', color: '#64748b', marginTop: '3px' }}>
-                                    Current Status: <span style={{ color: cfg.severity === 'Critical' ? '#b91c1c' : '#b45309', fontWeight: 600 }}>{safeText(cfg?.status)}</span>
-                                  </div>
+                                  <span
+                                    style={{
+                                      display: 'inline-block',
+                                      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                                      fontSize: '0.84rem',
+                                      fontWeight: 700,
+                                      color: '#0369a1',
+                                      background: '#f0f9ff',
+                                      border: '1px solid #bae6fd',
+                                      padding: '4px 8px',
+                                      borderRadius: '4px',
+                                      letterSpacing: '0.01em'
+                                    }}
+                                  >
+                                    {safeText(cfg.field || cfg.fieldName || safeText(cfg.title).replace(/^(Mandatory\s+Field\s+Missing:\s*|Missing\s+Field:\s*)/i, '').trim())}
+                                  </span>
                                 </td>
                                 <td>
                                   <span className={`pill-badge ${cfg.severity === 'Critical' ? 'badge-critical' : cfg.severity === 'High' ? 'badge-at-risk' : 'badge-healthy'}`}>
                                     {safeText(cfg?.severity)}
                                   </span>
-                                </td>
-                                <td>
-                                  <code className="cfg-setting-code">{safeText(cfg?.setting)}</code>
                                 </td>
                               </tr>
                             ))}
@@ -1608,6 +1691,7 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                 </div>
               </div>
 
+              {!isHealthy && <>
               {/* SECTION 04: ROOT CAUSE ANALYSIS (ALIGNED WITH BRD ORDER) */}
               <div id="sec-rca" className="diagnostic-card deepdive-card">
                 <div className="diagnostic-card-header">
@@ -1702,7 +1786,11 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                           <div className="triad-icon">💰</div>
                           <div className="triad-title">Financial Impact</div>
                           <div className="triad-desc">
-                            {safeText(financialExposure) || 'Data not yet fetched'}
+                            {financialImpactPoints.length > 0 ? (
+                              <ul className="financial-impact-points">
+                                {financialImpactPoints.map((point, index) => <li key={index}>{point}</li>)}
+                              </ul>
+                            ) : 'Data not yet fetched'}
                           </div>
                         </div>
                         <div className="impact-triad-card triad-sla">
@@ -1969,6 +2057,7 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
                 </div>
               </div>
 
+              </>}
             </div>
           ) : (
             <div className="healthy-state-notice">

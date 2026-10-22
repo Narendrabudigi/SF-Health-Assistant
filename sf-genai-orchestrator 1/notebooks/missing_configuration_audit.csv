@@ -1,0 +1,11 @@
+Field_Family,RequiredLevel,Detected_Field,Availability,Non_Missing_Count
+Hire/start date,MANDATORY,joiningDate,PRESENT,910
+Onboarding completion date,MANDATORY,onboardingCompletionDate,PRESENT,83
+Onboarding process start timestamp,NORMAL,None,MISSING,0
+Employee identifier,NORMAL,employeeId,PRESENT,910
+Department,NORMAL,departmentId,PRESENT,882
+Location,NORMAL,locationId,PRESENT,728
+Pre-Day-1 task due dates,NORMAL,None,MISSING,0
+Pre-Day-1 task status,NORMAL,onboardingStatus,PRESENT,910
+Pre-Day-1 task scheduled count,NORMAL,preDay1TasksScheduledCount,PRESENT,910
+Pre-Day-1 task completed count,NORMAL,preDay1TasksCompletedCount,PRESENT,910

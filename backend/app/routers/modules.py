@@ -3,7 +3,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Query
 from typing import List, Dict, Any, Optional
 from app.db.mock_data import DEFAULT_MODULES
-from app.db.supabase_client import supabase_storage, normalize_slug, alphanumeric_key, normalize_missing_configurations, extract_accuracy_score
+from app.db.supabase_client import supabase_storage, normalize_slug, alphanumeric_key, normalize_missing_configurations, extract_accuracy_score, extract_forecast_accuracy_score
 
 router = APIRouter()
 logger = logging.getLogger("sf_health.modules")
@@ -360,6 +360,13 @@ def extract_metric_fields(override: Dict[str, Any], default_b: Optional[Dict[str
         override.get("trendAnalysis") or
         {"summary": "Data not yet fetched", "points": []}
     )
+    forecast = (
+        rep.get("forecast") or rep.get("forecastAnalysis") or
+        rep.get("futureTrendAnalysis") or rep.get("futureTrend") or
+        (trend.get("forecast") if isinstance(trend, dict) else None) or
+        (trend.get("futurePeriods") if isinstance(trend, dict) else None) or
+        override.get("forecast") or override.get("forecastAnalysis")
+    )
     raw_missing = override.get("missingConfigurations") or override.get("missingConfiguration") or []
     dq_checks = override.get("dataQuality", {}).get("checks", []) if isinstance(override.get("dataQuality"), dict) else []
     mod_raw = (
@@ -395,7 +402,16 @@ def extract_metric_fields(override: Dict[str, Any], default_b: Optional[Dict[str
     )
     business_impact_obj = {
         "overview": biz_impact_full.get("overview") or (how_effects if how_effects not in ("Data not yet fetched", "Data not yet fetched from Supabase") else ""),
-        "financialExposure": biz_impact_full.get("financialExposure") or biz_impact_full.get("financial_exposure", ""),
+        "financialExposure": first_value(
+            biz_impact_full.get("financialExposure"),
+            biz_impact_full.get("financial_exposure"),
+            biz_impact_full.get("financialImpact"),
+            biz_impact_full.get("financial_impact"),
+            biz_impact_full.get("estimatedFinancialImpact"),
+            biz_impact_full.get("costImpact"),
+            find_nested_val(rep, "financialExposure", "financialImpact", "estimatedFinancialImpact", "costImpact"),
+            ""
+        ),
         "slaAndTurnaround": biz_impact_full.get("slaAndTurnaround") or biz_impact_full.get("sla_and_turnaround", ""),
         "governanceAndAudit": biz_impact_full.get("governanceAndAudit") or biz_impact_full.get("governance_and_audit", "")
     }
@@ -404,6 +420,11 @@ def extract_metric_fields(override: Dict[str, Any], default_b: Optional[Dict[str
     accuracy_score = extract_accuracy_score(rep)
     if accuracy_score is None:
         accuracy_score = extract_accuracy_score(override)
+    forecast_accuracy_score = rep.get("forecastAccuracyScore")
+    if forecast_accuracy_score is None:
+        forecast_accuracy_score = extract_forecast_accuracy_score(rep)
+    if forecast_accuracy_score is None:
+        forecast_accuracy_score = extract_forecast_accuracy_score(override)
 
     return {
         "company": final_company,
@@ -413,6 +434,7 @@ def extract_metric_fields(override: Dict[str, Any], default_b: Optional[Dict[str
         "generatedAt": override.get("generated_at") or override.get("generatedAt"),
         "confidenceScore": confidence_score,
         "accuracyScore": accuracy_score,
+        "forecastAccuracyScore": forecast_accuracy_score,
         "missingConfigurations": missing_cfg,
         "moduleOverview": module_overview,
         "diagnosis": diagnosis_obj,
@@ -421,6 +443,7 @@ def extract_metric_fields(override: Dict[str, Any], default_b: Optional[Dict[str
             "whyItHappens": final_why_it_happens,
             "whereItHappens": affected_area or where_happens,
             "trendAnalysis": trend,
+            "forecast": forecast,
             "missingConfigurations": missing_cfg,
             "howItEffects": business_impact_obj["overview"] or how_effects,
             "businessImpact": business_impact_obj,
@@ -560,6 +583,7 @@ def apply_module_metric_overrides(
         result["generatedAt"] = extracted.get("generatedAt")
         result["confidenceScore"] = extracted.get("confidenceScore")
         result["accuracyScore"] = extracted.get("accuracyScore")
+        result["forecastAccuracyScore"] = extracted.get("forecastAccuracyScore")
         result["missingConfigurations"] = extracted.get("missingConfigurations", [])
         result["moduleOverview"] = extracted["moduleOverview"]
         result["diagnosis"] = extracted.get("diagnosis") or default_b.get("diagnosis", {})

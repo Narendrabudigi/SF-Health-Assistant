@@ -1,0 +1,15 @@
+Feature,Mean_Absolute_SHAP
+Engineered Offer Acceptance Days,0.30946496
+Engineered Filled To Hire Days,0.21958122
+Pre Day1 Tasks Scheduled Count,0.15025327
+Engineered Hire Weekday,0.08383667
+Step Name,0.042097908
+Candidate Data Entry Days,0.03727247
+Duration Days,0.036781784
+Location ID,0.019583065
+Department ID,0.018698918
+Engineered Hire Year,0.014790891
+Engineered Hire Quarter,0.0
+Compliance Document Type,0.0
+Manager Assignment Status,0.0
+Review New Hire Data Hours,0.0

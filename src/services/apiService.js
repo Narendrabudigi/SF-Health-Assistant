@@ -2147,10 +2147,24 @@ function normalizeSupabaseInsightPayload(
       rawData.howItEffects ||
       '',
 
-    financialExposure:
-      rawBusinessImpact.financialExposure ||
-      rawBusinessImpact.financial_exposure ||
-      '',
+    financialExposure: firstUsableValue(
+      rawBusinessImpact.financialExposure,
+      rawBusinessImpact.financial_exposure,
+      rawBusinessImpact.financialImpact,
+      rawBusinessImpact.financial_impact,
+      rawBusinessImpact.estimatedFinancialImpact,
+      rawBusinessImpact.costImpact,
+      rep.financialExposure,
+      rep.financial_exposure,
+      rep.financialImpact,
+      rep.financial_impact,
+      rep.estimatedFinancialImpact,
+      rep.costImpact,
+      rawData.financialImpact,
+      rawData.financial_impact,
+      rawData.estimatedFinancialImpact,
+      rawData.costImpact
+    ) || '',
 
     slaAndTurnaround:
       rawBusinessImpact.slaAndTurnaround ||
@@ -2210,6 +2224,11 @@ function normalizeSupabaseInsightPayload(
   const missingConfigurations = getMetricMissingFields(
     rawData
   );
+  const forecastAccuracyScore = rawData.forecastAccuracyScore ??
+    rep.forecastAccuracyScore ??
+    rep.selectedTrainingModel?.forecastModel?.r2 ??
+    rawData.selectedTrainingModel?.forecastModel?.r2 ??
+    null;
 
   return {
     metric: {
@@ -2226,6 +2245,7 @@ function normalizeSupabaseInsightPayload(
       variance: String(varianceVal),
 
       confidenceScore,
+      forecastAccuracyScore,
 
       successCriteria,
       success_criteria: successCriteria,
@@ -2262,6 +2282,19 @@ function normalizeSupabaseInsightPayload(
           rawData.trendAnalysis ||
           {},
 
+        forecast:
+          rep.forecast ||
+          rep.forecastAnalysis ||
+          rep.futureTrendAnalysis ||
+          rep.futureTrend ||
+          rep.trendAnalysis?.forecast ||
+          rep.trend_analysis?.forecast ||
+          rawData.forecast ||
+          rawData.forecastAnalysis ||
+          rawData.futureTrendAnalysis ||
+          rawData.futureTrend ||
+          null,
+
         missingConfigurations,
 
         howItEffects:
@@ -2280,6 +2313,7 @@ function normalizeSupabaseInsightPayload(
     diagnosis: diagObj,
 
     confidenceScore,
+    forecastAccuracyScore,
 
     successCriteria,
     success_criteria: successCriteria,

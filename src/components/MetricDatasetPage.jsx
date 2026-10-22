@@ -3,6 +3,15 @@ import { apiService } from '../services/apiService';
 
 const PAGE_SIZE = 100;
 
+function formatDatasetCell(value) {
+  if (value === null || value === undefined) return '—';
+  if (typeof value === 'string') {
+    const isoDateTime = value.match(/^(\d{4}-\d{2}-\d{2})T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})?$/);
+    if (isoDateTime) return isoDateTime[1];
+  }
+  return String(value);
+}
+
 export default function MetricDatasetPage({ module, metric, onBack }) {
   const [dataset, setDataset] = useState(null);
   const [offset, setOffset] = useState(0);
@@ -149,7 +158,7 @@ export default function MetricDatasetPage({ module, metric, onBack }) {
                       {rows.map((row, rowIndex) => (
                         <tr key={offset + rowIndex}>
                           {visibleColumns.map((column, columnIndex) => (
-                            <td key={`${column}-${columnIndex}`}>{row[column] === null || row[column] === undefined ? '—' : String(row[column])}</td>
+                            <td key={`${column}-${columnIndex}`}>{formatDatasetCell(row[column])}</td>
                           ))}
                         </tr>
                       ))}

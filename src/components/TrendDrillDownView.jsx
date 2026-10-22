@@ -2,6 +2,106 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { getTrendDrillDownData } from '../utils/trendDrillDownData';
 import { formatDisplayUnits, formatVarianceDisplay } from '../utils/displayUnits';
 
+function getFutureForecast(metric) {
+  let source = metric?.forecast ??
+    metric?.detailedAnalysis?.forecast ??
+    metric?.detailedAnalysis?.forecastAnalysis ??
+    metric?.forecastAnalysis;
+  if (source && !Array.isArray(source) && source.forecast && typeof source.forecast === 'object') {
+    source = source.forecast;
+  }
+  if (!source) return { summary: '', points: [] };
+
+  const candidates = Array.isArray(source)
+    ? [source]
+    : [source.periods, source.points, source.forecasts, source.predictions, source.forecastedValues, source.forecastPeriods, source.futurePeriods, source.data]
+      .filter(Array.isArray);
+  const rawPoints = candidates.find((items) => items.length) ||
+    (source && !Array.isArray(source)
+      ? Object.entries(source)
+        .filter(([, point]) => point && typeof point === 'object' && !Array.isArray(point) && point.period !== undefined)
+        .map(([horizon, point]) => ({ ...point, horizon }))
+      : []);
+  const points = rawPoints.map((point, index) => {
+    if (point === null || point === undefined) return null;
+    if (typeof point !== 'object') return { label: `Period ${index + 1}`, value: point };
+    const value = point.forecastValue ?? point.forecastedValue ?? point.predictedValue ??
+      point.prediction ?? point.value ?? point.average ?? point.y;
+    if (value === null || value === undefined || value === '') return null;
+    const horizon = point.horizon
+      ? point.horizon.replace(/([A-Z])/g, ' $1').replace(/^./, (letter) => letter.toUpperCase())
+      : '';
+    const period = point.period ?? point.date ?? point.timestamp ?? point.label ?? point.month;
+    return {
+      label: [horizon, period].filter(Boolean).join(' · ') || `Period ${index + 1}`,
+      value,
+      lower: point.lowerBound ?? point.lower ?? point.confidenceInterval?.lower,
+      upper: point.upperBound ?? point.upper ?? point.confidenceInterval?.upper,
+      healthState: point.predictedHealthState ?? point.healthState ?? point.status
+    };
+  }).filter(Boolean);
+
+  return {
+    summary: typeof source === 'object' && !Array.isArray(source)
+      ? (source.summary ?? source.description ?? source.method ?? '')
+      : '',
+    points
+  };
+}
+
+function FutureTrendAnalysis({ metric }) {
+  const forecast = getFutureForecast(metric);
+  const rawAccuracy = metric?.forecastAccuracyScore;
+  const forecastAccuracy = (() => {
+    if (rawAccuracy === null || rawAccuracy === undefined || rawAccuracy === '') return null;
+    const rawText = String(rawAccuracy).trim();
+    const hasPercentSign = rawText.includes('%');
+    const score = Number.parseFloat(rawText.replace('%', ''));
+    if (!Number.isFinite(score)) return null;
+    const percentage = !hasPercentSign && Math.abs(score) <= 1 ? score * 100 : score;
+    return `${Number((Math.round(percentage * 100) / 100).toFixed(2))}%`;
+  })();
+  return (
+    <section className="future-trend-section" aria-label="Future Trend Analysis">
+      <div className="future-trend-heading">
+        <div>
+          <h3>Future Trend Analysis</h3>
+          <p>Forecast values supplied by ML Insights</p>
+        </div>
+        <div className="forecast-accuracy-badge" title="Forecast model R² score from ML Insights">
+          <span>Forecast Accuracy</span>
+          <strong>{forecastAccuracy ?? 'N/A'}</strong>
+        </div>
+      </div>
+      {forecast.points.length ? (
+        <>
+          {forecast.summary && <p className="future-trend-summary">{formatDisplayUnits(forecast.summary)}</p>}
+          <div className="future-trend-list">
+            {forecast.points.map((point, index) => (
+              <article className="future-trend-point" key={`${point.label}-${index}`}>
+                <span className="future-trend-period">{formatDisplayUnits(point.label)}</span>
+                <strong>{formatDisplayUnits(point.value)}</strong>
+                {point.healthState && (
+                  <span className={`future-trend-health future-trend-health-${String(point.healthState).toLowerCase().replace(/[^a-z]+/g, '-')}`}>
+                    {String(point.healthState).replace(/[_-]+/g, ' ').replace(/^./, (letter) => letter.toUpperCase())}
+                  </span>
+                )}
+                {(point.lower !== undefined || point.upper !== undefined) && (
+                  <small>
+                    Range: {point.lower !== undefined ? formatDisplayUnits(point.lower) : '—'} – {point.upper !== undefined ? formatDisplayUnits(point.upper) : '—'}
+                  </small>
+                )}
+              </article>
+            ))}
+          </div>
+        </>
+      ) : (
+        <p className="future-trend-empty">Future forecast data is not available in ML Insights for this metric.</p>
+      )}
+    </section>
+  );
+}
+
 export default function TrendDrillDownView({ metric }) {
   const metricName = metric?.metric;
   const trendData = useMemo(() => getTrendDrillDownData(metric), [metric]);
@@ -185,9 +285,12 @@ export default function TrendDrillDownView({ metric }) {
 
   if (!years.length) {
     return (
-      <div style={{ padding: '20px 24px', borderRadius: '8px', background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.25)', borderLeft: '4px solid #f59e0b', color: '#92400e' }}>
-        <div style={{ fontWeight: 700, marginBottom: '4px' }}>Historical Trend Data Unavailable</div>
-        <div style={{ fontSize: '12px', lineHeight: 1.55 }}>{isDataGap ? 'The metric has data gaps, and ML Insights has no historical periods to display.' : 'No yearly, quarterly, or monthly periods were found for this metric in ML Insights.'}</div>
+      <div>
+        <div style={{ padding: '20px 24px', borderRadius: '8px', background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.25)', borderLeft: '4px solid #f59e0b', color: '#92400e' }}>
+          <div style={{ fontWeight: 700, marginBottom: '4px' }}>Historical Trend Data Unavailable</div>
+          <div style={{ fontSize: '12px', lineHeight: 1.55 }}>{isDataGap ? 'The metric has data gaps, and ML Insights has no historical periods to display.' : 'No yearly, quarterly, or monthly periods were found for this metric in ML Insights.'}</div>
+        </div>
+        <FutureTrendAnalysis metric={metric} />
       </div>
     );
   }
@@ -437,6 +540,8 @@ export default function TrendDrillDownView({ metric }) {
           );
         })}
       </div>
+
+      <FutureTrendAnalysis metric={metric} />
 
       {/* 5. Helpful Interactive Hint Footer */}
       <div className="trend-drilldown-footer-hint">

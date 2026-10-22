@@ -4,8 +4,10 @@ import os
 from typing import List
 from pydantic_settings import BaseSettings
 from dotenv import load_dotenv
+from pathlib import Path
 
-load_dotenv()
+BACKEND_ENV_FILE = Path(__file__).resolve().parents[1] / ".env"
+load_dotenv(BACKEND_ENV_FILE)
 
 class Settings(BaseSettings):
     HOST: str = os.getenv("HOST", "0.0.0.0")

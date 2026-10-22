@@ -1,0 +1,6 @@
+Evaluation,R2
+Training,0.21461888081312075
+Holdout test,-0.6190579458005798
+Mean cross-validation,-0.02455019752712293
+Baseline holdout test,-0.5281913140660375
+Baseline cross-validation,-0.037214483631748375

@@ -766,7 +766,7 @@ body {
    ========================================================================== */
 .swiss-kpi-strip {
   display: grid;
-  grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr;
+  grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr auto 1fr;
   align-items: center;
   background: #ffffff;
   border: 1px solid #e2e8f0;
@@ -830,6 +830,8 @@ body {
 .text-at-risk {
   color: #f59e0b;
 }
+
+.text-process-gaps { color: #64748b; }
 
 /* ==========================================================================
    5. Module Cards (Top 1% Precision Architecture)
@@ -2618,6 +2620,11 @@ body {
   text-align: left;
 }
 
+.missing-config-table {
+  width: min(100%, 920px);
+  table-layout: fixed;
+}
+
 .brd-spec-table th {
   background-color: #0b4d75;
   color: #ffffff;
@@ -2720,6 +2727,19 @@ body {
   border-radius: 6px;
   padding: 14px 16px;
   margin-bottom: 8px;
+}
+
+.data-gaps-guidance {
+  margin: 0 0 14px;
+  padding: 14px 16px;
+  border: 1px solid #bfdbfe;
+  border-left: 4px solid #0284c7;
+  border-radius: 8px;
+  background: #f0f9ff;
+  color: #0c4a6e;
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.5;
 }
 
 .cfg-banner-info {
@@ -4887,6 +4907,17 @@ select.form-control {
   line-height: 1.35;
 }
 
+.financial-impact-points {
+  margin: 0;
+  padding-left: 17px;
+  display: grid;
+  gap: 5px;
+}
+
+.financial-impact-points li {
+  padding-left: 2px;
+}
+
 /* Footprint Box in WHERE section */
 .sf-footprint-box {
   background: #f8fafc;
@@ -5175,24 +5206,15 @@ select.form-control {
 .fab-download-container {
   position: fixed !important;
   bottom: 32px !important;
-  right: 32px !important;
+  right: 16px !important;
   z-index: 99999 !important;
   pointer-events: auto !important;
-}
-
-.fab-download-container::after {
-  position: absolute;
-  right: 0;
-  bottom: 52px;
-  width: 250px;
-  height: 12px;
-  content: '';
 }
 
 .fab-dataset-option {
   position: absolute;
   right: 0;
-  bottom: 64px;
+  bottom: 50px;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -5955,6 +5977,27 @@ select.form-control {
 .data-gap-count-badge { display:inline-flex; min-width:30px; height:24px; padding:0 8px; align-items:center; justify-content:center; border-radius:999px; font-size:11px; font-weight:800; }
 .data-gap-count-badge.no-gaps { color:#166534; background:#dcfce7; border:1px solid #bbf7d0; }
 .data-gap-count-badge.has-gaps { color:#92400e; background:#fef3c7; border:1px solid #fde68a; }
+
+/* ML Insights future forecast within the hierarchical trend analysis */
+.future-trend-section { margin-top:20px; padding:16px 18px; border:1px solid #dbe7f2; border-radius:12px; background:#f8fbff; }
+.future-trend-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
+.future-trend-heading h3 { margin:0; color:#0f2c46; font-size:15px; font-weight:800; }
+.future-trend-heading p { margin:4px 0 0; color:#64748b; font-size:11px; }
+.forecast-accuracy-badge { display:flex; align-items:center; gap:10px; padding:7px 10px; border:1px solid #bfdbfe; border-radius:9px; background:#eff6ff; white-space:nowrap; }
+.forecast-accuracy-badge span { color:#475569; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; }
+.forecast-accuracy-badge strong { color:#0369a1; font-size:14px; }
+.future-trend-summary { margin:0 0 12px; color:#475569; font-size:12px; line-height:1.5; }
+.future-trend-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(145px,1fr)); gap:10px; }
+.future-trend-point { display:flex; flex-direction:column; gap:5px; min-width:0; padding:11px 12px; border:1px solid #e2e8f0; border-radius:9px; background:#fff; }
+.future-trend-period { color:#64748b; font-size:11px; font-weight:700; }
+.future-trend-point strong { color:#0f172a; font-size:17px; }
+.future-trend-point small { color:#64748b; font-size:10px; }
+.future-trend-health { align-self:flex-start; padding:3px 8px; border-radius:999px; background:#f1f5f9; color:#475569; font-size:10px; font-weight:700; text-transform:capitalize; }
+.future-trend-health-healthy { background:#ecfdf5; color:#047857; }
+.future-trend-health-at-risk { background:#fffbeb; color:#b45309; }
+.future-trend-health-critical { background:#fef2f2; color:#b91c1c; }
+.future-trend-empty { margin:0; padding:12px; border-radius:8px; background:#fff; color:#64748b; font-size:12px; }
+@media (max-width: 600px) { .future-trend-heading { align-items:flex-start; flex-direction:column; } }
 
 /* Deep dive confidence score */
 .diagnosis-confidence-badge { margin-left:auto; display:flex; align-items:center; gap:9px; padding:7px 10px; border:1px solid #bfdbfe; background:#eff6ff; border-radius:9px; white-space:nowrap; }

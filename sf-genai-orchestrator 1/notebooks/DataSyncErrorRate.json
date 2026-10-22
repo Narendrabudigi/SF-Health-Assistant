@@ -1,0 +1,531 @@
+{
+  "generatedAt": "2026-10-22T10:34:07Z",
+  "module": "EC",
+  "reportVersion": "2.2",
+  "metricName": "DataSyncErrorRate",
+  "unit": "percent",
+  "higherIsBetter": false,
+  "companyValue": 2.95,
+  "industryStandardValue": 1.0,
+  "healthState": "at-risk",
+  "variance": {
+    "value": -1.95,
+    "percentage": -195.0
+  },
+  "trendAnalysis": {
+    "direction": "down",
+    "granularity": "yearly",
+    "periods": [
+      {
+        "period": "2024",
+        "year": 2024,
+        "average": 3.83,
+        "isPartial": true,
+        "children": {
+          "granularity": "quarterly",
+          "periods": [
+            {
+              "period": "2024-Q1",
+              "quarter": 1,
+              "average": null,
+              "isPartial": true,
+              "children": {
+                "granularity": "monthly",
+                "periods": [
+                  {
+                    "period": "2024-01",
+                    "month": 1,
+                    "average": null,
+                    "isPartial": true
+                  },
+                  {
+                    "period": "2024-02",
+                    "month": 2,
+                    "average": null,
+                    "isPartial": true
+                  },
+                  {
+                    "period": "2024-03",
+                    "month": 3,
+                    "average": null,
+                    "isPartial": true
+                  }
+                ]
+              }
+            },
+            {
+              "period": "2024-Q2",
+              "quarter": 2,
+              "average": null,
+              "isPartial": true,
+              "children": {
+                "granularity": "monthly",
+                "periods": [
+                  {
+                    "period": "2024-04",
+                    "month": 4,
+                    "average": null,
+                    "isPartial": true
+                  },
+                  {
+                    "period": "2024-05",
+                    "month": 5,
+                    "average": null,
+                    "isPartial": true
+                  },
+                  {
+                    "period": "2024-06",
+                    "month": 6,
+                    "average": null,
+                    "isPartial": true
+                  }
+                ]
+              }
+            },
+            {
+              "period": "2024-Q3",
+              "quarter": 3,
+              "average": null,
+              "isPartial": true,
+              "children": {
+                "granularity": "monthly",
+                "periods": [
+                  {
+                    "period": "2024-07",
+                    "month": 7,
+                    "average": null,
+                    "isPartial": true
+                  },
+                  {
+                    "period": "2024-08",
+                    "month": 8,
+                    "average": null,
+                    "isPartial": true
+                  },
+                  {
+                    "period": "2024-09",
+                    "month": 9,
+                    "average": null,
+                    "isPartial": true
+                  }
+                ]
+              }
+            },
+            {
+              "period": "2024-Q4",
+              "quarter": 4,
+              "average": 3.83,
+              "isPartial": false,
+              "children": {
+                "granularity": "monthly",
+                "periods": [
+                  {
+                    "period": "2024-10",
+                    "month": 10,
+                    "average": 6.67,
+                    "isPartial": false
+                  },
+                  {
+                    "period": "2024-11",
+                    "month": 11,
+                    "average": 3.23,
+                    "isPartial": false
+                  },
+                  {
+                    "period": "2024-12",
+                    "month": 12,
+                    "average": 3.87,
+                    "isPartial": false
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "period": "2025",
+        "year": 2025,
+        "average": 2.87,
+        "isPartial": false,
+        "children": {
+          "granularity": "quarterly",
+          "periods": [
+            {
+              "period": "2025-Q1",
+              "quarter": 1,
+              "average": 3.23,
+              "isPartial": false,
+              "children": {
+                "granularity": "monthly",
+                "periods": [
+                  {
+                    "period": "2025-01",
+                    "month": 1,
+                    "average": 2.61,
+                    "isPartial": false
+                  },
+                  {
+                    "period": "2025-02",
+                    "month": 2,
+                    "average": 3.05,
+                    "isPartial": false
+                  },
+                  {
+                    "period": "2025-03",
+                    "month": 3,
+                    "average": 3.35,
+                    "isPartial": false
+                  }
+                ]
+              }
+            },
+            {
+              "period": "2025-Q2",
+              "quarter": 2,
+              "average": 2.49,
+              "isPartial": false,
+              "children": {
+                "granularity": "monthly",
+                "periods": [
+                  {
+                    "period": "2025-04",
+                    "month": 4,
+                    "average": 2.41,
+                    "isPartial": false
+                  },
+                  {
+                    "period": "2025-05",
+                    "month": 5,
+                    "average": 2.85,
+                    "isPartial": false
+                  },
+                  {
+                    "period": "2025-06",
+                    "month": 6,
+                    "average": 2.29,
+                    "isPartial": false
+                  }
+                ]
+              }
+            },
+            {
+              "period": "2025-Q3",
+              "quarter": 3,
+              "average": 2.76,
+              "isPartial": false,
+              "children": {
+                "granularity": "monthly",
+                "periods": [
+                  {
+                    "period": "2025-07",
+                    "month": 7,
+                    "average": 1.67,
+                    "isPartial": false
+                  },
+                  {
+                    "period": "2025-08",
+                    "month": 8,
+                    "average": 3.97,
+                    "isPartial": false
+                  },
+                  {
+                    "period": "2025-09",
+                    "month": 9,
+                    "average": 2.92,
+                    "isPartial": false
+                  }
+                ]
+              }
+            },
+            {
+              "period": "2025-Q4",
+              "quarter": 4,
+              "average": 2.56,
+              "isPartial": false,
+              "children": {
+                "granularity": "monthly",
+                "periods": [
+                  {
+                    "period": "2025-10",
+                    "month": 10,
+                    "average": 3.82,
+                    "isPartial": false
+                  },
+                  {
+                    "period": "2025-11",
+                    "month": 11,
+                    "average": 2.37,
+                    "isPartial": false
+                  },
+                  {
+                    "period": "2025-12",
+                    "month": 12,
+                    "average": 1.61,
+                    "isPartial": false
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "period": "2026",
+        "year": 2026,
+        "average": 2.93,
+        "isPartial": true,
+        "children": {
+          "granularity": "quarterly",
+          "periods": [
+            {
+              "period": "2026-Q1",
+              "quarter": 1,
+              "average": 3.37,
+              "isPartial": false,
+              "children": {
+                "granularity": "monthly",
+                "periods": [
+                  {
+                    "period": "2026-01",
+                    "month": 1,
+                    "average": 3.7,
+                    "isPartial": false
+                  },
+                  {
+                    "period": "2026-02",
+                    "month": 2,
+                    "average": 2.26,
+                    "isPartial": false
+                  },
+                  {
+                    "period": "2026-03",
+                    "month": 3,
+                    "average": 3.49,
+                    "isPartial": false
+                  }
+                ]
+              }
+            },
+            {
+              "period": "2026-Q2",
+              "quarter": 2,
+              "average": 3.38,
+              "isPartial": false,
+              "children": {
+                "granularity": "monthly",
+                "periods": [
+                  {
+                    "period": "2026-04",
+                    "month": 4,
+                    "average": 5.21,
+                    "isPartial": false
+                  },
+                  {
+                    "period": "2026-05",
+                    "month": 5,
+                    "average": 2.45,
+                    "isPartial": false
+                  },
+                  {
+                    "period": "2026-06",
+                    "month": 6,
+                    "average": 1.61,
+                    "isPartial": false
+                  }
+                ]
+              }
+            },
+            {
+              "period": "2026-Q3",
+              "quarter": 3,
+              "average": 1.29,
+              "isPartial": false,
+              "children": {
+                "granularity": "monthly",
+                "periods": [
+                  {
+                    "period": "2026-07",
+                    "month": 7,
+                    "average": 1.77,
+                    "isPartial": false
+                  },
+                  {
+                    "period": "2026-08",
+                    "month": 8,
+                    "average": 0.68,
+                    "isPartial": false
+                  },
+                  {
+                    "period": "2026-09",
+                    "month": 9,
+                    "average": 1.42,
+                    "isPartial": false
+                  }
+                ]
+              }
+            },
+            {
+              "period": "2026-Q4",
+              "quarter": 4,
+              "average": null,
+              "isPartial": true,
+              "children": {
+                "granularity": "monthly",
+                "periods": [
+                  {
+                    "period": "2026-10",
+                    "month": 10,
+                    "average": null,
+                    "isPartial": true
+                  },
+                  {
+                    "period": "2026-11",
+                    "month": 11,
+                    "average": null,
+                    "isPartial": true
+                  },
+                  {
+                    "period": "2026-12",
+                    "month": 12,
+                    "average": null,
+                    "isPartial": true
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "forecast": {
+    "nextMonth": {
+      "period": "2026-10",
+      "predictedValue": 1.7,
+      "lowerBound": 0.4,
+      "upperBound": 3.0,
+      "predictedHealthState": "at-risk"
+    },
+    "nextQuarter": {
+      "period": "2026-Q4",
+      "predictedValue": 1.5,
+      "lowerBound": 0.0,
+      "upperBound": 3.3,
+      "predictedHealthState": "at-risk"
+    },
+    "nextYear": {
+      "period": "2027",
+      "predictedValue": 1.3,
+      "lowerBound": 0.0,
+      "upperBound": 3.8,
+      "predictedHealthState": "at-risk"
+    }
+  },
+  "rca": {
+    "applicable": true,
+    "breachValue": 1.95,
+    "factors": [
+      {
+        "rank": 1,
+        "factorName": "targetSystem",
+        "avgFactorValue": null,
+        "impactValue": 0.71,
+        "impactPct": 36.4
+      },
+      {
+        "rank": 2,
+        "factorName": "employeeType",
+        "avgFactorValue": null,
+        "impactValue": 0.66,
+        "impactPct": 33.6
+      },
+      {
+        "rank": 3,
+        "factorName": "businessUnitName",
+        "avgFactorValue": null,
+        "impactValue": 0.58,
+        "impactPct": 30.0
+      }
+    ]
+  },
+  "dataQuality": {
+    "overallRating": "fair",
+    "dataPeriod": {
+      "from": "2024-10-18",
+      "to": "2026-09-26"
+    },
+    "recordsAnalysed": 23779,
+    "checks": [
+      {
+        "checkName": "MissingValues",
+        "category": "Completeness",
+        "checkedRecords": 23779,
+        "failedRecords": 23078,
+        "failedPct": 97.05,
+        "affectedColumns": [
+          "errorCode",
+          "errorMessage",
+          "errorCategory",
+          "errorSeverity"
+        ],
+        "affectedCells": 92312
+      },
+      {
+        "checkName": "InvalidValues",
+        "category": "Validity",
+        "checkedRecords": 23779,
+        "failedRecords": 0,
+        "failedPct": 0.0,
+        "affectedColumns": null
+      },
+      {
+        "checkName": "DuplicateRecords",
+        "category": "Uniqueness",
+        "checkedRecords": 23779,
+        "failedRecords": 0,
+        "failedPct": 0.0,
+        "affectedColumns": null
+      },
+      {
+        "checkName": "Staleness",
+        "category": "Staleness",
+        "checkedRecords": 23779,
+        "failedRecords": 0,
+        "failedPct": 0.0,
+        "affectedColumns": [
+          "eventDateTime"
+        ],
+        "staleRange": "> 3 years old"
+      }
+    ]
+  },
+  "selectedTrainingModel": {
+    "rcaModel": {
+      "modelName": "Random Forest",
+      "accuracy": 0.9586,
+      "precision": 0.3308,
+      "recall": 0.43,
+      "f1": 0.3739,
+      "rocAuc": 0.8464,
+      "prAuc": 0.3001,
+      "rating": "good"
+    },
+    "forecastModel": {
+      "modelName": "Theil-Sen Robust Trend",
+      "r2": null,
+      "mae": 0.48,
+      "rmse": 0.65,
+      "rating": "excellent"
+    }
+  },
+  "missingConfigurations": {
+    "mandatoryFieldsMissing": [],
+    "otherFieldsMissing": [
+      "errorCode",
+      "errorMessage",
+      "errorCategory",
+      "errorSeverity"
+    ]
+  }
+}

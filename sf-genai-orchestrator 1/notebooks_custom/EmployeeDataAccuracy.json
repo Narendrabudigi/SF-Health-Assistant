@@ -1,0 +1,127 @@
+{
+  "generatedAt": "2026-10-22T10:51:06Z",
+  "module": "EC",
+  "reportVersion": "2.2",
+  "metricName": "EmployeeDataAccuracy",
+  "unit": "percent",
+  "higherIsBetter": true,
+  "companyValue": null,
+  "industryStandardValue": 99.0,
+  "healthState": null,
+  "variance": {
+    "value": null,
+    "percentage": null
+  },
+  "trendAnalysis": null,
+  "forecast": {
+    "applicable": false,
+    "status": "Data Missing",
+    "message": "Forecast was not performed because essential metric data is incomplete."
+  },
+  "rca": {
+    "applicable": false,
+    "status": "Data Missing",
+    "message": "RCA was not performed because essential metric data is incomplete.",
+    "breachValue": null,
+    "factors": []
+  },
+  "dataQuality": {
+    "overallRating": "poor",
+    "dataPeriod": {
+      "from": "1973-04-01",
+      "to": "2026-09-26"
+    },
+    "recordsAnalysed": 4487,
+    "checks": [
+      {
+        "checkName": "MissingValues",
+        "category": "Completeness",
+        "checkedRecords": 4487,
+        "failedRecords": 4487,
+        "failedPct": 100.0,
+        "affectedColumns": [
+          "middleName",
+          "nationality",
+          "workAuthorization",
+          "emailAddress",
+          "originalStartDate",
+          "employeeClass",
+          "position",
+          "positionTitle",
+          "businessUnit",
+          "division",
+          "company",
+          "legalEntity",
+          "costCenter",
+          "totalFieldsChecked",
+          "fieldsWithDiscrepancy",
+          "dataAccuracyRatePercent",
+          "lastAuditDate",
+          "auditStatus"
+        ],
+        "affectedCells": 25129
+      },
+      {
+        "checkName": "InvalidValues",
+        "category": "Validity",
+        "checkedRecords": 4487,
+        "failedRecords": 0,
+        "failedPct": 0.0,
+        "affectedColumns": null
+      },
+      {
+        "checkName": "DuplicateRecords",
+        "category": "Uniqueness",
+        "checkedRecords": 4487,
+        "failedRecords": 0,
+        "failedPct": 0.0,
+        "affectedColumns": null
+      },
+      {
+        "checkName": "Staleness",
+        "category": "Staleness",
+        "checkedRecords": 4487,
+        "failedRecords": 3210,
+        "failedPct": 71.54,
+        "affectedColumns": [
+          "originalStartDate"
+        ],
+        "staleRange": "> 3 years old"
+      }
+    ]
+  },
+  "selectedTrainingModel": {
+    "rcaModel": {
+      "status": "Data Missing",
+      "trainingPerformed": false
+    },
+    "forecastModel": {
+      "status": "Data Missing",
+      "trainingPerformed": false
+    }
+  },
+  "missingConfigurations": {
+    "mandatoryFieldsMissing": [
+      "fieldsWithDiscrepancy",
+      "dataAccuracyRatePercent",
+      "auditStatus"
+    ],
+    "otherFieldsMissing": [
+      "middleName",
+      "nationality",
+      "workAuthorization",
+      "emailAddress",
+      "originalStartDate",
+      "employeeClass",
+      "position",
+      "positionTitle",
+      "businessUnit",
+      "division",
+      "company",
+      "legalEntity",
+      "costCenter",
+      "totalFieldsChecked",
+      "lastAuditDate"
+    ]
+  }
+}

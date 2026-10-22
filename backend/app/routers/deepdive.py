@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Query
 from typing import Optional, Dict, Any, List
-from app.db.supabase_client import supabase_storage, normalize_slug, alphanumeric_key
+from app.db.supabase_client import supabase_storage, normalize_slug, alphanumeric_key, extract_forecast_accuracy_score
 from app.db.mock_data import DEFAULT_MODULES
 from app.routers import modules
 
@@ -266,9 +266,31 @@ def get_metric_deep_dive(
         detailed_analysis.get("businessImpact") or
         {}
     )
+    financial_impact_candidates = [
+        biz_impact.get("financialExposure"),
+        biz_impact.get("financial_exposure"),
+        biz_impact.get("financialImpact"),
+        biz_impact.get("financial_impact"),
+        biz_impact.get("estimatedFinancialImpact"),
+        biz_impact.get("costImpact"),
+        rep.get("financialExposure"),
+        rep.get("financial_exposure"),
+        rep.get("financialImpact"),
+        rep.get("financial_impact"),
+        rep.get("estimatedFinancialImpact"),
+        rep.get("costImpact"),
+        supabase_data.get("financialImpact"),
+        supabase_data.get("financial_impact"),
+        detailed_analysis.get("financialExposure"),
+        detailed_analysis.get("financialImpact")
+    ]
+    financial_impact = next(
+        (value for value in financial_impact_candidates if value is not None and value != ""),
+        ""
+    )
     business_impact_obj = {
         "overview": biz_impact.get("overview") or detailed_analysis.get("howItEffects", ""),
-        "financialExposure": biz_impact.get("financialExposure") or biz_impact.get("financial_exposure", ""),
+        "financialExposure": financial_impact,
         "slaAndTurnaround": biz_impact.get("slaAndTurnaround") or biz_impact.get("sla_and_turnaround", ""),
         "governanceAndAudit": biz_impact.get("governanceAndAudit") or biz_impact.get("governance_and_audit", "")
     }
@@ -338,6 +360,9 @@ def get_metric_deep_dive(
         (supabase_data.get("dataQuality") or {}).get("confidenceScore") if isinstance(supabase_data.get("dataQuality"), dict) else None
     )
     accuracy_score = supabase_data.get("accuracyScore")
+    forecast_accuracy_score = supabase_data.get("forecastAccuracyScore")
+    if forecast_accuracy_score is None:
+        forecast_accuracy_score = extract_forecast_accuracy_score(rep)
 
     return {
         "metric": {
@@ -350,6 +375,7 @@ def get_metric_deep_dive(
             "variance": str(variance_val),
             "confidenceScore": confidence_score,
             "accuracyScore": accuracy_score,
+            "forecastAccuracyScore": forecast_accuracy_score,
             "moduleOverview": module_overview,
             "detailedAnalysis": detailed_analysis,
             "diagnosis": diagnosis_obj,
@@ -362,6 +388,7 @@ def get_metric_deep_dive(
         "businessImpact": business_impact_obj,
         "confidenceScore": confidence_score,
         "accuracyScore": accuracy_score,
+        "forecastAccuracyScore": forecast_accuracy_score,
         "stageDrivers": formatted_stage_drivers,
         "segmentDrivers": formatted_segment_drivers,
         "shapFactors": shap_factors,

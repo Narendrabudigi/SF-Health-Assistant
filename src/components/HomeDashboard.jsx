@@ -66,14 +66,19 @@ const getBadgeClass = (status) => {
 export default function HomeDashboard({ modules, onSelectModule }) {
   // Home alert totals count metrics, not modules. Use the same explicit
   // Supabase health status normalization as the module analysis table.
-  const metricStatuses = (Array.isArray(modules) ? modules : []).flatMap((module) =>
-    (Array.isArray(module?.benchmarks) ? module.benchmarks : []).map((metric) =>
-      normalizeMetricStatus(metric?.status)
-    )
+  const allMetrics = (Array.isArray(modules) ? modules : []).flatMap((module) =>
+    Array.isArray(module?.benchmarks) ? module.benchmarks : []
   );
+  const metricStatuses = allMetrics.map((metric) => normalizeMetricStatus(metric?.status));
   const criticalCount = metricStatuses.filter((status) => status === 'Critical').length;
   const atRiskCount = metricStatuses.filter((status) => status === 'At Risk').length;
   const healthyCount = metricStatuses.filter((status) => status === 'Healthy').length;
+  const processGapsCount = allMetrics.filter((metric) => {
+    const hasSupabasePayload = Boolean(
+      metric?.isSupabaseLive || String(metric?._source || '').startsWith('supabase')
+    );
+    return hasSupabasePayload && isCompanyValueUnavailable(metric?.company) && getMissingFieldCount(metric) > 0;
+  }).length;
   const totalMetrics = metricStatuses.length;
   const healthyPercentage = totalMetrics > 0
     ? ((healthyCount / totalMetrics) * 100).toFixed(1)
@@ -107,6 +112,12 @@ export default function HomeDashboard({ modules, onSelectModule }) {
           <span className="kpi-cell-label">At-Risk Processes</span>
           <span className="kpi-cell-value text-at-risk">{atRiskCount}</span>
           <span className="kpi-cell-sub">SLA Variance Identified</span>
+        </div>
+        <div className="kpi-strip-divider"></div>
+        <div className="kpi-strip-cell">
+          <span className="kpi-cell-label">Process Gaps</span>
+          <span className="kpi-cell-value text-process-gaps">{processGapsCount}</span>
+          <span className="kpi-cell-sub">Metrics blocked by missing process data</span>
         </div>
         <div className="kpi-strip-divider"></div>
         <div className="kpi-strip-cell">

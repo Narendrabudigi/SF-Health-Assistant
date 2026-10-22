@@ -1,0 +1,65 @@
+{
+  "generatedAt": "2026-10-06T09:42:14.602167Z",
+  "module": "RCM",
+  "reportVersion": "2.2",
+  "metricName": "SourceOfHireEffectiveness",
+  "unit": "percent",
+  "higherIsBetter": null,
+  "companyValue": null,
+  "industryStandardValue": null,
+  "healthState": null,
+  "variance": { "value": null, "percentage": null },
+  "trendAnalysis": null,
+  "forecast": {
+    "applicable": false,
+    "status": "Data Missing",
+    "message": "Forecast was not performed because essential metric data is incomplete."
+  },
+  "rca": {
+    "applicable": false,
+    "status": "Data Missing",
+    "message": "RCA was not performed because essential metric data is incomplete.",
+    "breachValue": null,
+    "factors": []
+  },
+  "dataQuality": {
+    "overallRating": "poor",
+    "dataPeriod": { "from": "2024-07-09", "to": "2026-10-05" },
+    "recordsAnalysed": 2000,
+    "checks": [
+      {
+        "checkName": "MissingValues",
+        "category": "Completeness",
+        "checkedRecords": 2000,
+        "failedRecords": 2000,
+        "failedPct": 100.0,
+        "affectedColumns": ["screeningDate", "noOfPositionsFilled"]
+      },
+      {
+        "checkName": "InvalidValues",
+        "category": "Validity",
+        "checkedRecords": 2000,
+        "failedRecords": 0,
+        "failedPct": 0.0,
+        "affectedColumns": null
+      },
+      {
+        "checkName": "Staleness",
+        "category": "Staleness",
+        "checkedRecords": 2000,
+        "failedRecords": 310,
+        "failedPct": 15.5,
+        "affectedColumns": ["applicationDate"],
+        "staleRange": "> 3 years old"
+      }
+    ]
+  },
+  "selectedTrainingModel": {
+    "rcaModel": { "status": "Data Missing", "trainingPerformed": false },
+    "forecastModel": { "status": "Data Missing", "trainingPerformed": false }
+  },
+  "missingConfigurations": {
+    "mandatoryFieldsMissing": ["screeningDate", "noOfPositionsFilled"],
+    "otherFieldsMissing": ["appExpCtc"]
+  }
+}

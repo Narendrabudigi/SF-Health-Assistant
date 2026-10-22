@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sf-genai-orchestrator"
+version = "0.3.0"
+description = "Gen AI orchestrator for SF Health Monitoring: ML insight JSON -> diagnosis + BRD-style action plan, for any metric in any module. LLM failover handled by LiteLLM."
+requires-python = ">=3.11"
+dependencies = [
+  "litellm>=1.100,<2",
+  "pydantic>=2.7,<3",
+  "pydantic-settings>=2.3,<3",
+  "supabase>=2.9,<3",
+  "python-dotenv>=1.0",
+  "openpyxl>=3.1",  # reads the custom standards file
+]
+
+[project.optional-dependencies]
+# Libraries the ML notebooks import (the rest of their list is the Python standard library and needs nothing).
+notebooks = [
+  "numpy>=1.26",
+  "pandas>=2.2",
+  "scikit-learn>=1.4",
+  "xgboost>=2.0",
+  "lightgbm>=4.3",
+  "shap>=0.45",
+  "pymannkendall>=1.4",
+  "statsmodels>=0.14",
+  "python-dateutil>=2.9",
+  "ipython>=8.0",
+  "openpyxl>=3.1",
+]
+dashboard = ["fastapi>=0.110", "uvicorn>=0.29"]  # the API behind the dashboard (sf-dashboard)
+dev = ["pytest>=8", "pytest-asyncio>=0.24", "fastapi>=0.110", "uvicorn>=0.29"]
+
+[project.scripts]
+sf-orchestrate = "sf_orchestrator.pipeline:orchestrate"
+sf-pipeline = "sf_orchestrator.pipeline:main"
+sf-dashboard = "sf_orchestrator.dashboard:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+sf_orchestrator = ["prompts/*.md"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+asyncio_mode = "auto"

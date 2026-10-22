@@ -118,11 +118,17 @@ def extract_accuracy_score(payload: Any) -> Any:
                 if alphanumeric_key(key) == "selectedtrainingmodel" and isinstance(value, dict):
                     for model_key, model in value.items():
                         if alphanumeric_key(model_key) == "rcamodel" and isinstance(model, dict):
+                            r2_score = None
                             for metric_key, metric_value in model.items():
-                                if alphanumeric_key(metric_key) == "accuracy":
+                                normalized_key = alphanumeric_key(metric_key)
+                                if normalized_key == "accuracy":
                                     found = score_value(metric_value)
                                     if found is not None:
                                         return found
+                                elif normalized_key == "r2":
+                                    r2_score = score_value(metric_value)
+                            if r2_score is not None:
+                                return r2_score
                 found = selected_rca_accuracy(value)
                 if found is not None:
                     return found
@@ -155,6 +161,41 @@ def extract_accuracy_score(payload: Any) -> Any:
                 return found
 
     return None
+
+
+def extract_forecast_accuracy_score(payload: Any) -> Any:
+    """Read the selected forecasting model's accuracy/R² score from ML Insights."""
+    def score_value(value: Any) -> Any:
+        if isinstance(value, dict):
+            for key in ("r2", "accuracy", "score", "value", "percentage"):
+                if value.get(key) is not None:
+                    return value[key]
+            return None
+        return value if value is not None and value != "" else None
+
+    def find_score(node: Any) -> Any:
+        if isinstance(node, dict):
+            for key, value in node.items():
+                if alphanumeric_key(key) == "selectedtrainingmodel" and isinstance(value, dict):
+                    for model_key, model in value.items():
+                        if alphanumeric_key(model_key) == "forecastmodel" and isinstance(model, dict):
+                            for metric_key in ("r2", "accuracy"):
+                                for candidate_key, candidate_value in model.items():
+                                    if alphanumeric_key(candidate_key) == metric_key:
+                                        score = score_value(candidate_value)
+                                        if score is not None:
+                                            return score
+                found = find_score(value)
+                if found is not None:
+                    return found
+        elif isinstance(node, list):
+            for value in node:
+                found = find_score(value)
+                if found is not None:
+                    return found
+        return None
+
+    return find_score(payload)
 
 
 def normalize_missing_configurations(raw_cfgs: Any, mod_name: str = "EC", dq_checks: list = None) -> List[Dict[str, Any]]:
@@ -552,6 +593,12 @@ class SupabaseStorageService:
                         data_qual = _ml_payload_value(jr, "dataQuality", "data_quality", default={}) or {}
                         trend_obj = _ml_payload_value(jr, "trendAnalysis", "trend_analysis", default={}) or {}
                         forecast_obj = _ml_payload_value(jr, "forecast", "forecastAnalysis", default={}) or {}
+                        business_impact_obj = _ml_payload_value(jr, "businessImpact", "business_impact", default={}) or {}
+                        financial_impact_value = _ml_payload_value(
+                            jr,
+                            "financialExposure", "financial_impact", "financialImpact",
+                            "estimatedFinancialImpact", "costImpact"
+                        )
                         missing_cfgs = _ml_payload_value(jr, "missingConfigurations", "missingConfiguration", "missing_configurations", default={}) or {}
 
                         # Older ml_insights schema fallback (executive_summary)
@@ -688,10 +735,13 @@ class SupabaseStorageService:
                                 "missingConfigurations": normalized_missing_cfgs
                             },
                             "missingConfigurations": normalized_missing_cfgs,
+                            "businessImpact": business_impact_obj,
+                            "financialImpact": financial_impact_value,
                             "factors": factors_raw,
                             "stageDrivers": factors_raw,
                             "dataQuality": data_qual,
                             "accuracyScore": extract_accuracy_score({**row, **jr}),
+                            "forecastAccuracyScore": extract_forecast_accuracy_score({**row, **jr}),
                             "confidenceScore": (
                                 jr.get("confidenceScore") or jr.get("confidence_score") or jr.get("confidence") or
                                 ((jr.get("diagnosis") or {}).get("confidenceScore") if isinstance(jr.get("diagnosis"), dict) else None)
