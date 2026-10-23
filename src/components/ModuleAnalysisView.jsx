@@ -8,6 +8,7 @@ export default function ModuleAnalysisView({
   module,
   standardMode = 'standard',
   customStandardsMap = {},
+  refreshVersion = 0,
   onGoHome: _onGoHome,
   onSelectModule: _onSelectModule,
   onDeepDiveChange
@@ -25,6 +26,18 @@ export default function ModuleAnalysisView({
     return null;
   });
   const [showDataset, setShowDataset] = useState(false);
+
+  // Keep a selected metric in sync when a completed pipeline refresh replaces module data.
+  useEffect(() => {
+    if (!selectedMetric || !Array.isArray(module?.benchmarks)) return;
+    const refreshedMetric = module.benchmarks.find((benchmark) =>
+      (selectedMetric.code && benchmark.code === selectedMetric.code) ||
+      benchmark.metric === selectedMetric.metric
+    );
+    if (refreshedMetric && refreshedMetric !== selectedMetric) {
+      setSelectedMetric(refreshedMetric);
+    }
+  }, [module, selectedMetric?.code, selectedMetric?.metric]);
 
   // Sync deep dive status with parent App component and persist in sessionStorage
   useEffect(() => {
@@ -69,6 +82,8 @@ export default function ModuleAnalysisView({
       <MetricDeepDivePage
         metric={selectedMetric}
         module={module}
+        standardMode={standardMode}
+        refreshVersion={refreshVersion}
         onBack={() => setSelectedMetric(null)}
         onViewDataset={() => setShowDataset(true)}
       />

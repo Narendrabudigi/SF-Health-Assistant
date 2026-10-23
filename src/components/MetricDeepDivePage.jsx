@@ -106,7 +106,7 @@ function safeCriterion(item) {
 const CATALOG_SECTIONS = [
   { id: 'sec-diagnosis', label: 'Diagnosis', icon: 'help', desc: 'LLM diagnostic synthesis & touchpoints' },
   { id: 'sec-trend', label: 'Trend Analysis', icon: 'trend', desc: 'Yearly, quarterly & monthly drill-down' },
-  { id: 'sec-missing-configs', label: 'Data Gaps', icon: 'settings', desc: 'Identified data gaps & unpopulated fields' },
+  { id: 'sec-missing-configs', label: 'Process Gaps', icon: 'settings', desc: 'Identified process gaps & unpopulated fields' },
   { id: 'sec-rca', label: 'Root Cause Analysis', icon: 'search', desc: 'Stage & segment breach drivers' },
   { id: 'sec-impact', label: 'Business Impact', icon: 'alert', desc: 'Downstream SLA & financial risk' },
   { id: 'sec-brd', label: 'BRD Plan of Action', icon: 'clipboard', desc: 'Workforce, hours & milestones' },
@@ -439,11 +439,12 @@ function _unused_old_getModuleMapping(moduleId, metricName = '') {
   }
 }
 
-export default function MetricDeepDivePage({ metric, initialMetric, module, onBack, onGoHome, onSelectModule, onViewDataset }) {
+export default function MetricDeepDivePage({ metric, initialMetric, module, standardMode = 'standard', refreshVersion = 0, onBack, onGoHome, onSelectModule, onViewDataset }) {
   const hasCurrentMetric = Boolean(metric || initialMetric);
   const currentMetric = metric || initialMetric || {};
   const [activeSection, setActiveSection] = useState('sec-diagnosis');
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isFabMenuOpen, setIsFabMenuOpen] = useState(false);
   const isManualScrollRef = useRef(false);
 
   const {
@@ -463,9 +464,14 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
   useEffect(() => {
     let active = true;
     setLiveInsight(null);
-    const metricCode = currentMetric.code || currentMetric.metric;
+    const metricCode = currentMetric.code || currentMetric.supabaseMetricName || currentMetric.metric;
     if (metricCode) {
-      apiService.getMetricDeepDive(metricCode, currentMetric.metric, module?.id)
+      apiService.getMetricDeepDive(
+        metricCode,
+        currentMetric.supabaseMetricName || currentMetric.metric,
+        module?.id,
+        standardMode === 'custom' ? 'custom' : 'industry'
+      )
         .then((data) => {
           if (active && data) {
             setLiveInsight(data);
@@ -474,7 +480,7 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
         .catch(() => { });
     }
     return () => { active = false; };
-  }, [currentMetric.code, currentMetric.metric, module?.id]);
+  }, [currentMetric.code, currentMetric.supabaseMetricName, currentMetric.metric, module?.id, standardMode, refreshVersion]);
 
   const pickNonEmpty = (liveVal, baseVal) => {
     if (!isPlaceholder(liveVal)) return liveVal;
@@ -1182,7 +1188,13 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
           whyItHappens: whyItHappensText,
           whereItHappens: whereItHappensText,
           howToOvercome: howToOvercomeList
-        }
+        },
+        businessImpact: businessImpactData,
+        businessImpactOverview,
+        financialExposure,
+        financialImpactPoints,
+        slaAndTurnaround,
+        governanceAndAudit
       };
 
       await generateMetricBrdPdf(liveMetric, {
@@ -1201,7 +1213,7 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
     } finally {
       setIsDownloading(false);
     }
-  }, [currentMetric, company, standard, status, variance, overviewData, detailedAnalysis, diagnosisHeadline, whyItHappensText, whereItHappensText, howToOvercomeList, brdPlan, missingConfigs, systemTouchpoints, rcaFailureModes, module?.name]);
+  }, [currentMetric, company, standard, status, variance, overviewData, detailedAnalysis, diagnosisHeadline, whyItHappensText, whereItHappensText, howToOvercomeList, brdPlan, missingConfigs, systemTouchpoints, rcaFailureModes, businessImpactData, businessImpactOverview, financialExposure, financialImpactPoints, slaAndTurnaround, governanceAndAudit, module?.name]);
 
   // Keep hook order consistent if the parent temporarily has no selected metric.
   if (!hasCurrentMetric) return null;
@@ -2075,35 +2087,62 @@ export default function MetricDeepDivePage({ metric, initialMetric, module, onBa
 
       {/* Floating Expandable Download BRD Button (Rendered directly into document.body to stay fixed across the entire scroll!) */}
       {typeof document !== 'undefined' && createPortal(
-        <div className="fab-download-container">
+        <div
+          className="fab-download-container"
+          onBlur={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget)) setIsFabMenuOpen(false);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') setIsFabMenuOpen(false);
+          }}
+        >
           <button
             type="button"
             className="fab-download-btn"
-            onClick={handleDownloadPDF}
-            disabled={isDownloading}
-            aria-label="Download BRD Plan (PDF)"
-            title="Download BRD Plan (PDF)"
+            onClick={() => setIsFabMenuOpen(true)}
+            aria-label="Open download options"
+            aria-haspopup="menu"
+            aria-expanded={isFabMenuOpen}
+            title="Download options"
           >
             <span className="fab-icon-box" aria-hidden="true">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                <polyline points="7 10 12 15 17 10"></polyline>
-                <line x1="12" y1="15" x2="12" y2="3"></line>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <circle cx="12" cy="5" r="1.8"></circle>
+                <circle cx="12" cy="12" r="1.8"></circle>
+                <circle cx="12" cy="19" r="1.8"></circle>
               </svg>
             </span>
-            <span className="fab-label-text">
-              Download BRD Plan (PDF)
-            </span>
+            <span className="fab-label-text">Download options</span>
           </button>
-          <button
-            type="button"
-            className="fab-dataset-option"
-            onClick={onViewDataset}
-            title={`View the Supabase source dataset for ${safeText(metricName)}`}
-          >
-            <span aria-hidden="true">▦</span>
-            <span>View / Download Dataset</span>
-          </button>
+          <div className={`fab-action-menu${isFabMenuOpen ? ' is-open' : ''}`} role="menu" aria-label="Download options">
+            <button
+              type="button"
+              className="fab-menu-option"
+              role="menuitem"
+              onClick={() => {
+                setIsFabMenuOpen(false);
+                handleDownloadPDF();
+              }}
+              disabled={isDownloading}
+              title="Download the BRD plan as a PDF"
+            >
+              <span aria-hidden="true">⇩</span>
+              <span>Download BRD Plan (PDF)</span>
+            </button>
+            <button
+              type="button"
+              className="fab-menu-option"
+              role="menuitem"
+              onClick={() => {
+                setIsFabMenuOpen(false);
+                onViewDataset();
+              }}
+              title={`View the Supabase source dataset for ${safeText(metricName)}`}
+            >
+              <span aria-hidden="true">▦</span>
+              <span>View / Download Dataset</span>
+            </button>
+          </div>
         </div>,
         document.body
       )}

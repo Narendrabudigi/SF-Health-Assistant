@@ -91,14 +91,14 @@ def _as_values(value: Any) -> List[str]:
 
 def _manifest_dataset(
     manifest: Dict[str, Any], module_id: str, module_name: str,
-    metric_name: str, metric_code: str
+    metric_name: str, metric_code: str, supabase_metric_name: str = ""
 ) -> Tuple[str, str]:
     entries = manifest.get("datasets", [])
     if not isinstance(entries, list):
         return "", ""
 
     module_ids = {_key(module_id), _key(module_name)} - {""}
-    metric_ids = {_key(metric_name), _key(metric_code)} - {""}
+    metric_ids = {_key(metric_name), _key(metric_code), _key(supabase_metric_name)} - {""}
     exact = []
     defaults = []
     module_has_entries = False
@@ -158,11 +158,11 @@ def _manifest_dataset(
 
 def _choose_dataset(
     paths: List[str], module_id: str, metric_name: str,
-    metric_code: str = "", module_name: str = ""
+    metric_code: str = "", module_name: str = "", supabase_metric_name: str = ""
 ) -> Tuple[str, str]:
     manifest = _load_dataset_manifest()
     manifest_path, sheet_name = _manifest_dataset(
-        manifest, module_id, module_name, metric_name, metric_code
+        manifest, module_id, module_name, metric_name, metric_code, supabase_metric_name
     )
     if manifest_path:
         if manifest_path not in paths:
@@ -180,8 +180,8 @@ def _choose_dataset(
         if not (_tokens(PurePosixPath(path).stem) & NON_DATASET_FILE_MARKERS)
     ]
 
-    metric_keys = {_key(metric_name), _key(metric_code)} - {""}
-    metric_tokens = (_tokens(metric_name) | _tokens(metric_code)) - {"data", "metric", "rate", "average", "total", "percentage", "percent"}
+    metric_keys = {_key(metric_name), _key(metric_code), _key(supabase_metric_name)} - {""}
+    metric_tokens = (_tokens(metric_name) | _tokens(metric_code) | _tokens(supabase_metric_name)) - {"data", "metric", "rate", "average", "total", "percentage", "percent"}
     module_tokens = _tokens(module_id) | _tokens(module_name)
     module_code = _key(module_id)
     module_key = _key(module_id)
@@ -380,6 +380,7 @@ def preview_dataset(
     module_id: str = Query(...),
     metric_name: str = Query(...),
     metric_code: str = Query(""),
+    supabase_metric_name: str = Query(""),
     module_name: str = Query(""),
     offset: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
@@ -392,7 +393,7 @@ def preview_dataset(
             raise HTTPException(status_code=422, detail="Date filters must use YYYY-MM format.")
     if date_from and date_to and date_from > date_to:
         raise HTTPException(status_code=422, detail="The start month must not be after the end month.")
-    path, sheet = _choose_dataset(_list_dataset_objects(), module_id, metric_name, metric_code, module_name)
+    path, sheet = _choose_dataset(_list_dataset_objects(), module_id, metric_name, metric_code, module_name, supabase_metric_name)
     payload = _read_dataset(
         path,
         _download_object(path),
@@ -409,14 +410,14 @@ def preview_dataset(
     )
     payload["downloadUrl"] = (
         "/api/v1/datasets/download?"
-        f"module_id={quote(module_id, safe='')}&metric_name={quote(metric_name, safe='')}&metric_code={quote(metric_code, safe='')}&module_name={quote(module_name, safe='')}"
+        f"module_id={quote(module_id, safe='')}&metric_name={quote(metric_name, safe='')}&metric_code={quote(metric_code, safe='')}&module_name={quote(module_name, safe='')}&supabase_metric_name={quote(supabase_metric_name, safe='')}"
     )
     return payload
 
 
 @router.get("/download")
-def download_dataset(module_id: str = Query(...), metric_name: str = Query(...), metric_code: str = Query(""), module_name: str = Query("")):
-    path, preferred_sheet = _choose_dataset(_list_dataset_objects(), module_id, metric_name, metric_code, module_name)
+def download_dataset(module_id: str = Query(...), metric_name: str = Query(...), metric_code: str = Query(""), module_name: str = Query(""), supabase_metric_name: str = Query("")):
+    path, preferred_sheet = _choose_dataset(_list_dataset_objects(), module_id, metric_name, metric_code, module_name, supabase_metric_name)
     content = _download_object(path)
     if PurePosixPath(path).suffix.lower() == ".csv":
         file_name = PurePosixPath(path).name.replace('"', "")

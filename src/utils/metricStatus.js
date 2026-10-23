@@ -2,6 +2,7 @@
 export function normalizeMetricStatus(status) {
   const value = String(status || '').toLowerCase().trim();
 
+  if (/process[s_-]*gaps?/.test(value)) return 'Process Gaps';
   if (/^(?:n\s*\/\s*a|na)$/.test(value)) return 'Process Gaps';
   if (/not yet fetched|data not yet fetched|^--$|^pending$/.test(value)) return 'Not yet fetched';
   if (/critical|\bcrit\b/.test(value)) return 'Critical';

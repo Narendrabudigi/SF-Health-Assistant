@@ -19,6 +19,7 @@ def find_metric_by_code_or_name(identifier: str):
         for b in mod.get("benchmarks", []):
             b_code = b.get("code", "").lower()
             b_name = b.get("metric", "").lower()
+            b_supabase_name = str(b.get("supabaseMetricName", "")).lower()
             b_slug = normalize_slug(b.get("metric", ""))
             b_alpha = alphanumeric_key(b.get("metric", ""))
             c_alpha = alphanumeric_key(b.get("code", ""))
@@ -26,6 +27,7 @@ def find_metric_by_code_or_name(identifier: str):
             if (
                 b_code == norm or
                 b_name == identifier.lower() or
+                b_supabase_name == identifier.lower() or
                 b_slug == slug or
                 b_alpha == alpha or
                 c_alpha == alpha or
@@ -40,7 +42,8 @@ def find_metric_by_code_or_name(identifier: str):
 def get_metric_deep_dive(
     metric_code: str,
     metric_name: Optional[str] = Query(None),
-    module_id: Optional[str] = Query(None)
+    module_id: Optional[str] = Query(None),
+    standard_mode: str = Query("industry", pattern="^(industry|custom)$"),
 ):
     """
     Returns the comprehensive 9-section diagnostic payload for a metric.
@@ -51,13 +54,22 @@ def get_metric_deep_dive(
     mod, metric_obj = find_metric_by_code_or_name(metric_name or metric_code)
 
     metric_title = metric_obj.get("metric", metric_name or metric_code.replace('_', ' ').title()) if metric_obj else (metric_name or metric_code)
+    supabase_metric_name = (metric_obj or {}).get("supabaseMetricName") or metric_title
     category_val = metric_obj.get("category", "Operational Quality") if metric_obj else "Operational Quality"
 
     # 2. Fetch data directly from the Supabase metric folder: report/latest/{module}/{metric}
     target_module = module_id or (mod.get("id") if mod else None)
-    supabase_data = supabase_storage.get_metric_data(metric_title, module_identifier=target_module)
+    supabase_data = supabase_storage.get_metric_data(
+        supabase_metric_name, module_identifier=target_module, standard_mode=standard_mode
+    )
+    if supabase_data.get("_source") == "none" and supabase_metric_name != metric_title:
+        supabase_data = supabase_storage.get_metric_data(
+            metric_title, module_identifier=target_module, standard_mode=standard_mode
+        )
     if supabase_data.get("_source") == "none":
-        supabase_data = supabase_storage.get_metric_data(metric_code, module_identifier=target_module)
+        supabase_data = supabase_storage.get_metric_data(
+            metric_code, module_identifier=target_module, standard_mode=standard_mode
+        )
 
     # 3. Dynamic overrides from Supabase folder:
     if supabase_data.get("_source") != "none":
@@ -97,6 +109,21 @@ def get_metric_deep_dive(
             "suggestions": []
         }
         is_live_supabase = False
+
+    if standard_mode == "custom":
+        from app.db.custom_standards import load_custom_standards, with_inferred_unit
+
+        custom_standards = load_custom_standards().get("standardsMap", {})
+        custom_key = f"{str(target_module or '').lower()}:{alphanumeric_key(supabase_metric_name)}"
+        legacy_custom_key = f"{str(target_module or '').lower()}:{alphanumeric_key(metric_title)}"
+        custom_standard = custom_standards.get(custom_key)
+        if custom_standard is None:
+            custom_standard = custom_standards.get(legacy_custom_key)
+        if custom_standard is not None:
+            standard_val = with_inferred_unit(
+                custom_standard,
+                metric_obj.get("standard") if metric_obj else standard_val,
+            )
 
     # Extract TreeSHAP factors and execution workstreams from Supabase JSON if available
     rep_nested = supabase_data.get("report") if isinstance(supabase_data.get("report"), dict) else {}

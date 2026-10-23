@@ -26,7 +26,7 @@ export default function MetricDatasetPage({ module, metric, onBack }) {
     let active = true;
     setLoading(true);
     setError('');
-    apiService.getMetricDataset(module?.id, metric?.metric || metric?.metricName, metric?.code || '', module?.name || '', offset, PAGE_SIZE, selectedDateColumn || dataset?.dateColumns?.[0] || '', dateFrom, dateTo)
+    apiService.getMetricDataset(module?.id, metric?.metric || metric?.metricName, metric?.code || '', module?.name || '', offset, PAGE_SIZE, selectedDateColumn || dataset?.dateColumns?.[0] || '', dateFrom, dateTo, metric?.supabaseMetricName || '')
       .then((result) => {
         if (active) {
           setDataset(result);
@@ -36,7 +36,7 @@ export default function MetricDatasetPage({ module, metric, onBack }) {
       .catch((requestError) => { if (active) setError(requestError.message || 'Could not load this dataset from Supabase.'); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [module?.id, module?.name, metric?.metric, metric?.metricName, metric?.code, offset, selectedDateColumn, dateFrom, dateTo]);
+  }, [module?.id, module?.name, metric?.metric, metric?.metricName, metric?.code, metric?.supabaseMetricName, offset, selectedDateColumn, dateFrom, dateTo]);
 
   useEffect(() => {
     setSelectedColumns('default');

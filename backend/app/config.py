@@ -32,6 +32,12 @@ class Settings(BaseSettings):
     SUPABASE_BUCKET_NAME: str = os.getenv("SUPABASE_BUCKET_NAME", "Insights and Reports").strip()
     SUPABASE_FOLDER: str = os.getenv("SUPABASE_FOLDER", "").strip()
 
+    # Separate orchestrator runtime. Relative paths resolve from the backend directory.
+    ORCHESTRATOR_DIR: str = os.getenv("ORCHESTRATOR_DIR", "../sf-genai-orchestrator 1").strip()
+    ORCHESTRATOR_PYTHON: str = os.getenv(
+        "ORCHESTRATOR_PYTHON", "orchestrator/.venv/Scripts/python.exe"
+    ).strip()
+
     # Raw source dataset storage and its optional module/metric-to-file manifest.
     SUPABASE_DATASET_BUCKET_NAME: str = os.getenv(
         "SUPABASE_DATASET_BUCKET_NAME", "SF_Health_Raw_Data"
@@ -39,6 +45,21 @@ class Settings(BaseSettings):
     SUPABASE_DATASET_MANIFEST_PATH: str = os.getenv(
         "SUPABASE_DATASET_MANIFEST_PATH", "dataset_manifest.json"
     ).strip().strip("/")
+
+    # Custom standards are stored with the raw datasets and use separate ML/LLM tables.
+    SUPABASE_CUSTOM_STANDARDS_BUCKET_NAME: str = os.getenv(
+        "SUPABASE_CUSTOM_STANDARDS_BUCKET_NAME",
+        os.getenv("SUPABASE_DATASET_BUCKET_NAME", "SF_Health_Raw_Data"),
+    ).strip()
+    SUPABASE_CUSTOM_STANDARDS_PATH: str = os.getenv(
+        "SUPABASE_CUSTOM_STANDARDS_PATH", "SF Health Monitoring Custom Standards.xlsx"
+    ).strip().lstrip("/")
+    SUPABASE_CUSTOM_INSIGHTS_TABLE: str = os.getenv(
+        "SUPABASE_CUSTOM_INSIGHTS_TABLE", "ML_Notebook_Custom_Insights"
+    ).strip()
+    SUPABASE_CUSTOM_REPORTS_TABLE: str = os.getenv(
+        "SUPABASE_CUSTOM_REPORTS_TABLE", "LLM_Reports_Custom"
+    ).strip()
 
     @property
     def RESOLVED_SUPABASE_URL(self) -> str:

@@ -20,6 +20,13 @@ ENTERPRISE_MODULE_NAMES = {
 # Expand identifiers before matching so its Supabase row updates the catalogue row.
 METRIC_IDENTIFIER_ALIAS_GROUPS = (
     {"ecdataaccuracy", "employeedataaccuracyrate", "employeedataaccuracy", "dataaccuracyrate", "employeedataqualityaccuracy"},
+    {
+        "datasyncerrorrate",
+        "datasyncerrorratetodownstream",
+        "datasyncerrorratetodownstreamsystems",
+        "ecsyncerrorrate",
+        "ec_sync_error_rate",
+    },
 )
 METRIC_IDENTIFIER_ALIAS_INDEX = {
     alias: group
@@ -376,6 +383,16 @@ def extract_metric_fields(override: Dict[str, Any], default_b: Optional[Dict[str
         (default_b.get("code", "")[:2] if default_b and default_b.get("code") else "EC")
     )
     missing_cfg = normalize_missing_configurations(raw_missing, mod_name=mod_raw, dq_checks=dq_checks)
+    company_text = str(company_val or "").strip().lower()
+    company_value_missing = (
+        not company_text
+        or company_text in {"not yet fetched", "data not yet fetched", "n/a", "na", "unknown", "--", "-", "null", "none"}
+        or company_text.startswith("no data")
+    )
+    # A live report with no company actual is a data/process gap, not a
+    # not-yet-fetched metric. Apply this at extraction so every module shares it.
+    if is_live_supa and company_value_missing:
+        status_val = "Process Gaps"
     how_effects = (
         rep.get("businessImpact", {}).get("overview") if isinstance(rep.get("businessImpact"), dict) else (
             override.get("howItEffects") or "Data not yet fetched"
@@ -523,7 +540,11 @@ def apply_module_metric_overrides(
         return {x for x in ids if x}
 
     def find_override(default_b: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        target_ids = identifiers(default_b.get("metric")) | identifiers(default_b.get("code"))
+        target_ids = (
+            identifiers(default_b.get("metric"))
+            | identifiers(default_b.get("code"))
+            | identifiers(default_b.get("supabaseMetricName"))
+        )
         if not target_ids:
             return None
 
@@ -539,10 +560,8 @@ def apply_module_metric_overrides(
             if key and key in mod_overrides and isinstance(mod_overrides[key], dict):
                 return mod_overrides[key]
 
-        # Robust fallback: compare the actual metric identifiers contained in
-        # each Supabase payload. This handles renamed folders / display names.
-        best = None
-        best_score = 0
+        # Match only exact metric names, codes, or explicit aliases. Substring
+        # matching can attach a different KPI's values to this catalogue row.
         seen_payload_ids = set()
         for payload in mod_overrides.values():
             if not isinstance(payload, dict):
@@ -557,21 +576,7 @@ def apply_module_metric_overrides(
             exact = target_ids & p_ids
             if exact:
                 return payload
-            # Allow strong substring matching only for sufficiently specific keys.
-            for t in target_ids:
-                if len(t) < 8:
-                    continue
-                for q in p_ids:
-                    if len(q) < 8:
-                        continue
-                    if t == q:
-                        return payload
-                    if len(t) >= 12 and (t in q or q in t):
-                        score = min(len(t), len(q))
-                        if score > best_score:
-                            best = payload
-                            best_score = score
-        return best
+        return None
 
     def merge_live_metric(default_b: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
         extracted = extract_metric_fields(override, default_b=default_b)
@@ -599,15 +604,13 @@ def apply_module_metric_overrides(
         return result
 
     updated_benchmarks = []
-    matched_payload_ids = set()
-
-    # 1. Merge every default metric with its live Supabase payload when one exists.
+    # The catalogue is the source of truth for which metrics the product shows.
+    # Supabase enriches those entries; report-only/stale metrics must not expand it.
     for default_b in benchmarks:
         b_copy = dict(default_b)
         override = find_override(default_b)
 
         if override:
-            matched_payload_ids.add(id(override))
             updated_benchmarks.append(merge_live_metric(b_copy, override))
             continue
 
@@ -635,49 +638,14 @@ def apply_module_metric_overrides(
         b_copy["isSupabaseLive"] = False
         updated_benchmarks.append(b_copy)
 
-    # 2. Preserve additional live metrics that are not part of the static catalogue.
-    seen_ids = set()
-    for b in updated_benchmarks:
-        seen_ids.update(identifiers(b.get("metric")))
-        seen_ids.update(identifiers(b.get("code")))
-
-    seen_payloads = set()
-    for override in mod_overrides.values():
-        if not isinstance(override, dict):
-            continue
-        payload_id = id(override)
-        if payload_id in seen_payloads or payload_id in matched_payload_ids:
-            continue
-        seen_payloads.add(payload_id)
-
-        m_folder_name = (
-            override.get("_metric_folder") or
-            override.get("metric_name") or
-            override.get("Metric_Name") or
-            override.get("metric") or
-            override.get("metricName")
-        )
-        if not m_folder_name:
-            continue
-        if identifiers(m_folder_name) & seen_ids:
-            continue
-
-        metric_code = override.get("metric_code") or override.get("Metric_Code") or f"{mod_id}_{normalize_slug(m_folder_name)}"
-        default_like = {
-            "code": metric_code,
-            "metric": override.get("metric_name") or override.get("Metric_Name") or m_folder_name,
-            "category": override.get("category") or "Operational KPI"
-        }
-        merged = merge_live_metric(default_like, override)
-        updated_benchmarks.append(merged)
-        seen_ids.update(identifiers(merged.get("metric")))
-        seen_ids.update(identifiers(merged.get("code")))
-
     return updated_benchmarks
 
 
 @router.get("", response_model=List[Dict[str, Any]])
-def get_all_modules(refresh: bool = Query(False)):
+def get_all_modules(
+    refresh: bool = Query(False),
+    standard_mode: str = Query("industry", pattern="^(industry|custom)$"),
+):
     """
     Returns modules overview with real-time values from Supabase Storage:
     report/latest/{module}/{metric}/
@@ -685,10 +653,22 @@ def get_all_modules(refresh: bool = Query(False)):
     after an ML pipeline run to fetch the latest values immediately.
     """
     try:
-        module_overrides_map = supabase_storage.get_all_module_metric_overrides(force_refresh=refresh)
+        module_overrides_map = supabase_storage.get_all_module_metric_overrides(
+            force_refresh=refresh, standard_mode=standard_mode
+        )
     except Exception as e:
         logger.error(f"Error fetching Supabase overrides: {e}", exc_info=True)
         module_overrides_map = {}
+
+    custom_map = {}
+    custom_unit_formatter = None
+    if standard_mode == "custom":
+        from app.db.custom_standards import load_custom_standards, with_inferred_unit
+
+        # The workbook cache is refreshed explicitly after pipeline completion
+        # or upload; avoid downloading it again alongside the metric refresh.
+        custom_map = load_custom_standards().get("standardsMap", {})
+        custom_unit_formatter = with_inferred_unit
 
     enriched = []
     for mod in DEFAULT_MODULES:
@@ -696,6 +676,23 @@ def get_all_modules(refresh: bool = Query(False)):
         raw_benchmarks = mod.get("benchmarks", [])
         
         benchmarks = apply_module_metric_overrides(mod_id, raw_benchmarks, module_overrides_map)
+
+        if standard_mode == "custom":
+            catalogue_standards = {
+                alphanumeric_key(item.get("metric", "")): item.get("standard")
+                for item in raw_benchmarks
+            }
+            for benchmark in benchmarks:
+                metric_key = alphanumeric_key(benchmark.get("metric", ""))
+                canonical_metric_key = alphanumeric_key(
+                    benchmark.get("supabaseMetricName") or benchmark.get("metric", "")
+                )
+                custom_key = f"{mod_id}:{canonical_metric_key}"
+                custom_value = custom_map.get(custom_key, custom_map.get(f"{mod_id}:{metric_key}"))
+                if custom_value is not None:
+                    benchmark["standard"] = custom_unit_formatter(
+                        custom_value, catalogue_standards.get(metric_key)
+                    )
 
         crit_count = sum(1 for b in benchmarks if b.get("status") == "Critical")
         risk_count = sum(1 for b in benchmarks if b.get("status") == "At Risk")
@@ -714,7 +711,6 @@ def get_all_modules(refresh: bool = Query(False)):
             1
             for benchmark in benchmarks
             if benchmark.get("isSupabaseLive")
-            and bool(benchmark.get("missingConfigurations"))
             and (
                 str(benchmark.get("company") or "").strip().lower() in {
                     "", "not yet fetched", "data not yet fetched", "n/a", "na", "unknown", "--"
@@ -759,11 +755,14 @@ def get_all_modules(refresh: bool = Query(False)):
 
 
 @router.get("/{module_id}")
-def get_module_details(module_id: str):
+def get_module_details(
+    module_id: str,
+    standard_mode: str = Query("industry", pattern="^(industry|custom)$"),
+):
     """
     Returns single module with benchmarks and Supabase storage overrides applied.
     """
-    all_mods = get_all_modules()
+    all_mods = get_all_modules(standard_mode=standard_mode)
     matched = next((m for m in all_mods if m["id"].lower() == module_id.lower()), None)
     if not matched:
         raise HTTPException(status_code=404, detail=f"Module '{module_id}' not found.")

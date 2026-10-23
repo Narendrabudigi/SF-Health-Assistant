@@ -30,3 +30,5 @@ python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 See [backend/README.md](backend/README.md) for Supabase configuration and API details. The API docs are at `http://localhost:8000/docs` after the server starts.
+
+The orchestrator setup and UI integration are documented in [backend/README.md](backend/README.md#4-run-the-ml-and-llm-orchestrator-from-the-app).

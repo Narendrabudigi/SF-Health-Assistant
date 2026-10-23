@@ -3,6 +3,7 @@ import { SF_MODULES } from '../data/modulesData';
 
 const BASE_URL =
   APP_CONFIG.apiBaseUrl || 'http://localhost:8000/api/v1';
+const API_ROOT = BASE_URL.replace(/\/api\/v1\/?$/, '');
 
 /* =========================================================
    FETCH HELPERS
@@ -21,7 +22,7 @@ async function fetchWithTimeout(
       ...options,
       signal: controller.signal,
       headers: {
-        'Content-Type': 'application/json',
+        ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
         ...(options.headers || {})
       }
     });
@@ -2449,11 +2450,12 @@ function parseMetricDeepDivePayload(
 ========================================================= */
 
 export const apiService = {
-  async getMetricDataset(moduleId, metricName, metricCode = '', moduleName = '', offset = 0, limit = 100, dateColumn = '', dateFrom = '', dateTo = '') {
+  async getMetricDataset(moduleId, metricName, metricCode = '', moduleName = '', offset = 0, limit = 100, dateColumn = '', dateFrom = '', dateTo = '', supabaseMetricName = '') {
     const params = new URLSearchParams({
       module_id: moduleId || '',
       metric_name: metricName || '',
       metric_code: metricCode || '',
+      supabase_metric_name: supabaseMetricName || '',
       module_name: moduleName || '',
       offset: String(offset),
       limit: String(limit)
@@ -2628,10 +2630,14 @@ export const apiService = {
    * Previously getModules() returned the raw backend array,
    * allowing duplicate metric identifiers to reach the UI.
    */
-  async getModules(forceRefresh = false) {
+  async getModules(forceRefresh = false, standardMode = 'industry') {
     try {
+      const params = new URLSearchParams();
+      if (forceRefresh) params.set('refresh', 'true');
+      if (standardMode === 'custom') params.set('standard_mode', 'custom');
+      const query = params.toString();
       const response = await fetchWithTimeout(
-        `${BASE_URL}/modules${forceRefresh ? '?refresh=true' : ''}`,
+        `${BASE_URL}/modules${query ? `?${query}` : ''}`,
         { method: 'GET' },
         8000
       );
@@ -2795,7 +2801,8 @@ export const apiService = {
   async getMetricDeepDive(
     metricCode,
     metricName = null,
-    moduleId = null
+    moduleId = null,
+    standardMode = 'industry'
   ) {
     let backendData = null;
 
@@ -2809,6 +2816,9 @@ export const apiService = {
       if (moduleId) {
         params.append('module_id', moduleId);
       }
+      if (standardMode === 'custom') {
+        params.append('standard_mode', 'custom');
+      }
 
       const queryString = params.toString()
         ? `?${params.toString()}`
@@ -2817,7 +2827,7 @@ export const apiService = {
       const response = await fetchWithTimeout(
         `${BASE_URL}/metrics/${encodeURIComponent(metricCode)}/deep-dive${queryString}`,
         { method: 'GET' },
-        5000
+        20000
       );
 
       if (response.ok) {
@@ -2838,7 +2848,7 @@ export const apiService = {
      * The backend remains authoritative.
      * Normalize Success Criteria before returning its response.
      */
-    if (backendData && backendData.metric && backendData.source !== 'none') {
+    if (backendData && backendData.metric && (backendData.source !== 'none' || standardMode === 'custom')) {
       return attachNormalizedSuccessCriteria(
         backendData
       );
@@ -2848,21 +2858,23 @@ export const apiService = {
      * Use direct Supabase fallback only when the backend
      * did not return a usable metric payload.
      */
-    try {
-      const directData = await this.fetchDirectFromSupabase(
-        metricCode,
-        metricName,
-        moduleId
-      );
+    if (standardMode !== 'custom') {
+      try {
+        const directData = await this.fetchDirectFromSupabase(
+          metricCode,
+          metricName,
+          moduleId
+        );
 
-      if (directData && directData.metric) {
-        return directData;
+        if (directData && directData.metric) {
+          return directData;
+        }
+      } catch (error) {
+        console.warn(
+          'Direct Supabase fetch fallback warning:',
+          error
+        );
       }
-    } catch (error) {
-      console.warn(
-        'Direct Supabase fetch fallback warning:',
-        error
-      );
     }
 
     // Strict fallback: do not invent live metric values.
@@ -2997,74 +3009,89 @@ export const apiService = {
     return await response.json();
   },
 
-  /**
-   * Upload custom industry standards.
-   */
-  async uploadCustomStandards(
-    standardsMap,
-    uploadedBy = 'enterprise_admin'
-  ) {
-    const response = await fetchWithTimeout(
-      `${BASE_URL}/standards/upload`,
-      {
-        method: 'POST',
-        body: JSON.stringify({
-          standards: standardsMap,
-          uploadedBy
-        })
-      }
-    );
-
-    if (!response.ok) {
-      const errorJson = await response
-        .json()
-        .catch(() => ({}));
-
-      throw new Error(
-        errorJson.detail ||
-        `Upload failed (HTTP ${response.status})`
-      );
-    }
-
-    return await response.json();
+  async getCustomStandards(forceRefresh = false) {
+    const query = forceRefresh ? '?refresh=true' : '';
+    const response = await fetchWithTimeout(`${BASE_URL}/standards/custom${query}`, { method: 'GET' }, 15000);
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.detail || `Could not fetch custom standards (HTTP ${response.status})`);
+    return result;
   },
 
-  /**
-   * Trigger the ML calculation pipeline.
-   */
-  async triggerMlPipeline(
-    moduleId = null,
-    forceRefreshAllLlms = false
-  ) {
-    try {
-      const response = await fetchWithTimeout(
-        `${BASE_URL}/pipeline/trigger-ml-run`,
-        {
-          method: 'POST',
-          body: JSON.stringify({
-            module_id: moduleId,
-            force_refresh_all_llms: forceRefreshAllLlms
-          })
-        },
-        2500
-      );
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.warn(
-        'Backend ML trigger fallback to simulated pipeline:',
-        error.message
-      );
-
-      return {
-        status: 'success',
-        simulated: true
-      };
+  async downloadCustomStandardsTemplate() {
+    const response = await fetchWithTimeout(`${BASE_URL}/standards/custom/template`, { method: 'GET' }, 15000);
+    if (!response.ok) {
+      const result = await response.json().catch(() => ({}));
+      throw new Error(result.detail || `Could not download template (HTTP ${response.status})`);
     }
+    return response.blob();
+  },
+
+  async previewCustomStandards(file) {
+    const form = new FormData();
+    form.append('file', file);
+    const response = await fetchWithTimeout(
+      `${BASE_URL}/standards/custom/preview`,
+      { method: 'POST', body: form },
+      30000
+    );
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.detail || `Could not read workbook (HTTP ${response.status})`);
+    return result;
+  },
+
+  async uploadCustomStandards(file) {
+    const form = new FormData();
+    form.append('file', file);
+    const response = await fetchWithTimeout(
+      `${BASE_URL}/standards/custom`,
+      { method: 'PUT', body: form },
+      30000
+    );
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.detail || `Upload failed (HTTP ${response.status})`);
+    return result;
+  },
+
+  async startOrchestratorPipeline({ standards = 'all', runDate = null, force = false } = {}) {
+    const response = await fetchWithTimeout(
+      `${API_ROOT}/api/pipeline/run`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ standards, run_date: runDate, force })
+      },
+      15000
+    );
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(result.detail || `Could not start orchestrator (HTTP ${response.status})`);
+    }
+    return result;
+  },
+
+  async getOrchestratorStatus(tail = 50) {
+    const response = await fetchWithTimeout(
+      `${API_ROOT}/api/pipeline/status?tail=${encodeURIComponent(tail)}`,
+      { method: 'GET' },
+      10000
+    );
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(result.detail || `Could not read orchestrator status (HTTP ${response.status})`);
+    }
+    return result;
+  },
+
+  async stopOrchestratorPipeline() {
+    const response = await fetchWithTimeout(
+      `${API_ROOT}/api/pipeline/stop`,
+      { method: 'POST' },
+      10000
+    );
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(result.detail || `Could not stop orchestrator (HTTP ${response.status})`);
+    }
+    return result;
   }
 };
 

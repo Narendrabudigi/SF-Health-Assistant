@@ -11,6 +11,26 @@ const getBadgeClass = (status) => {
   return 'badge-neutral';
 };
 
+const normalizeStandardMetric = (value) => String(value || '').replace(/[^a-z0-9]/gi, '').toLowerCase();
+const getCustomStandardKey = (moduleId, metricName) =>
+  `${String(moduleId || '').toLowerCase()}:${normalizeStandardMetric(metricName)}`;
+
+const formatCustomStandard = (value, metricName) => {
+  const text = String(value ?? '').trim();
+  if (!text) return text;
+  if (/%|\bpercent(?:age)?s?\b|\bdays?\b/i.test(text)) return formatDisplayUnits(text);
+
+  const metric = String(metricName || '').toLowerCase();
+  const isNumericOrRange = /^[-+\d.,\s]+(?:to\s*[-+\d.,\s]+)?$/i.test(text);
+  if (!isNumericOrRange) return formatDisplayUnits(text);
+  if (/\b(time|duration|cycle|aging|turnaround)\b/.test(metric)) return `${text} Days`;
+  if (/\b(rate|accuracy|completion|conversion|frequency|timeliness|error)\b/.test(metric)) return `${text}%`;
+  return text;
+};
+
+const isUnavailableStandard = (value) =>
+  !value || /^(not yet fetched|data not yet fetched|n\/a|na|unknown|--|—|-)$/i.test(String(value).trim());
+
 export default function ComparisonTable({
   module,
   standardMode = 'standard',
@@ -74,7 +94,7 @@ export default function ComparisonTable({
       ...row,
       status: row.normalizedStatus || normalizeMetricStatus(row.status),
       standard: displayStandard,
-      isCustomStandard: Boolean(isCustom && customStandardsMap[row.metric?.toLowerCase().trim()])
+      isCustomStandard: Boolean(isCustom && customStandardsMap[getCustomStandardKey(module?.id, row.supabaseMetricName || row.metric)])
     });
   };
 
@@ -189,12 +209,13 @@ export default function ComparisonTable({
                   hasVarianceBreach ||
                   !isHealthy;
 
-                const customStdVal =
-                  customStandardsMap[row.metric?.toLowerCase().trim()];
+                const customStdVal = customStandardsMap[getCustomStandardKey(module?.id, row.supabaseMetricName || row.metric)];
 
                 const displayStandard =
                   isCustom && customStdVal
-                    ? customStdVal
+                    ? (isUnavailableStandard(row.standard)
+                      ? formatCustomStandard(customStdVal, row.metric)
+                      : row.standard)
                     : row.standard;
                 const benchmarkLabel = formatBenchmarkDisplay(displayStandard);
                 const standardValue = formatDisplayUnits(benchmarkLabel);
@@ -208,8 +229,7 @@ export default function ComparisonTable({
                 const companyValueUnavailable =
                   !companyValueText ||
                   /^(not yet fetched|data not yet fetched|n\/a|na|unknown|--|no data\b)/.test(companyValueText);
-                const hasProcessGap =
-                  hasSupabasePayload && companyValueUnavailable && dataGapCount > 0;
+                const hasProcessGap = hasSupabasePayload && companyValueUnavailable;
                 const varianceText = String(row.variance ?? '').trim();
                 const normalizedVariance = varianceText.toLowerCase();
                 const hasDataGaps = Boolean(

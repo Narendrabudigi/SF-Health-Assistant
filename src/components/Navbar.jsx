@@ -1,4 +1,5 @@
 import React from 'react';
+import HomeStandardsControls from './HomeStandardsControls';
 
 export default function Navbar({
   onGoHome,
@@ -6,7 +7,11 @@ export default function Navbar({
   isConnected,
   backendStatus = {},
   onTriggerRefresh,
-  isRefreshing = false
+  isRefreshing = false,
+  standardMode,
+  onSelectStandardMode,
+  onOpenUploadModal,
+  hasCustomStandards
 }) {
   return (
     <header className="dark-navbar">
@@ -25,7 +30,13 @@ export default function Navbar({
 
         {/* Right: Actions */}
         <div className="navbar-right">
-
+          <HomeStandardsControls
+            compact
+            standardMode={standardMode}
+            onSelectStandardMode={onSelectStandardMode}
+            onOpenUploadModal={onOpenUploadModal}
+            hasCustomStandards={hasCustomStandards}
+          />
 
           {/* Single Optimized Refresh Button: Triggers ML Model -> LLM -> Backend -> UI */}
           <button

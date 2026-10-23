@@ -314,3 +314,35 @@ export const SF_MODULES = [
     ]
   }
 ];
+
+// These identifiers mirror Supabase's exact Metric_Name values. The `metric`
+// field remains the readable label shown in the UI.
+const SUPABASE_METRIC_NAMES_BY_CODE = {
+  ec_data_accuracy: 'EmployeeDataAccuracy',
+  ec_early_attrition: 'NewHireEarlyAttritionRate90Day',
+  ec_workflow_latency: 'WorkflowApprovalCycleTime',
+  ec_position_accuracy: 'PositionManagementAccuracy',
+  ec_data_change_time: 'AvgTimeToProcessDataChangeRequests',
+  ec_sync_error_rate: 'DataSyncErrorRate',
+  ec_retro_changes: 'RetroactiveDataChangesFrequency',
+  ec_regrettable_attrition: 'RegrettableAttritionRate',
+  rcm_time_to_hire: 'TimeToHire',
+  rcm_applicant_conversion: 'ApplicantToInterviewConversionRate',
+  rcm_offer_acceptance: 'OfferAcceptanceRate',
+  rcm_requisition_aging: 'RequisitionAging',
+  rcm_source_effectiveness: 'SourceOfHireEffectiveness',
+  onb_cycle_time: 'OnboardingCycleTime',
+  onb_preday1_completion: 'PreDay1TaskCompletionRate',
+  onb_milestones: 'Day306090MilestoneCompletionRate',
+  onb_compliance: 'ComplianceDocumentationCompletionRate',
+  ofb_revocation: 'AccessAssetRevocationTimeliness',
+  ofb_cycle_time: 'OffboardingCycleTime',
+  ofb_knowledge_transfer: 'KnowledgeTransferCompletionRate',
+  ofb_final_settlement: 'FullFinalSettlementTimeliness'
+};
+
+for (const module of SF_MODULES) {
+  for (const benchmark of module.benchmarks) {
+    benchmark.supabaseMetricName = SUPABASE_METRIC_NAMES_BY_CODE[benchmark.code];
+  }
+}

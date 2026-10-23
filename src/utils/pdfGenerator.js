@@ -2,7 +2,7 @@ import { formatVarianceDisplay } from './displayUnits';
 
 /**
  * Enterprise BRD PDF Generator for SAP SuccessFactors Diagnostic Intelligence
- * Exports the complete 8-Section Business Requirements Document (BRD) Plan of Action
+ * Exports the full metric deep dive, excluding the trend analysis section
  * directly as a downloaded PDF file into the user's browser Downloads.
  */
 
@@ -63,19 +63,44 @@ function loadHtml2Pdf() {
   });
 }
 
-// Fallback to trigger direct file download as standalone HTML if PDF engine is blocked
-function triggerFileDownload(content, filename, mimeType = 'text/html') {
-  const blob = new Blob([content], { type: `${mimeType};charset=utf-8` });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  setTimeout(() => {
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }, 400);
+// Browser-native PDF fallback. The browser presents its print dialog, where
+// the user can select "Save as PDF"; this avoids downloading an HTML file.
+function printHtmlAsPdf(content, title) {
+  const frame = document.createElement('iframe');
+  frame.title = title;
+  frame.setAttribute('aria-hidden', 'true');
+  Object.assign(frame.style, {
+    position: 'fixed',
+    right: '0',
+    bottom: '0',
+    width: '780px',
+    height: '1000px',
+    border: '0',
+    opacity: '0',
+    pointerEvents: 'none',
+    zIndex: '-1'
+  });
+
+  let cleanupTimer;
+  const cleanup = () => {
+    clearTimeout(cleanupTimer);
+    frame.remove();
+  };
+
+  frame.onload = () => {
+    const printWindow = frame.contentWindow;
+    if (!printWindow) return cleanup();
+    printWindow.addEventListener('afterprint', cleanup, { once: true });
+    const fontsReady = frame.contentDocument?.fonts?.ready || Promise.resolve();
+    fontsReady.finally(() => {
+      printWindow.focus();
+      printWindow.print();
+      cleanupTimer = setTimeout(cleanup, 120000);
+    });
+  };
+
+  frame.srcdoc = content;
+  document.body.appendChild(frame);
 }
 
 export async function generateMetricBrdPdf(metric, options = {}) {
@@ -98,7 +123,7 @@ export async function generateMetricBrdPdf(metric, options = {}) {
     .replace(/[^a-zA-Z0-9_-]/g, '_')
     .replace(/_+/g, '_');
 
-  const pdfFilename = `BRD_Action_Plan_${sanitizedFileName}.pdf`;
+  const pdfFilename = `Metric_Deep_Dive_${sanitizedFileName}.pdf`;
 
   const rcaPriorityLabels = [
     'P1 • Critical Architecture Gap',
@@ -212,7 +237,7 @@ export async function generateMetricBrdPdf(metric, options = {}) {
       <!-- Document Header -->
       <header class="doc-header">
         <div>
-          <div class="doc-meta-pre">SAP SuccessFactors Enterprise Diagnostic Intelligence • BRD Plan of Action</div>
+          <div class="doc-meta-pre">SAP SuccessFactors Enterprise Diagnostic Intelligence • Metric Deep Dive</div>
           <h1 class="doc-title">${metricName || 'Metric Diagnostic Report'}</h1>
           <div class="doc-meta-sub">
             Category: <strong>${category || 'HCM Core'}</strong> • Module: <strong>${moduleName}</strong> • Generated: <strong>${currentDate}</strong>
@@ -295,35 +320,12 @@ export async function generateMetricBrdPdf(metric, options = {}) {
         </div>
       </div>
 
-      <!-- SECTION 02: TREND ANALYSIS -->
-      <div class="diagnostic-card">
-        <div class="diagnostic-card-header">
-          <div>
-            <h2 class="diagnostic-card-title">2. Trend Analysis</h2>
-            <div class="diagnostic-card-subtitle">Hierarchical Drill-Down Trajectory Tracking (Yearly › Quarterly › Monthly)</div>
-          </div>
-        </div>
-        <div class="diagnostic-card-content">
-          <p class="analysis-text">${detailedAnalysis.trendAnalysis?.summary || 'Historical progression analysis tracks deteriorating SLA performance over recent reporting cycles.'}</p>
-          ${detailedAnalysis.trendAnalysis?.points && detailedAnalysis.trendAnalysis.points.length > 0 ? `
-            <div class="trend-points-strip">
-              ${detailedAnalysis.trendAnalysis.points.map(pt => `
-                <div class="trend-point-chip">
-                  <span class="trend-period">${pt.period}</span>
-                  <span class="trend-value">${pt.value}</span>
-                </div>
-              `).join('')}
-            </div>
-          ` : ''}
-        </div>
-      </div>
-
       <!-- SECTION 03: DATA GAPS -->
       ${missingConfigs && missingConfigs.length > 0 ? `
       <div class="diagnostic-card">
         <div class="diagnostic-card-header">
           <div>
-            <h2 class="diagnostic-card-title">3. Data Gaps</h2>
+            <h2 class="diagnostic-card-title">2. Data Gaps</h2>
             <div class="diagnostic-card-subtitle">System Configuration Gaps, Unpopulated Fields & Governance Controls</div>
           </div>
         </div>
@@ -379,7 +381,7 @@ export async function generateMetricBrdPdf(metric, options = {}) {
       <div class="diagnostic-card">
         <div class="diagnostic-card-header">
           <div>
-            <h2 class="diagnostic-card-title">4. Root Cause Analysis</h2>
+            <h2 class="diagnostic-card-title">3. Root Cause Analysis</h2>
             <div class="diagnostic-card-subtitle">${brdPlan?.stageDrivers ? 'What is causing the breach, rendered from the ML insight JSON' : 'Deep Failure Modes & Systemic Diagnostic Trace'}</div>
           </div>
         </div>
@@ -457,24 +459,24 @@ export async function generateMetricBrdPdf(metric, options = {}) {
       <div class="diagnostic-card">
         <div class="diagnostic-card-header">
           <div>
-            <h2 class="diagnostic-card-title">5. Business & Operational Impact</h2>
+            <h2 class="diagnostic-card-title">4. Business & Operational Impact</h2>
             <div class="diagnostic-card-subtitle">Downstream Process, Cost Overrun & Compliance Exposure</div>
           </div>
         </div>
         <div class="diagnostic-card-content">
-          <p class="analysis-text">${detailedAnalysis.howItEffects || ''}</p>
+          <p class="analysis-text">${options.businessImpactOverview || detailedAnalysis.howItEffects || ''}</p>
           <div class="impact-triad-grid">
             <div class="impact-triad-card">
               <div class="triad-title">💰 Financial Impact</div>
-              <div class="triad-desc">Off-cycle adjustments, replacement recruiting fees & lost productivity overhead</div>
+              <div class="triad-desc">${(options.financialImpactPoints || []).length ? `<ul style="margin:4px 0 0;padding-left:16px;">${options.financialImpactPoints.map(point => `<li>${point}</li>`).join('')}</ul>` : (options.financialExposure || 'Data not yet fetched')}</div>
             </div>
             <div class="impact-triad-card">
               <div class="triad-title">⏱️ SLA & Turnaround</div>
-              <div class="triad-desc">Process stagnation, managerial escalation queues & extended cycle delays</div>
+              <div class="triad-desc">${options.slaAndTurnaround || 'Data not yet fetched'}</div>
             </div>
             <div class="impact-triad-card">
               <div class="triad-title">🛡️ Governance & Audit</div>
-              <div class="triad-desc">Downstream integration exceptions, compliance findings & security exposure</div>
+              <div class="triad-desc">${options.governanceAndAudit || 'Data not yet fetched'}</div>
             </div>
           </div>
         </div>
@@ -486,7 +488,7 @@ export async function generateMetricBrdPdf(metric, options = {}) {
         <div class="diagnostic-card-header">
           <div>
             <h2 class="diagnostic-card-title">
-              6. BRD Plan of Action
+              5. BRD Plan of Action
               <span class="approved-pill">Approved Spec</span>
             </h2>
             <div class="diagnostic-card-subtitle">Resource allocation, specialist hours and sprint timeline</div>
@@ -567,7 +569,7 @@ export async function generateMetricBrdPdf(metric, options = {}) {
       <div class="diagnostic-card">
         <div class="diagnostic-card-header">
           <div>
-            <h2 class="diagnostic-card-title">7. How to Overcome - Execution Workstreams</h2>
+            <h2 class="diagnostic-card-title">6. How to Overcome - Execution Workstreams</h2>
             <div class="diagnostic-card-subtitle">Prescriptive remediation steps, each traced to the root-cause drivers it fixes</div>
           </div>
         </div>
@@ -610,7 +612,7 @@ export async function generateMetricBrdPdf(metric, options = {}) {
       <div class="diagnostic-card">
         <div class="diagnostic-card-header">
           <div>
-            <h2 class="diagnostic-card-title">8. Success Criteria, Assumptions & Risks</h2>
+            <h2 class="diagnostic-card-title">7. Success Criteria, Assumptions & Risks</h2>
             <div class="diagnostic-card-subtitle">Measurable verification targets, implementation dependencies, and risk mitigations</div>
           </div>
         </div>
@@ -675,9 +677,7 @@ export async function generateMetricBrdPdf(metric, options = {}) {
 
           <!-- Footnote -->
           <div class="brd-spec-footnote">
-            ${brdPlan.footnote
-        ? brdPlan.footnote.replace('Sections 1, 3 and 4', 'Sections 1, 2, 3 and 4').replace('Sections 2 and 5-9', 'Sections 5–8')
-        : 'Sections 1, 2, 3 and 4 are rendered directly from telemetry, trend analysis, and configuration audit scans. Sections 5–8 are generated under the system prompt; effort and staffing are indicative estimates.'}
+            Trend analysis is excluded from this exported deep dive. Effort and staffing figures are indicative estimates.
           </div>
         </div>
       </div>
@@ -695,30 +695,28 @@ export async function generateMetricBrdPdf(metric, options = {}) {
   // Must be position: absolute at (0, 0) so html2canvas computes valid bounding coordinates
   const renderContainer = document.createElement('div');
   renderContainer.id = 'brd-pdf-render-container';
+  // Keep the source out of the user's viewport. The html2canvas clone is moved
+  // into the capture viewport using onclone below.
   renderContainer.style.position = 'absolute';
-  renderContainer.style.left = '0';
+  renderContainer.style.left = '-10000px';
   renderContainer.style.top = '0';
   renderContainer.style.width = '780px';
   renderContainer.style.background = '#ffffff';
-  renderContainer.style.zIndex = '-99999';
+  renderContainer.style.zIndex = '1';
   renderContainer.style.pointerEvents = 'none';
   renderContainer.style.opacity = '1';
   renderContainer.style.visibility = 'visible';
   renderContainer.innerHTML = htmlTemplate;
 
-  // Temporarily preserve user's scroll position and align to (0, 0) for pristine canvas capture
-  const savedScrollY = window.scrollY || window.pageYOffset || 0;
-  const savedScrollX = window.scrollX || window.pageXOffset || 0;
+  // Load the renderer before adding the offscreen source to the document.
+  const html2pdf = await loadHtml2Pdf();
 
-  window.scrollTo(0, 0);
   document.body.appendChild(renderContainer);
 
-  // Allow browser layout engine 200ms to compute element geometry and font metrics
-  await new Promise(resolve => setTimeout(resolve, 200));
+  // Allow browser layout engine to compute geometry and font metrics.
+  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
   try {
-    const html2pdf = await loadHtml2Pdf();
-
     const pdfOptions = {
       margin: [10, 8, 10, 8], // top, left, bottom, right in mm
       filename: pdfFilename,
@@ -727,12 +725,19 @@ export async function generateMetricBrdPdf(metric, options = {}) {
         scale: 2,
         useCORS: true,
         logging: false,
-        scrollX: 0,
-        scrollY: 0,
-        x: 0,
-        y: 0,
         width: 780,
-        windowWidth: 780
+        windowWidth: 780,
+        onclone: (clonedDocument) => {
+          const clonedContainer = clonedDocument.getElementById('brd-pdf-render-container');
+          if (clonedContainer) {
+            clonedContainer.style.position = 'absolute';
+            clonedContainer.style.left = '0';
+            clonedContainer.style.top = '0';
+            clonedContainer.style.width = '780px';
+            clonedContainer.style.zIndex = '1';
+            clonedContainer.style.visibility = 'visible';
+          }
+        }
       },
       jsPDF: {
         unit: 'mm',
@@ -744,18 +749,34 @@ export async function generateMetricBrdPdf(metric, options = {}) {
       }
     };
 
-    // Generate and directly trigger file download in browser
-    await html2pdf().set(pdfOptions).from(renderContainer).save();
+    // Inspect the rendered canvas before saving. html2pdf can otherwise save a
+    // valid one-page PDF whose canvas is entirely white when cloning fails.
+    const worker = html2pdf().set(pdfOptions).from(renderContainer);
+    await worker.toCanvas();
+    const canvas = await worker.get('canvas');
+    const context = canvas?.getContext('2d', { willReadFrequently: true });
+    if (!context || !canvas.width || !canvas.height) {
+      throw new Error('PDF renderer did not produce a canvas.');
+    }
+    const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+    let hasVisibleContent = false;
+    for (let index = 0; index < pixels.length; index += 64) {
+      if (pixels[index] < 245 || pixels[index + 1] < 245 || pixels[index + 2] < 245) {
+        hasVisibleContent = true;
+        break;
+      }
+    }
+    if (!hasVisibleContent) {
+      throw new Error('PDF renderer produced a blank page; refusing to download it.');
+    }
+    await worker.toPdf().save();
   } catch (err) {
-    console.warn('Direct PDF conversion error, executing fallback file download:', err);
-    // Reliable fallback: directly download as complete standalone HTML file
-    triggerFileDownload(
-      `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${pdfFilename}</title></head><body>${htmlTemplate}</body></html>`,
-      `BRD_Action_Plan_${sanitizedFileName}.html`,
-      'text/html'
+    console.warn('Direct PDF conversion failed; opening the browser print-to-PDF dialog:', err);
+    printHtmlAsPdf(
+      `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${pdfFilename}</title><style>@page{size:A4;margin:10mm 8mm}html,body{margin:0;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}</style></head><body>${htmlTemplate}</body></html>`,
+      pdfFilename
     );
   } finally {
-    window.scrollTo(savedScrollX, savedScrollY);
     if (document.body.contains(renderContainer)) {
       document.body.removeChild(renderContainer);
     }

@@ -14,6 +14,7 @@ import './index.css';
 export default function App() {
   // Modules State - dynamic to support live pipeline refreshes & Supabase data
   const [modulesData, setModulesData] = useState(SF_MODULES);
+  const [dataRefreshVersion, setDataRefreshVersion] = useState(0);
 
   // Backend & Supabase Live Telemetry Status
   const [backendStatus, setBackendStatus] = useState({
@@ -28,9 +29,10 @@ export default function App() {
   useEffect(() => {
     let isMounted = true;
     async function loadLiveBackendData() {
-      const [statusResult, modulesResult] = await Promise.allSettled([
+      const [statusResult, modulesResult, standardsResult] = await Promise.allSettled([
         apiService.checkHealthWithSupabase(),
-        apiService.getModules()
+        apiService.getModules(),
+        apiService.getCustomStandards()
       ]);
 
       if (!isMounted) return;
@@ -45,6 +47,11 @@ export default function App() {
         setModulesData(modulesResult.value);
       } else if (modulesResult.status === 'rejected') {
         console.warn('Backend module fetch failed, using default cached modules:', modulesResult.reason);
+      }
+      if (standardsResult.status === 'fulfilled' && standardsResult.value?.exists) {
+        setCustomStandardsMap(standardsResult.value.standardsMap || {});
+      } else if (standardsResult.status === 'rejected') {
+        console.warn('Custom standards could not be loaded from Supabase:', standardsResult.reason);
       }
     }
     loadLiveBackendData();
@@ -110,29 +117,39 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleSelectStandardMode = (mode) => {
+  const handleSelectStandardMode = async (mode) => {
     if (mode === 'custom') {
       if (!hasCustomStandards) {
         setToast({
           id: Date.now(),
           type: 'warning',
-          message: 'No custom standards uploaded yet. Please use "Upload Standards" button to import a CSV file first.'
+          message: 'No custom standards workbook is available in Supabase. Upload the .xlsx workbook first.'
         });
         return;
       }
-      setStandardMode('custom');
-      return;
     }
-    setStandardMode('standard');
+    setStandardMode(mode);
+    try {
+      const refreshed = await apiService.getModules(false, mode === 'custom' ? 'custom' : 'industry');
+      if (refreshed?.length) setModulesData(refreshed);
+    } catch (error) {
+      console.warn(`Could not load ${mode} module data:`, error);
+    }
   };
 
-  const handleImportCustomStandards = (newStandardsMap) => {
-    setCustomStandardsMap((prev) => ({ ...prev, ...newStandardsMap }));
+  const handleImportCustomStandards = async (newStandardsMap) => {
+    setCustomStandardsMap(newStandardsMap);
     setStandardMode('custom');
+    try {
+      const refreshed = await apiService.getModules(true, 'custom');
+      if (refreshed?.length) setModulesData(refreshed);
+    } catch (error) {
+      console.warn('Custom workbook was uploaded, but custom metric results could not be loaded:', error);
+    }
     setToast({
       id: Date.now(),
       type: 'success',
-      message: `Custom standards successfully imported (${Object.keys(newStandardsMap).length} metrics updated).`
+      message: `Custom standards workbook replaced in Supabase (${Object.keys(newStandardsMap).length} metrics). Refresh to run the custom ML and LLM pipeline.`
     });
   };
 
@@ -149,19 +166,19 @@ export default function App() {
   const handleTriggerRefreshPipeline = async () => {
     setIsRefreshing(true);
     setIsPipelineModalOpen(true);
-    try {
-      await apiService.triggerMlPipeline(activeModuleId, true);
-    } catch (err) {
-      console.warn('ML trigger fallback handled:', err);
-    }
   };
 
   const handlePipelineCompleted = async () => {
     try {
-      const refreshed = await apiService.getModules(true);
+      if (standardMode === 'custom') {
+        const customStandards = await apiService.getCustomStandards(true);
+        setCustomStandardsMap(customStandards.standardsMap || {});
+      }
+      const refreshed = await apiService.getModules(true, standardMode === 'custom' ? 'custom' : 'industry');
       if (refreshed && refreshed.length > 0) {
         setModulesData(refreshed);
       }
+      setDataRefreshVersion((version) => version + 1);
     } catch (e) {
       console.warn('Using existing modules after pipeline run:', e);
     }
@@ -169,7 +186,16 @@ export default function App() {
     setToast({
       id: Date.now(),
       type: 'success',
-      message: 'ML Pipeline execution complete! Refreshed TreeSHAP drivers & LLM action plans.'
+      message: 'Orchestrator run completed. Dashboard data refreshed from Supabase.'
+    });
+  };
+
+  const handlePipelineFailed = (message) => {
+    setIsRefreshing(false);
+    setToast({
+      id: Date.now(),
+      type: 'error',
+      message: message || 'The orchestrator run failed. Check the run output for details.'
     });
   };
 
@@ -183,6 +209,10 @@ export default function App() {
         backendStatus={backendStatus}
         onTriggerRefresh={handleTriggerRefreshPipeline}
         isRefreshing={isRefreshing}
+        standardMode={standardMode}
+        onSelectStandardMode={handleSelectStandardMode}
+        onOpenUploadModal={() => setIsUploadModalOpen(true)}
+        hasCustomStandards={hasCustomStandards}
       />
 
       {/* 2. Sub-Ribbon: Shown when inside a module (auto-hides in Deep Dive till hovered) */}
@@ -193,10 +223,6 @@ export default function App() {
             activeModuleId={activeModuleId}
             onSelectModule={handleSelectModule}
             onGoHome={handleGoHome}
-            standardMode={standardMode}
-            onSelectStandardMode={handleSelectStandardMode}
-            onOpenUploadModal={() => setIsUploadModalOpen(true)}
-            hasCustomStandards={hasCustomStandards}
           />
         </div>
       )}
@@ -208,6 +234,7 @@ export default function App() {
             module={activeModule}
             standardMode={standardMode}
             customStandardsMap={customStandardsMap}
+            refreshVersion={dataRefreshVersion}
             onGoHome={handleGoHome}
             onSelectModule={handleSelectModule}
             onDeepDiveChange={setIsDeepDive}
@@ -237,7 +264,9 @@ export default function App() {
           setIsRefreshing(false);
         }}
         activeModuleName={activeModule?.name}
+        standards={standardMode === 'custom' ? 'custom' : 'industry'}
         onCompleted={handlePipelineCompleted}
+        onFailed={handlePipelineFailed}
       />
 
       {/* 6. Upload Custom Standards CSV Modal */}

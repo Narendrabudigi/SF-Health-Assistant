@@ -2,8 +2,8 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
-from app.routers import modules, deepdive, insights
-from app.routers import datasets
+from app.routers import modules, deepdive, insights, pipeline
+from app.routers import datasets, standards
 from app.db.supabase_client import supabase_storage
 
 # Configure logging
@@ -54,6 +54,8 @@ app.include_router(modules.router, prefix="/api/v1/modules", tags=["Modules"])
 app.include_router(deepdive.router, prefix="/api/v1/metrics", tags=["Metrics & Deep Dive"])
 app.include_router(insights.router, prefix="/api/v1/insights", tags=["Supabase Insights & Storage"])
 app.include_router(datasets.router, prefix="/api/v1/datasets", tags=["Supabase Raw Datasets"])
+app.include_router(standards.router)
+app.include_router(pipeline.router)
 
 if __name__ == "__main__":
     import uvicorn

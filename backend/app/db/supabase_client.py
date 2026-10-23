@@ -26,7 +26,6 @@ if resolved_url and settings.SUPABASE_KEY and "your-project" not in resolved_url
 else:
     logger.info("Supabase credentials not configured or placeholder detected. Operating in local mode.")
 
-
 def normalize_slug(text: str) -> str:
     """Normalize string into a clean lowercase slug for flexible matching."""
     if not text:
@@ -43,6 +42,23 @@ def alphanumeric_key(text: str) -> str:
         return ""
     clean = re.sub(r'\(.*?\)', '', str(text))
     return re.sub(r'[^a-zA-Z0-9]', '', clean).lower()
+
+
+def get_mod_aliases(mod_raw: str) -> List[str]:
+    """Return supported names for a module identifier across stored datasets."""
+    mod_k = str(mod_raw or "").lower().strip()
+    k_clean = alphanumeric_key(mod_k)
+    if k_clean in {"rcm", "recruitment", "recruiting"}:
+        return ["rcm", "recruitment", "recruiting"]
+    if k_clean in {"ec", "employeecentral", "employee_central", "hr"}:
+        return ["ec", "employeecentral", "employee_central", "hr"]
+    if k_clean in {"onb", "onb2", "onboarding"}:
+        return ["onb", "onb2", "onboarding"]
+    if k_clean in {"ofb", "ofb2", "offboarding"}:
+        return ["ofb", "ofb2", "offboarding"]
+    if k_clean in {"ecp", "payroll"}:
+        return ["ecp", "payroll"]
+    return [mod_k, normalize_slug(mod_k), alphanumeric_key(mod_k)]
 
 
 def _coerce_ml_insight_payload(value: Any) -> Dict[str, Any]:
@@ -424,7 +440,9 @@ class SupabaseStorageService:
         module_path = f"{root}/{module_folder}"
         return self.list_items(module_path)
 
-    def get_all_module_metric_overrides(self, force_refresh: bool = False) -> Dict[str, Dict[str, Dict[str, Any]]]:
+    def get_all_module_metric_overrides(
+        self, force_refresh: bool = False, standard_mode: str = "industry"
+    ) -> Dict[str, Dict[str, Dict[str, Any]]]:
         """
         Fast in-memory cached scan of all modules under 'report/latest/'.
         Extracts every metric folder and file inside each module!
@@ -433,7 +451,9 @@ class SupabaseStorageService:
         if force_refresh:
             self.invalidate_cache()
 
-        cache_key = "all_module_overrides"
+        standard_mode = "custom" if standard_mode == "custom" else "industry"
+        data_client = supabase_client
+        cache_key = f"all_module_overrides:{standard_mode}"
         cached = self._get_from_cache(cache_key)
         if cached is not None:
             return cached
@@ -441,9 +461,33 @@ class SupabaseStorageService:
         if not self.is_active():
             return {}
 
-        root = self.get_latest_root()
-        module_folders = self.list_available_modules()
+        # Storage folders contain the industry run. Do not mix them into custom mode.
+        root = self.get_latest_root() if standard_mode == "industry" else ""
+        module_folders = self.list_available_modules() if standard_mode == "industry" else []
         all_overrides = {}
+
+        def register_metric_data(dict_target: dict, raw_k: str, payload: dict):
+            """Index a metric payload under its stored name and known aliases."""
+            clean_k = raw_k.replace('.json', '').strip()
+            dict_target[clean_k] = payload
+            dict_target[clean_k.lower()] = payload
+            dict_target[normalize_slug(clean_k)] = payload
+            dict_target[alphanumeric_key(clean_k)] = payload
+
+            rep_inner = payload.get("report") if isinstance(payload.get("report"), dict) else {}
+            for alt_name in (
+                payload.get("metric_name"),
+                payload.get("metric"),
+                rep_inner.get("metricName"),
+                rep_inner.get("metric_name"),
+                payload.get("metric_code"),
+            ):
+                if alt_name:
+                    alt_str = str(alt_name).strip()
+                    dict_target[alt_str] = payload
+                    dict_target[alt_str.lower()] = payload
+                    dict_target[normalize_slug(alt_str)] = payload
+                    dict_target[alphanumeric_key(alt_str)] = payload
 
         for mod_folder in module_folders:
             mod_key = mod_folder.lower().strip()
@@ -473,28 +517,6 @@ class SupabaseStorageService:
                     continue
 
                 item_path = f"{root}/{mod_folder}/{m_name}"
-
-                def register_metric_data(dict_target: dict, raw_k: str, payload: dict):
-                    clean_k = raw_k.replace('.json', '').strip()
-                    dict_target[clean_k] = payload
-                    dict_target[clean_k.lower()] = payload
-                    dict_target[normalize_slug(clean_k)] = payload
-                    dict_target[alphanumeric_key(clean_k)] = payload
-                    
-                    rep_inner = payload.get("report") if isinstance(payload.get("report"), dict) else {}
-                    for alt_name in [
-                        payload.get("metric_name"),
-                        payload.get("metric"),
-                        rep_inner.get("metricName"),
-                        rep_inner.get("metric_name"),
-                        payload.get("metric_code")
-                    ]:
-                        if alt_name:
-                            alt_str = str(alt_name).strip()
-                            dict_target[alt_str] = payload
-                            dict_target[alt_str.lower()] = payload
-                            dict_target[normalize_slug(alt_str)] = payload
-                            dict_target[alphanumeric_key(alt_str)] = payload
 
                 # Case A: m_item is directly a .json file (e.g. "TimeToHire.json")
                 if m_name.lower().endswith(".json"):
@@ -563,20 +585,101 @@ class SupabaseStorageService:
                 all_overrides[a] = mod_dict
             return mod_dict
 
-        # 1. Query ML_Notebook_Insights (with fallback to ml_insights)
-        if supabase_client:
-            for tbl_name in ["ML_Notebook_Insights", "ml_insights"]:
+        def metric_row_identity(mod_raw: str, metric_raw: str) -> Tuple[str, str]:
+            """Return a stable key for duplicate rows across module/metric aliases."""
+            module_aliases = {alphanumeric_key(alias) for alias in get_mod_aliases(mod_raw)}
+            module_key = next(
+                (
+                    str(module.get("id", "")).lower()
+                    for module in DEFAULT_MODULES
+                    if alphanumeric_key(module.get("id", "")) in module_aliases
+                ),
+                alphanumeric_key(mod_raw),
+            )
+            metric_key = alphanumeric_key(metric_raw)
+            for module in DEFAULT_MODULES:
+                if str(module.get("id", "")).lower() != module_key:
+                    continue
+                for benchmark in module.get("benchmarks", []):
+                    if metric_key in {
+                        alphanumeric_key(benchmark.get("metric", "")),
+                        alphanumeric_key(benchmark.get("code", "")),
+                        alphanumeric_key(benchmark.get("supabaseMetricName", "")),
+                    }:
+                        return module_key, alphanumeric_key(benchmark.get("code", metric_raw))
+            # These names are aliases emitted for the Employee Data Accuracy KPI.
+            if module_key == "ec" and metric_key in {
+                "ecdataaccuracy", "employeedataaccuracyrate", "employeedataaccuracy",
+                "dataaccuracyrate", "employeedataqualityaccuracy",
+            }:
+                return module_key, "ecdataaccuracy"
+            if module_key == "ec" and metric_key in {
+                "datasyncerrorrate",
+                "datasyncerrorratetodownstream",
+                "datasyncerrorratetodownstreamsystems",
+                "ecsyncerrorrate",
+            }:
+                return module_key, "ecsyncerrorrate"
+            return module_key, metric_key
+
+        def fetch_table_rows(table_name: str, order_column: str) -> list[dict]:
+            """Page through the full table so old-but-current metrics aren't lost after 50 rows."""
+            page_size = 500
+            order_candidates = list(dict.fromkeys((order_column, "created_at", "generated_at", "updated_at")))
+            last_schema_error = None
+            for candidate in order_candidates:
+                rows: list[dict] = []
+                offset = 0
                 try:
-                    ml_res = supabase_client.table(tbl_name).select("*").order("created_at", desc=True).limit(50).execute()
-                    ml_rows = ml_res.data or []
+                    while True:
+                        result = (
+                            data_client.table(table_name)
+                            .select("*")
+                            .order(candidate, desc=True)
+                            .range(offset, offset + page_size - 1)
+                            .execute()
+                        )
+                        page = result.data or []
+                        rows.extend(page)
+                        if len(page) < page_size:
+                            return rows
+                        offset += page_size
+                except Exception as exc:
+                    message = str(exc).lower()
+                    is_missing_order_column = any(token in message for token in (
+                        "column", "schema cache", "42703", "does not exist", "could not find"
+                    ))
+                    if not is_missing_order_column:
+                        raise
+                    last_schema_error = exc
+
+            if last_schema_error:
+                raise last_schema_error
+            return []
+
+        # 1. Query ML_Notebook_Insights (with fallback to ml_insights)
+        if data_client:
+            ml_tables = (
+                [settings.SUPABASE_CUSTOM_INSIGHTS_TABLE]
+                if standard_mode == "custom"
+                else ["ML_Notebook_Insights", "ml_insights"]
+            )
+            for tbl_name in ml_tables:
+                try:
+                    ml_rows = fetch_table_rows(tbl_name, "created_at")
                     if not ml_rows:
                         continue
                     logger.info(f"Loaded {len(ml_rows)} rows from Supabase table '{tbl_name}'")
+                    seen_ml_rows = set()
                     for row in ml_rows:
                         mod_raw = _ml_payload_value(row, "Module_Name", "module", "module_name", "moduleName", default="EC")
                         m_name_raw = _ml_payload_value(row, "Metric_Name", "metric_name", "metricName", "MetricName", "metric", "metric_code", default="")
                         if not m_name_raw:
                             continue
+                        row_identity = metric_row_identity(mod_raw, m_name_raw)
+                        if row_identity in seen_ml_rows:
+                            continue
+                        seen_ml_rows.add(row_identity)
                         
                         jr = _coerce_ml_insight_payload(row.get("JSON_Result") or row.get("json_result") or row.get("insight_data") or {})
                         
@@ -774,17 +877,30 @@ class SupabaseStorageService:
                     logger.warning(f"Could not load ML table '{tbl_name}' from Supabase: {e}")
 
         # 2. Query LLM_Reports_Latest (with fallback to LLM_Reports)
-        if supabase_client:
-            for tbl_name in ["LLM_Reports_Latest", "LLM_Reports"]:
+        if data_client:
+            llm_tables = (
+                [settings.SUPABASE_CUSTOM_REPORTS_TABLE]
+                if standard_mode == "custom"
+                else ["LLM_Reports_Latest", "LLM_Reports"]
+            )
+            # Prefer the latest-report table for a metric, while allowing the
+            # legacy reports table to fill metrics that are absent there.
+            seen_llm_rows = set()
+            for tbl_name in llm_tables:
                 try:
-                    llm_res = supabase_client.table(tbl_name).select("*").order("generated_at", desc=True).limit(50).execute()
-                    llm_rows = llm_res.data or []
+                    llm_rows = fetch_table_rows(tbl_name, "generated_at")
                     if not llm_rows:
                         continue
                     logger.info(f"Loaded {len(llm_rows)} rows from Supabase table '{tbl_name}'")
                     for row in llm_rows:
                         mod_raw = row.get("module") or row.get("Module") or row.get("Module_Name") or "rcm"
                         m_name_raw = row.get("metric_name") or row.get("Metric_Name") or row.get("metric") or row.get("MetricName") or ""
+                        if not m_name_raw:
+                            continue
+                        row_identity = metric_row_identity(mod_raw, m_name_raw)
+                        if row_identity in seen_llm_rows:
+                            continue
+                        seen_llm_rows.add(row_identity)
                         rep_payload = row.get("report") if isinstance(row.get("report"), dict) else {}
                         
                         # Merge row metadata with report payload
@@ -862,6 +978,36 @@ class SupabaseStorageService:
                                 merged_overview["suggestions"] = comb_sug
 
                             final_item = {**combined, **current_entry}
+                            # The ML row is authoritative for numeric analysis,
+                            # but it can contain an empty businessImpact object.
+                            # Do not let that empty object erase populated LLM
+                            # report content while merging the two sources.
+                            current_business_impact = (
+                                current_entry.get("businessImpact")
+                                or current_entry.get("business_impact")
+                                or {}
+                            )
+                            report_business_impact = (
+                                combined.get("businessImpact")
+                                or combined.get("business_impact")
+                                or {}
+                            )
+                            merged_business_impact = {}
+                            for impact_source in (current_business_impact, report_business_impact):
+                                if isinstance(impact_source, dict):
+                                    merged_business_impact.update({
+                                        key: value
+                                        for key, value in impact_source.items()
+                                        if value not in (None, "", [], {})
+                                    })
+                            if merged_business_impact:
+                                final_item["businessImpact"] = merged_business_impact
+
+                            if final_item.get("financialImpact") in (None, "", [], {}):
+                                report_financial_impact = combined.get("financialImpact")
+                                if report_financial_impact not in (None, "", [], {}):
+                                    final_item["financialImpact"] = report_financial_impact
+
                             if merged_overview:
                                 final_item["moduleOverview"] = merged_overview
                             if cur_sug:
@@ -952,14 +1098,15 @@ class SupabaseStorageService:
     def get_metric_data(
         self,
         metric_identifier: str,
-        module_identifier: Optional[str] = None
+        module_identifier: Optional[str] = None,
+        standard_mode: str = "industry",
     ) -> Dict[str, Any]:
         """
         Retrieves metric data from cache or Supabase hierarchy:
         report/latest/{module}/{metric}/
         """
         # Fast path: check module overrides cache
-        all_overrides = self.get_all_module_metric_overrides()
+        all_overrides = self.get_all_module_metric_overrides(standard_mode=standard_mode)
         
         target_norm = metric_identifier.lower().strip()
         target_slug = normalize_slug(metric_identifier)
@@ -968,7 +1115,33 @@ class SupabaseStorageService:
             "ecdataaccuracy", "employeedataaccuracyrate", "employeedataaccuracy",
             "dataaccuracyrate", "employeedataqualityaccuracy"
         }
-        target_aliases = accuracy_metric_aliases if target_alpha in accuracy_metric_aliases else {target_alpha}
+        data_sync_metric_aliases = {
+            "datasyncerrorrate", "datasyncerrorratetodownstream",
+            "datasyncerrorratetodownstreamsystems", "ecsyncerrorrate",
+        }
+        if target_alpha in accuracy_metric_aliases:
+            target_aliases = accuracy_metric_aliases
+        elif target_alpha in data_sync_metric_aliases:
+            target_aliases = data_sync_metric_aliases
+        else:
+            target_aliases = {target_alpha}
+
+        # Treat the exact Supabase Metric_Name as the stable lookup identity,
+        # while accepting the display label and internal metric code as aliases.
+        module_key = alphanumeric_key(module_identifier or "")
+        module_aliases = get_mod_aliases(module_identifier) if module_identifier else []
+        normalized_module_aliases = {alphanumeric_key(alias) for alias in module_aliases}
+        for catalogue_module in DEFAULT_MODULES:
+            if module_identifier and alphanumeric_key(catalogue_module.get("id", "")) not in normalized_module_aliases | {module_key}:
+                continue
+            for benchmark in catalogue_module.get("benchmarks", []):
+                benchmark_ids = {
+                    alphanumeric_key(benchmark.get("metric", "")),
+                    alphanumeric_key(benchmark.get("code", "")),
+                    alphanumeric_key(benchmark.get("supabaseMetricName", "")),
+                }
+                if target_alpha in benchmark_ids:
+                    target_aliases.update(benchmark_ids)
 
         # Check in specified module or across all modules
         mod_keys = []

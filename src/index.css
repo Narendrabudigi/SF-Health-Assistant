@@ -611,6 +611,176 @@ body {
   border-radius: var(--radius-pill);
 }
 
+.home-standards-controls {
+  position: relative;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: clamp(8px, 1vw, 14px);
+  width: 100%;
+  min-height: 48px;
+  padding: 6px clamp(12px, 1.5vw, 20px);
+  background: #071a32;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.home-standards-upload,
+.home-standards-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 4px 12px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 999px;
+  color: #e2e8f0;
+  background: rgba(3, 14, 29, 0.62);
+}
+
+.home-standards-upload {
+  flex: 0 1 auto;
+  white-space: nowrap;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 650;
+  background: rgba(148, 163, 184, 0.16);
+}
+
+.home-standards-upload:hover {
+  border-color: rgba(56, 189, 248, 0.6);
+  background: rgba(14, 116, 177, 0.28);
+}
+
+.home-standards-toggle {
+  flex: 0 1 auto;
+  gap: 10px;
+  min-height: 36px;
+  padding-inline: 12px;
+}
+
+.home-standards-label {
+  padding: 0;
+  border: 0;
+  color: #94a3b8;
+  background: transparent;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 650;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.home-standards-label.active {
+  color: #fff;
+}
+
+.home-standards-switch {
+  position: relative;
+  flex: 0 0 auto;
+  width: 38px;
+  height: 22px;
+  padding: 3px;
+  border: 0;
+  border-radius: 999px;
+  background: #526175;
+  cursor: pointer;
+  transition: background 160ms ease;
+}
+
+.home-standards-switch.checked {
+  background: #0789cb;
+}
+
+.home-standards-switch span {
+  display: block;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.28);
+  transform: translateX(0);
+  transition: transform 160ms ease;
+}
+
+.home-standards-switch.checked span {
+  transform: translateX(16px);
+}
+
+.home-standards-controls-compact {
+  flex: 0 1 auto;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  gap: 8px;
+  width: auto;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.home-standards-controls-compact .home-standards-upload,
+.home-standards-controls-compact .home-standards-toggle {
+  flex: 0 0 auto;
+  min-height: 30px;
+  padding: 3px 9px;
+  gap: 6px;
+}
+
+.home-standards-controls-compact .home-standards-upload,
+.home-standards-controls-compact .home-standards-label {
+  font-size: 0.7rem;
+}
+
+.home-standards-controls-compact .home-standards-toggle {
+  gap: 7px;
+}
+
+.home-standards-controls-compact .home-standards-switch {
+  width: 32px;
+  height: 19px;
+  padding: 2px;
+}
+
+.home-standards-controls-compact .home-standards-switch span {
+  width: 15px;
+  height: 15px;
+}
+
+.home-standards-controls-compact .home-standards-switch.checked span {
+  transform: translateX(13px);
+}
+
+@media (max-width: 560px) {
+  .home-standards-controls {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .home-standards-upload,
+  .home-standards-toggle {
+    flex: 1 1 auto;
+  }
+
+  .home-standards-toggle {
+    justify-content: space-between;
+  }
+}
+
+@media (max-width: 1100px) {
+  .home-standards-controls-compact .home-standards-upload span {
+    display: none;
+  }
+
+  .home-standards-controls-compact .home-standards-toggle {
+    gap: 5px;
+    padding-inline: 7px;
+  }
+}
+
 .standards-toggle-label {
   font-size: 0.76rem;
   font-weight: 600;
@@ -5211,46 +5381,57 @@ select.form-control {
   pointer-events: auto !important;
 }
 
-.fab-dataset-option {
+.fab-action-menu {
   position: absolute;
   right: 0;
-  bottom: 50px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 235px;
-  padding: 13px 17px;
+  bottom: 58px;
+  display: grid;
+  gap: 6px;
+  min-width: 250px;
+  padding: 7px;
   border: 1px solid #dbe7f1;
   border-radius: 12px;
   background: #ffffff;
-  color: #12354d;
   box-shadow: 0 8px 28px rgba(15, 35, 55, 0.18);
-  font: inherit;
-  font-size: 0.84rem;
-  font-weight: 700;
-  text-align: left;
-  cursor: pointer;
   opacity: 0;
   visibility: hidden;
   transform: translateY(6px);
   transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s ease;
 }
 
-.fab-dataset-option > span:first-child {
+.fab-menu-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 0;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #12354d;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 700;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.fab-menu-option > span:first-child {
   color: #0284c7;
   font-size: 1.15rem;
 }
 
-.fab-download-container:hover .fab-dataset-option,
-.fab-download-container:focus-within .fab-dataset-option {
+.fab-download-container:hover .fab-action-menu,
+.fab-download-container:focus-within .fab-action-menu,
+.fab-action-menu.is-open {
   opacity: 1;
   visibility: visible;
   transform: translateY(0);
 }
 
-.fab-dataset-option:hover {
+.fab-menu-option:hover {
   background: #f0f9ff;
-  border-color: #7dd3fc;
 }
 
 .dataset-page {
@@ -5719,6 +5900,24 @@ select.form-control {
   background: linear-gradient(90deg, #10b981 0%, #059669 100%);
 }
 
+.pipeline-fill-bar.is-running {
+  position: relative;
+  overflow: hidden;
+}
+
+.pipeline-fill-bar.is-running::after {
+  position: absolute;
+  inset: 0;
+  content: '';
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.65), transparent);
+  animation: pipelineProgressShimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes pipelineProgressShimmer {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(250%); }
+}
+
 /* Stepper items list */
 .pipeline-stepper-list {
   display: flex;
@@ -5837,9 +6036,17 @@ select.form-control {
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
   font-size: 0.70rem;
   color: #38bdf8;
-  max-height: 110px;
+  max-height: 240px;
   overflow-y: auto;
   border: 1px solid #1e293b;
+}
+
+.pipeline-error-message {
+  margin: 10px 0 0;
+  color: #b91c1c;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 .console-header {
